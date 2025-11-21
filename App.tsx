@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2 } from 'lucide-react';
+import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio } from 'lucide-react';
 import { DagVisualizer } from './components/DagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
 import { OptimizationList } from './components/OptimizationList';
 import { ChatInterface } from './components/ChatInterface';
 import { CostEstimator } from './components/CostEstimator';
 import { CodeMapper } from './components/CodeMapper';
+import { LiveMonitor } from './components/LiveMonitor';
 import { analyzeDagContent } from './services/geminiService';
 import { fetchRepoContents } from './services/githubService';
 import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile } from './types';
@@ -188,6 +189,18 @@ AdaptiveSparkPlan isFinalPlan=true
               >
                 <LayoutDashboard className="w-4 h-4" /> Dashboard
               </button>
+              
+              <button 
+                onClick={() => setActiveTab(ActiveTab.LIVE)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 backdrop-blur-sm ${
+                  activeTab === ActiveTab.LIVE 
+                  ? 'bg-rose-500/30 border border-rose-500/30 text-white shadow-[0_0_20px_rgba(244,63,94,0.2)]' 
+                  : 'hover:bg-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <Radio className={`w-4 h-4 ${activeTab === ActiveTab.LIVE ? 'animate-pulse' : ''}`} /> Live Monitor
+              </button>
+
               <button 
                 onClick={() => setActiveTab(ActiveTab.COST)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 backdrop-blur-sm ${
@@ -318,7 +331,7 @@ AdaptiveSparkPlan isFinalPlan=true
            )}
         </header>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 h-full">
           
           {/* Input State */}
           {appState !== AppState.SUCCESS && (
@@ -428,11 +441,12 @@ AdaptiveSparkPlan isFinalPlan=true
 
           {/* Results Dashboard */}
           {result && appState === AppState.SUCCESS && (
-            <div className="space-y-8 animate-fade-in pb-20">
+            <div className="space-y-8 animate-fade-in pb-20 h-full flex flex-col">
               
               {/* Tab Navigation (Mobile Only) */}
-              <div className="md:hidden flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              <div className="md:hidden flex gap-2 overflow-x-auto pb-2 no-scrollbar flex-shrink-0">
                  <button onClick={() => setActiveTab(ActiveTab.DASHBOARD)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.DASHBOARD ? 'bg-indigo-500/80 border-indigo-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Dashboard</button>
+                 <button onClick={() => setActiveTab(ActiveTab.LIVE)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.LIVE ? 'bg-rose-500/80 border-rose-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Live</button>
                  <button onClick={() => setActiveTab(ActiveTab.COST)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.COST ? 'bg-emerald-500/80 border-emerald-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Cost</button>
                  <button onClick={() => setActiveTab(ActiveTab.CHAT)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.CHAT ? 'bg-purple-500/80 border-purple-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Consultant</button>
                  <button onClick={() => setActiveTab(ActiveTab.REPO)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.REPO ? 'bg-blue-500/80 border-blue-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Repo</button>
@@ -468,6 +482,12 @@ AdaptiveSparkPlan isFinalPlan=true
 
                   <OptimizationList optimizations={result.optimizations} />
                 </div>
+              )}
+
+              {activeTab === ActiveTab.LIVE && (
+                 <div className="h-full max-w-[1600px] mx-auto w-full">
+                    <LiveMonitor />
+                 </div>
               )}
 
               {activeTab === ActiveTab.COST && (

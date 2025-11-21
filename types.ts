@@ -1,3 +1,4 @@
+
 export enum Severity {
   HIGH = 'High',
   MEDIUM = 'Medium',
@@ -66,6 +67,7 @@ export enum ActiveTab {
   CHAT = 'CHAT',
   COST = 'COST',
   REPO = 'REPO',
+  LIVE = 'LIVE',
 }
 
 export interface RepoConfig {
@@ -77,4 +79,38 @@ export interface RepoConfig {
 export interface RepoFile {
   path: string;
   content: string;
+}
+
+// --- Streaming Types ---
+
+export interface StreamMetric {
+  timestamp: string;
+  inputRate: number;
+  processRate: number;
+  batchDuration: number;
+  driverMemory: number; // %
+  executorMemory: number; // %
+  swapUsed?: number; // %
+  cpuLoad?: number; // %
+}
+
+export interface StreamLog {
+  id: string;
+  timestamp: string;
+  level: 'INFO' | 'WARN' | 'ERROR';
+  message: string;
+}
+
+export enum StreamStatus {
+  DISCONNECTED = 'DISCONNECTED',
+  CONNECTING = 'CONNECTING',
+  HEALTHY = 'HEALTHY',
+  DEGRADING = 'DEGRADING',
+  CRITICAL = 'CRITICAL'
+}
+
+export interface DatabricksConfig {
+  host: string; // e.g. https://adb-xxxx.azuredatabricks.net
+  clusterId: string;
+  token: string;
 }
