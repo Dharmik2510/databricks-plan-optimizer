@@ -37,33 +37,32 @@ export const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[650px] bg-slate-900/40 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-fade-in relative">
-      {/* Gloss Shine */}
+    <div className="flex flex-col h-[650px] bg-slate-900/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden animate-fade-in relative">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
       <div className="p-5 border-b border-white/10 bg-white/5 flex justify-between items-center backdrop-blur-md">
         <div>
           <h3 className="font-bold text-white flex items-center gap-2 text-lg drop-shadow-sm">
-            <Bot className="w-6 h-6 text-indigo-400" />
+            <Bot className="w-6 h-6 text-cyan-400" />
             AI Performance Consultant
           </h3>
           <p className="text-xs text-slate-300 mt-1">Interactive debugging session.</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar bg-black/10">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar bg-black/20">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-lg border border-white/10 ${
               msg.role === 'ai' 
-              ? 'bg-indigo-500/20 text-indigo-300 backdrop-blur-md' 
-              : 'bg-slate-700/40 text-slate-300 backdrop-blur-md'
+              ? 'bg-cyan-500/20 text-cyan-300 backdrop-blur-md' 
+              : 'bg-slate-700/60 text-slate-200 backdrop-blur-md'
             }`}>
               {msg.role === 'ai' ? <Bot className="w-6 h-6" /> : <User className="w-6 h-6" />}
             </div>
             <div className={`max-w-[85%] rounded-3xl p-5 text-sm shadow-lg backdrop-blur-lg border ${
               msg.role === 'user' 
-                ? 'bg-indigo-600/80 border-indigo-500/50 text-white rounded-tr-sm' 
+                ? 'bg-cyan-600/80 border-cyan-500/50 text-white rounded-tr-sm' 
                 : 'bg-slate-800/60 border-white/10 text-slate-100 rounded-tl-sm'
             }`}>
               {msg.role === 'ai' ? (
@@ -80,13 +79,13 @@ export const ChatInterface: React.FC = () => {
         ))}
         {loading && (
           <div className="flex gap-4">
-            <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center mt-1 border border-white/10">
-              <Bot className="w-6 h-6 text-indigo-300" />
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mt-1 border border-white/10">
+              <Bot className="w-6 h-6 text-cyan-300" />
             </div>
             <div className="bg-white/5 border border-white/10 rounded-3xl rounded-tl-sm p-5 flex items-center gap-1.5 shadow-lg backdrop-blur-md">
-              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms'}}></div>
-              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms'}}></div>
-              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms'}}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms'}}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms'}}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms'}}></div>
             </div>
           </div>
         )}
@@ -101,12 +100,12 @@ export const ChatInterface: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask about Z-Ordering, Join strategies..."
-            className="w-full pl-6 pr-14 py-4 bg-black/40 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-black/50 transition-all text-white placeholder-slate-400 shadow-inner backdrop-blur-sm"
+            className="w-full pl-6 pr-14 py-4 bg-black/40 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 focus:bg-black/50 transition-all text-white placeholder-slate-400 shadow-inner backdrop-blur-sm"
           />
           <button 
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="absolute right-3 top-3 p-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-500 transition-colors shadow-lg"
+            className="absolute right-3 top-3 p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:hover:bg-cyan-500 transition-colors shadow-lg"
           >
             <Send className="w-4 h-4" />
           </button>

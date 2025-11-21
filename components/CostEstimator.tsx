@@ -5,7 +5,6 @@ interface Props {
   estimatedDurationMin?: number;
 }
 
-// Simplified Databricks Pricing (Approximate Pay-as-you-go)
 const INSTANCE_TYPES = [
   { name: 'General Purpose (m5.xlarge)', dbus: 1.5, pricePerHour: 0.40 },
   { name: 'Memory Optimized (r5.xlarge)', dbus: 2.0, pricePerHour: 0.60 },
@@ -23,11 +22,8 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
   const [optimizedCost, setOptimizedCost] = useState(0);
 
   useEffect(() => {
-    // Formula: Nodes * Price/Hr * (Duration / 60)
     const costPerRun = numNodes * instanceType.pricePerHour * (duration / 60);
     setCurrentCost(costPerRun);
-
-    // Assume 40% optimization from tool suggestions
     setOptimizedCost(costPerRun * 0.6);
   }, [numNodes, instanceType, duration]);
 
@@ -42,8 +38,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="bg-slate-900/40 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 p-8 relative overflow-hidden">
-        {/* Gloss Shine */}
+      <div className="bg-slate-900/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 p-8 relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
         <div className="flex items-center gap-4 mb-8 relative z-10">
@@ -58,9 +53,9 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 relative z-10">
           <div className="group">
-            <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wide mb-3 ml-1">Cluster Size</label>
-            <div className="flex items-center border border-white/10 rounded-xl px-4 py-3 bg-black/40 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all backdrop-blur-md shadow-inner">
-              <Server className="w-5 h-5 text-slate-400 mr-3 group-hover:text-indigo-400 transition-colors" />
+            <label className="block text-xs font-bold text-cyan-300 uppercase tracking-wide mb-3 ml-1">Cluster Size</label>
+            <div className="flex items-center border border-white/10 rounded-xl px-4 py-3 bg-black/40 focus-within:ring-2 focus-within:ring-cyan-500/50 transition-all backdrop-blur-md shadow-inner">
+              <Server className="w-5 h-5 text-slate-400 mr-3 group-hover:text-cyan-400 transition-colors" />
               <input 
                 type="number" 
                 value={numNodes} 
@@ -73,9 +68,9 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
           </div>
 
           <div className="group">
-            <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wide mb-3 ml-1">Job Duration (Min)</label>
-            <div className="flex items-center border border-white/10 rounded-xl px-4 py-3 bg-black/40 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all backdrop-blur-md shadow-inner">
-              <Clock className="w-5 h-5 text-slate-400 mr-3 group-hover:text-indigo-400 transition-colors" />
+            <label className="block text-xs font-bold text-cyan-300 uppercase tracking-wide mb-3 ml-1">Job Duration (Min)</label>
+            <div className="flex items-center border border-white/10 rounded-xl px-4 py-3 bg-black/40 focus-within:ring-2 focus-within:ring-cyan-500/50 transition-all backdrop-blur-md shadow-inner">
+              <Clock className="w-5 h-5 text-slate-400 mr-3 group-hover:text-cyan-400 transition-colors" />
               <input 
                 type="number" 
                 value={duration} 
@@ -86,10 +81,10 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
           </div>
 
           <div className="group">
-            <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wide mb-3 ml-1">Node Type</label>
+            <label className="block text-xs font-bold text-cyan-300 uppercase tracking-wide mb-3 ml-1">Node Type</label>
             <div className="relative">
                 <select 
-                className="w-full border border-white/10 rounded-xl px-4 py-3 bg-black/40 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer hover:bg-black/50 transition-colors backdrop-blur-md shadow-inner"
+                className="w-full border border-white/10 rounded-xl px-4 py-3 bg-black/40 text-white text-sm outline-none focus:ring-2 focus:ring-cyan-500/50 appearance-none cursor-pointer hover:bg-black/50 transition-colors backdrop-blur-md shadow-inner"
                 onChange={(e) => {
                     const selected = INSTANCE_TYPES.find(t => t.name === e.target.value);
                     if(selected) setInstanceType(selected);
@@ -107,7 +102,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
 
         {/* Result Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-           <div className="bg-black/40 p-6 rounded-2xl border border-white/10 hover:bg-black/50 transition-colors backdrop-blur-md shadow-lg">
+           <div className="bg-black/40 p-6 rounded-2xl border border-white/10 hover:bg-black/60 transition-colors backdrop-blur-md shadow-lg">
              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">Current Cost (Per Run)</p>
              <p className="text-3xl font-bold text-white tracking-tight drop-shadow-md">${currentCost.toFixed(2)}</p>
            </div>
@@ -115,19 +110,19 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
              <p className="text-xs text-emerald-300 font-bold uppercase tracking-wider mb-2">Projected (Optimized)</p>
              <p className="text-3xl font-bold text-emerald-200 tracking-tight drop-shadow-md">${optimizedCost.toFixed(2)}</p>
            </div>
-           <div className="bg-gradient-to-br from-indigo-600/20 to-purple-600/20 p-6 rounded-2xl border border-indigo-500/30 relative overflow-hidden group backdrop-blur-md shadow-lg hover:shadow-[0_0_30px_rgba(99,102,241,0.2)] transition-shadow">
+           <div className="bg-gradient-to-br from-cyan-600/20 to-blue-600/20 p-6 rounded-2xl border border-cyan-500/30 relative overflow-hidden group backdrop-blur-md shadow-lg hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] transition-shadow">
              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
                <TrendingDown className="w-20 h-20 text-white" />
              </div>
              <div className="relative z-10">
-                <p className="text-xs text-indigo-200 font-bold uppercase tracking-wider mb-2">Potential Annual Savings</p>
+                <p className="text-xs text-cyan-200 font-bold uppercase tracking-wider mb-2">Potential Annual Savings</p>
                 <div className="flex items-end gap-2 mb-1">
                     <p className="text-3xl font-bold text-white tracking-tight drop-shadow-md">${annualSavings.toFixed(0)}</p>
                 </div>
                 <select 
                     value={frequency} 
                     onChange={(e) => setFrequency(e.target.value)}
-                    className="text-[10px] bg-white/10 border border-white/10 rounded px-2 py-1 text-indigo-100 font-medium cursor-pointer hover:bg-white/20 transition-colors outline-none backdrop-blur-sm"
+                    className="text-[10px] bg-white/10 border border-white/10 rounded px-2 py-1 text-cyan-100 font-medium cursor-pointer hover:bg-white/20 transition-colors outline-none backdrop-blur-sm"
                 >
                     <option value="daily" className="bg-slate-900">Running Daily</option>
                     <option value="weekly" className="bg-slate-900">Running Weekly</option>
@@ -136,10 +131,6 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
              </div>
            </div>
         </div>
-        
-        <p className="text-xs text-slate-400 mt-6 text-center font-light">
-          *Estimates based on standard on-demand pricing. Does not account for Spot instances or specific enterprise discounts.
-        </p>
       </div>
     </div>
   );

@@ -1,20 +1,11 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# BrickOptima 🚀
 
-This contains everything you need to run your app locally.
+**BrickOptima** is an AI-powered observability and optimization platform for Databricks and Apache Spark workloads. It transforms raw, complex execution plans (DAGs) into interactive visualizations and provides actionable, code-level optimization suggestions using Google Gemini 2.0.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ya2o-M0kGJ-D8VlJZS8hefGjXRvZfM-l
+![BrickOptima Dashboard](https://via.placeholder.com/800x400?text=BrickOptima+Dashboard+Preview)
 
-## Run Locally
+## Key Features
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+*   **Visual DAG Analysis**: interactive D3.js visualization of Spark Physical Plans.
+*   **AI Performance Consultant**: Chat with your
