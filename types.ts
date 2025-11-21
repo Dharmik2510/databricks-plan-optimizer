@@ -1,0 +1,59 @@
+export enum Severity {
+  HIGH = 'High',
+  MEDIUM = 'Medium',
+  LOW = 'Low',
+}
+
+export interface DagNode {
+  id: string;
+  name: string;
+  type: string; // e.g., 'Scan', 'Filter', 'Shuffle', 'Join'
+  metric?: string; // e.g., '10M rows'
+}
+
+export interface DagLink {
+  source: string;
+  target: string;
+}
+
+export interface ResourceMetric {
+  stageId: string;
+  cpuPercentage: number; // 0-100 estimated relative usage
+  memoryMb: number; // Estimated peak memory
+}
+
+export interface OptimizationTip {
+  title: string;
+  severity: Severity;
+  description: string;
+  codeSuggestion?: string;
+  originalPattern?: string; // What it looked like before
+}
+
+export interface AnalysisResult {
+  summary: string;
+  dagNodes: DagNode[];
+  dagLinks: DagLink[];
+  resourceMetrics: ResourceMetric[];
+  optimizations: OptimizationTip[];
+  estimatedDurationMin?: number;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'ai';
+  content: string;
+  timestamp: number;
+}
+
+export enum AppState {
+  IDLE = 'IDLE',
+  ANALYZING = 'ANALYZING',
+  SUCCESS = 'SUCCESS',
+  ERROR = 'ERROR',
+}
+
+export enum ActiveTab {
+  DASHBOARD = 'DASHBOARD',
+  CHAT = 'CHAT',
+  COST = 'COST',
+}

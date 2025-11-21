@@ -1,0 +1,5 @@
+{
+  "name": "BrickOptima - Databricks DAG Analyzer",
+  "description": "An AI-powered tool to visualize Databricks execution plans, identify bottlenecks, and suggest code optimizations for Spark workloads.",
+  "requestFramePermissions": []
+}
