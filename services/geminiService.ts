@@ -1,11 +1,11 @@
 import { GoogleGenAI, Type, Chat } from "@google/genai";
-import { AnalysisResult, Severity } from "../types";
+import { AnalysisResult, Severity, RepoFile } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 let chatSession: Chat | null = null;
 
-export const analyzeDagContent = async (content: string): Promise<AnalysisResult> => {
+export const analyzeDagContent = async (content: string, repoFiles: RepoFile[] = []): Promise<AnalysisResult> => {
   
   const systemInstruction = `
     You are a Principal Data Engineer and Databricks Performance Architect. 
@@ -16,22 +16,39 @@ export const analyzeDagContent = async (content: string): Promise<AnalysisResult
     2. **Shuffle Storms**: 'Exchange hashpartitioning' causing excessive data movement.
     3. **Spill to Disk**: If memory metrics imply data not fitting in RAM.
     4. **Scan Inefficiency**: 'FileScan' reading full schemas, missing PartitionFilters, or not using Z-Ordering.
-    5. **Tiny Files**: Infer from 'Number of files' vs 'Total size' if available.
+    
+    **CODE MAPPING TASK**:
+    If source code is provided, you MUST attempt to map specific DAG nodes back to the source code file and line number.
+    Look for:
+    - Table/View names in Scan nodes matching code.
+    - Column transformations matching 'withColumn' or SQL expressions.
+    - Join conditions matching 'join' operations.
     
     Your output must be structured.
   `;
 
+  let codeContext = "";
+  if (repoFiles.length > 0) {
+    codeContext = "\n\n=== ASSOCIATED SOURCE CODE ===\n";
+    repoFiles.forEach(f => {
+      codeContext += `\n--- FILE: ${f.path} ---\n${f.content.substring(0, 5000)}\n`; // Limit char count per file
+    });
+    codeContext += "\n==============================\n";
+  }
+
   const prompt = `
     Analyze the following Databricks/Spark workflow execution plan/log:
     
-    ---
+    --- PLAN START ---
     ${content}
-    ---
+    --- PLAN END ---
+
+    ${codeContext}
 
     1. Parse the text to reconstruct the DAG.
-    2. Estimate resource impact (CPU vs Memory).
-    3. Provide 3-5 Critical Optimizations.
-    4. Estimate the run duration based on the complexity if explicitly stated, otherwise assume a relative complexity score.
+    2. Estimate resource impact.
+    3. Provide optimizations.
+    4. **CRITICAL**: If source code is provided, populate the 'codeMappings' array. Connect the physical plan operator to the exact code block that generated it. Explain WHY you think they are linked.
     
     Return valid JSON.
   `;
@@ -102,7 +119,20 @@ export const analyzeDagContent = async (content: string): Promise<AnalysisResult
               required: ["title", "severity", "description"]
             }
           },
-          estimatedDurationMin: { type: Type.NUMBER, description: "Estimated duration in minutes based on plan complexity" }
+          estimatedDurationMin: { type: Type.NUMBER },
+          codeMappings: {
+            type: Type.ARRAY,
+            description: "Map DAG findings to source code",
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                filePath: { type: Type.STRING },
+                lineNumber: { type: Type.NUMBER },
+                code: { type: Type.STRING },
+                relevanceExplanation: { type: Type.STRING }
+              }
+            }
+          }
         },
         required: ["summary", "dagNodes", "dagLinks", "resourceMetrics", "optimizations"]
       }

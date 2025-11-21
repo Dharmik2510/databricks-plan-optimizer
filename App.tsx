@@ -1,12 +1,61 @@
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, ChevronRight, FileText } from 'lucide-react';
+import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2 } from 'lucide-react';
 import { DagVisualizer } from './components/DagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
 import { OptimizationList } from './components/OptimizationList';
 import { ChatInterface } from './components/ChatInterface';
 import { CostEstimator } from './components/CostEstimator';
+import { CodeMapper } from './components/CodeMapper';
 import { analyzeDagContent } from './services/geminiService';
-import { AnalysisResult, AppState, ActiveTab } from './types';
+import { fetchRepoContents } from './services/githubService';
+import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile } from './types';
+
+const DEMO_REPO_FILES: RepoFile[] = [
+  {
+    path: "src/jobs/revenue_analysis.py",
+    content: `from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, sum
+
+def run_job():
+    spark = SparkSession.builder.appName("RevenueAnalytics").getOrCreate()
+
+    # 1. READ TRANSACTIONS
+    # Reading historic parquet data
+    # Plan shows: FileScan parquet db.transactions
+    txns_df = spark.read.parquet("s3://bucket/data/transactions")
+    
+    # Filter for 2023 onwards
+    # Optimization Tip: This filter happens after scanning too much metadata if not partitioned
+    recent_txns = txns_df.filter(col("transaction_date") >= "2023-01-01")
+
+    # 2. READ USERS
+    # Reading CSV (slow format)
+    # Plan shows: FileScan csv db.users
+    users_df = spark.read.format("csv") \\
+        .option("header", "true") \\
+        .load("s3://bucket/data/users")
+
+    active_users = users_df.filter(col("status") == "active")
+
+    # 3. THE JOIN (The Problem Area)
+    # ERROR: This join is missing the 'on' condition, resulting in a Cartesian Product (Cross Join)
+    # This forces Spark to use BroadcastNestedLoopJoin if one side is small enough to broadcast.
+    # Plan shows: BroadcastNestedLoopJoin BuildRight, Inner
+    raw_joined = recent_txns.join(active_users)
+
+    # 4. AGGREGATION
+    # Plan shows: SortAggregate(key=[user_id#12], functions=[sum(amount#45)]
+    report = raw_joined.groupBy("user_id") \\
+        .agg(sum("amount").alias("total_spend")) \\
+        .orderBy("user_id")
+
+    report.explain(True)
+    report.collect()
+
+if __name__ == "__main__":
+    run_job()`
+  }
+];
 
 function App() {
   const [inputMode, setInputMode] = useState<'file' | 'text'>('text');
@@ -16,9 +65,35 @@ function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
+  // Repo State
+  const [repoConfig, setRepoConfig] = useState<RepoConfig>({ url: '', branch: 'main', token: '' });
+  const [repoFiles, setRepoFiles] = useState<RepoFile[]>([]);
+  const [isFetchingRepo, setIsFetchingRepo] = useState(false);
+  
   // Modals
   const [showProdGuide, setShowProdGuide] = useState(false);
   const [showImplGuide, setShowImplGuide] = useState(false);
+
+  const handleFetchRepo = async () => {
+    if (!repoConfig.url) return;
+    setIsFetchingRepo(true);
+    setError(null);
+    try {
+      const files = await fetchRepoContents(repoConfig);
+      setRepoFiles(files);
+      // Auto switch to dashboard to show readiness if needed, but staying on Repo tab is fine
+    } catch (e: any) {
+      console.error(e);
+      setError(`Repo Error: ${e.message}`);
+    } finally {
+      setIsFetchingRepo(false);
+    }
+  };
+
+  const loadDemoRepo = () => {
+    setRepoFiles(DEMO_REPO_FILES);
+    setRepoConfig({ ...repoConfig, url: 'DEMO_MODE_ACTIVE' });
+  };
 
   const handleAnalyze = async () => {
     if (!textContent.trim()) return;
@@ -27,7 +102,8 @@ function App() {
     setError(null);
 
     try {
-      const data = await analyzeDagContent(textContent);
+      // Pass repoFiles if they exist
+      const data = await analyzeDagContent(textContent, repoFiles);
       setResult(data);
       setAppState(AppState.SUCCESS);
       setActiveTab(ActiveTab.DASHBOARD);
@@ -69,6 +145,10 @@ AdaptiveSparkPlan isFinalPlan=true
                               +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))
                                  +- FileScan csv db.users[user_id#10, status#20] Batched: false, Format: CSV, Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], PartitionFilters: [], PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], ReadSchema: struct<user_id:string,status:string>`;
     setTextContent(demo);
+    // If user clicks "Load Demo Plan", let's also suggest loading the demo repo for the full experience
+    if (repoFiles.length === 0) {
+      // Optional: toast or just let them discover it
+    }
   };
 
   const resetApp = () => {
@@ -76,6 +156,8 @@ AdaptiveSparkPlan isFinalPlan=true
     setAppState(AppState.IDLE);
     setTextContent('');
     setActiveTab(ActiveTab.DASHBOARD);
+    setRepoFiles([]); // Optional: keep repo connected? Let's clear for fresh start
+    setRepoConfig({ url: '', branch: 'main', token: '' });
   };
 
   return (
@@ -126,6 +208,16 @@ AdaptiveSparkPlan isFinalPlan=true
               >
                 <MessageSquare className="w-4 h-4" /> AI Consultant
               </button>
+              <button 
+                onClick={() => setActiveTab(ActiveTab.REPO)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 backdrop-blur-sm ${
+                  activeTab === ActiveTab.REPO 
+                  ? 'bg-blue-500/30 border border-blue-500/30 text-white shadow-[0_0_20px_rgba(59,130,246,0.2)]' 
+                  : 'hover:bg-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <GitBranch className="w-4 h-4" /> Repo Trace
+              </button>
               
               <div className="my-6 border-t border-white/5 mx-2"></div>
               
@@ -137,8 +229,68 @@ AdaptiveSparkPlan isFinalPlan=true
               </button>
             </>
           ) : (
-            <div className="px-4 py-6 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-sm text-slate-300 leading-relaxed shadow-lg">
-              Upload a Spark Plan or Paste Logs to unlock the optimization suite.
+            <div className="space-y-4">
+              <div className="px-4 py-6 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-sm text-slate-300 leading-relaxed shadow-lg">
+                Upload a Spark Plan or Paste Logs to unlock the optimization suite.
+              </div>
+
+              {/* Repo Connection in Idle State */}
+              <div className="bg-slate-900/40 rounded-2xl border border-white/10 p-4 overflow-hidden relative">
+                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                 <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Github className="w-3 h-3" /> Connect Repo
+                 </h4>
+                 {repoFiles.length > 0 ? (
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20 backdrop-blur-md">
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                          {repoFiles.length} files indexed
+                        </div>
+                        {repoConfig.url === 'DEMO_MODE_ACTIVE' && (
+                           <div className="text-[10px] text-slate-400 px-1">Using Demo Repository</div>
+                        )}
+                    </div>
+                 ) : (
+                   <div className="space-y-3">
+                      <input 
+                        placeholder="https://github.com/user/repo" 
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                        value={repoConfig.url}
+                        onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}
+                      />
+                       <input 
+                        placeholder="Token (Optional for Private)" 
+                        type="password"
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                        value={repoConfig.token}
+                        onChange={e => setRepoConfig({...repoConfig, token: e.target.value})}
+                      />
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={handleFetchRepo}
+                          disabled={isFetchingRepo || !repoConfig.url}
+                          className="flex-1 bg-white/10 hover:bg-white/20 text-xs font-bold py-2 rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isFetchingRepo ? 'Fetching...' : 'Link Codebase'}
+                        </button>
+                      </div>
+                      <div className="relative py-1">
+                          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div className="w-full border-t border-white/10"></div>
+                          </div>
+                          <div className="relative flex justify-center">
+                            <span className="px-2 bg-slate-900 text-[10px] text-slate-500 uppercase">Or</span>
+                          </div>
+                      </div>
+                      <button 
+                        onClick={loadDemoRepo}
+                        className="w-full bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 text-xs font-bold py-2 rounded-lg text-indigo-300 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Code2 className="w-3 h-3" /> Load Demo Repo
+                      </button>
+                   </div>
+                 )}
+              </div>
             </div>
           )}
         </div>
@@ -283,6 +435,7 @@ AdaptiveSparkPlan isFinalPlan=true
                  <button onClick={() => setActiveTab(ActiveTab.DASHBOARD)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.DASHBOARD ? 'bg-indigo-500/80 border-indigo-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Dashboard</button>
                  <button onClick={() => setActiveTab(ActiveTab.COST)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.COST ? 'bg-emerald-500/80 border-emerald-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Cost</button>
                  <button onClick={() => setActiveTab(ActiveTab.CHAT)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.CHAT ? 'bg-purple-500/80 border-purple-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Consultant</button>
+                 <button onClick={() => setActiveTab(ActiveTab.REPO)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold backdrop-blur-md border ${activeTab === ActiveTab.REPO ? 'bg-blue-500/80 border-blue-400 text-white' : 'bg-white/10 border-white/10 text-slate-300'}`}>Repo</button>
               </div>
 
               {/* Content Switch */}
@@ -327,6 +480,12 @@ AdaptiveSparkPlan isFinalPlan=true
                 <div className="max-w-4xl mx-auto h-full">
                   <ChatInterface />
                 </div>
+              )}
+
+              {activeTab === ActiveTab.REPO && (
+                 <div className="max-w-4xl mx-auto h-full">
+                    <CodeMapper mappings={result.codeMappings} />
+                 </div>
               )}
 
             </div>

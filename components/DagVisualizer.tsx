@@ -261,7 +261,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-slate-900/40 backdrop-blur-2xl rounded-3xl shadow-xl border border-white/10 overflow-hidden flex flex-col h-[600px] group hover:shadow-[0_0_40px_rgba(0,0,0,0.3)] transition-shadow relative">
+    <div ref={containerRef} className="w-full bg-slate-900/30 backdrop-blur-2xl rounded-3xl shadow-xl border border-white/10 overflow-hidden flex flex-col h-[600px] group hover:shadow-[0_0_40px_rgba(0,0,0,0.3)] transition-shadow relative">
       {/* Gloss Shine */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
       

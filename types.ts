@@ -9,6 +9,7 @@ export interface DagNode {
   name: string;
   type: string; // e.g., 'Scan', 'Filter', 'Shuffle', 'Join'
   metric?: string; // e.g., '10M rows'
+  mappedCode?: CodeSnippet; // Link to source code
 }
 
 export interface DagLink {
@@ -20,6 +21,13 @@ export interface ResourceMetric {
   stageId: string;
   cpuPercentage: number; // 0-100 estimated relative usage
   memoryMb: number; // Estimated peak memory
+}
+
+export interface CodeSnippet {
+  filePath: string;
+  lineNumber: number;
+  code: string;
+  relevanceExplanation: string;
 }
 
 export interface OptimizationTip {
@@ -37,6 +45,7 @@ export interface AnalysisResult {
   resourceMetrics: ResourceMetric[];
   optimizations: OptimizationTip[];
   estimatedDurationMin?: number;
+  codeMappings?: CodeSnippet[]; // Global list of relevant code parts
 }
 
 export interface ChatMessage {
@@ -56,4 +65,16 @@ export enum ActiveTab {
   DASHBOARD = 'DASHBOARD',
   CHAT = 'CHAT',
   COST = 'COST',
+  REPO = 'REPO',
+}
+
+export interface RepoConfig {
+  url: string;
+  token?: string; // Optional PAT for private repos
+  branch: string;
+}
+
+export interface RepoFile {
+  path: string;
+  content: string;
 }
