@@ -92,6 +92,13 @@ export interface StreamMetric {
   executorMemory: number; // %
   swapUsed?: number; // %
   cpuLoad?: number; // %
+  
+  // Extended Metrics
+  shuffleReadBytes: number;
+  shuffleWriteBytes: number;
+  gcTimeMs: number;
+  activeTasks: number;
+  taskFailures: number;
 }
 
 export interface StreamLog {

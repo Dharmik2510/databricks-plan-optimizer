@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -38,35 +37,35 @@ export const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[650px] bg-white/70 backdrop-blur-2xl rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden animate-fade-in relative">
+    <div className="flex flex-col h-[650px] bg-white/50 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/60 overflow-hidden animate-fade-in relative ring-1 ring-white/40">
       
-      <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+      <div className="p-5 border-b border-white/40 bg-white/30 flex justify-between items-center backdrop-blur-sm">
         <div>
-          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
-            <Bot className="w-6 h-6 text-orange-500" />
+          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg drop-shadow-sm">
+            <Bot className="w-6 h-6 text-orange-600" />
             AI Performance Consultant
           </h3>
-          <p className="text-xs text-slate-500 mt-1">Interactive debugging session.</p>
+          <p className="text-xs text-slate-700 mt-1 font-medium">Interactive debugging session.</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar bg-slate-50/30">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar bg-transparent">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-sm border ${
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-sm border backdrop-blur-sm ${
               msg.role === 'ai' 
-              ? 'bg-white text-orange-500 border-slate-200' 
-              : 'bg-slate-200 text-slate-600 border-slate-300'
+              ? 'bg-white/80 text-orange-600 border-white/60' 
+              : 'bg-slate-200/80 text-slate-700 border-slate-300/60'
             }`}>
               {msg.role === 'ai' ? <Bot className="w-6 h-6" /> : <User className="w-6 h-6" />}
             </div>
-            <div className={`max-w-[85%] rounded-2xl p-5 text-sm shadow-sm border ${
+            <div className={`max-w-[85%] rounded-2xl p-5 text-sm shadow-md border backdrop-blur-md ${
               msg.role === 'user' 
-                ? 'bg-orange-600 text-white border-orange-700 rounded-tr-sm' 
-                : 'bg-white text-slate-800 border-slate-200 rounded-tl-sm'
+                ? 'bg-orange-600/90 text-white border-orange-500 rounded-tr-sm font-medium' 
+                : 'bg-white/80 text-slate-900 border-white/60 rounded-tl-sm font-medium'
             }`}>
               {msg.role === 'ai' ? (
-                <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-100 prose-pre:text-slate-800">
+                <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-100/80 prose-pre:text-slate-900 prose-strong:text-slate-900">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
@@ -79,20 +78,20 @@ export const ChatInterface: React.FC = () => {
         ))}
         {loading && (
           <div className="flex gap-4">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center mt-1 border border-slate-200 shadow-sm">
-              <Bot className="w-6 h-6 text-orange-500" />
+            <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center mt-1 border border-white/60 shadow-sm backdrop-blur-sm">
+              <Bot className="w-6 h-6 text-orange-600" />
             </div>
-            <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm p-5 flex items-center gap-1.5 shadow-sm">
-              <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms'}}></div>
-              <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms'}}></div>
-              <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms'}}></div>
+            <div className="bg-white/80 border border-white/60 rounded-2xl rounded-tl-sm p-5 flex items-center gap-1.5 shadow-sm backdrop-blur-sm">
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms'}}></div>
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms'}}></div>
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms'}}></div>
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-5 bg-white border-t border-slate-200">
+      <div className="p-5 bg-white/30 border-t border-white/40 backdrop-blur-md">
         <div className="relative">
           <input 
             type="text" 
@@ -100,12 +99,12 @@ export const ChatInterface: React.FC = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask about Z-Ordering, Join strategies..."
-            className="w-full pl-6 pr-14 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-slate-800 placeholder-slate-400 shadow-inner"
+            className="w-full pl-6 pr-14 py-4 bg-white/60 border border-white/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white/80 transition-all text-slate-900 placeholder-slate-500 shadow-inner font-medium backdrop-blur-sm"
           />
           <button 
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="absolute right-3 top-3 p-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:hover:bg-orange-600 transition-colors shadow-sm"
+            className="absolute right-3 top-3 p-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 disabled:opacity-50 disabled:hover:bg-orange-600 transition-colors shadow-sm"
           >
             <Send className="w-4 h-4" />
           </button>

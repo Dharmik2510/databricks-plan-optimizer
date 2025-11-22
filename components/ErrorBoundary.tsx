@@ -1,4 +1,3 @@
-
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
@@ -33,19 +32,19 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-900 p-4 relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-900 p-4 relative overflow-hidden">
            {/* Background Orbs for Consistency */}
-           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-100 blur-[100px]"></div>
-           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-100 blur-[100px]"></div>
+           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-200 blur-[100px] opacity-60"></div>
+           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-200 blur-[100px] opacity-60"></div>
 
-          <div className="bg-white/80 backdrop-blur-2xl border border-red-200 rounded-2xl p-10 max-w-lg w-full shadow-2xl text-center relative z-10">
-            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-sm">
-              <AlertTriangle className="w-10 h-10 text-red-500" />
+          <div className="bg-white/60 backdrop-blur-3xl border border-white/60 rounded-3xl p-10 max-w-lg w-full shadow-2xl text-center relative z-10 ring-1 ring-white/40">
+            <div className="w-20 h-20 bg-red-100/80 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-200 shadow-sm">
+              <AlertTriangle className="w-10 h-10 text-red-600" />
             </div>
             <h1 className="text-2xl font-bold mb-2 text-slate-900">Something went wrong</h1>
-            <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+            <p className="text-slate-700 mb-6 text-sm leading-relaxed font-medium">
               The application encountered an unexpected state. <br/>
-              <span className="font-mono text-xs text-red-600 bg-red-50 px-2 py-1 rounded mt-2 inline-block border border-red-200">
+              <span className="font-mono text-xs text-red-700 bg-red-100/50 px-2 py-1 rounded mt-2 inline-block border border-red-200">
                 {this.state.error?.message || 'Unknown Error'}
               </span>
             </p>

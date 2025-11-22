@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -161,21 +160,21 @@ AdaptiveSparkPlan isFinalPlan=true
     <ErrorBoundary>
     <div className="min-h-screen font-sans flex overflow-hidden text-slate-900">
       
-      {/* Sidebar - Databricks Dark Style */}
-      <aside className="w-64 flex-shrink-0 hidden md:flex flex-col h-screen bg-[#1e293b] shadow-xl relative z-20 text-slate-300">
-        <div className="h-16 flex items-center px-6 border-b border-slate-700">
+      {/* Sidebar - Glassy Dark Databricks Style */}
+      <aside className="w-64 flex-shrink-0 hidden md:flex flex-col h-screen bg-[#1B2631]/85 backdrop-blur-2xl shadow-2xl relative z-20 text-slate-300 border-r border-white/10">
+        <div className="h-16 flex items-center px-6 border-b border-white/10">
           <div className="flex items-center gap-3 font-bold text-xl tracking-tight text-white">
-            <div className="w-8 h-8 bg-orange-600 rounded shadow-md flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg shadow-orange-500/20 flex items-center justify-center border border-orange-400/50">
               <Activity className="w-5 h-5 text-white" />
             </div>
-            <span>BrickOptima</span>
+            <span className="drop-shadow-sm">BrickOptima</span>
           </div>
         </div>
 
         <div className="py-6 flex-1 space-y-1">
           {appState === AppState.SUCCESS ? (
             <>
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-widest px-6 mb-2">Workspace</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-3">Workspace</div>
               {[
                 { id: ActiveTab.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
                 { id: ActiveTab.LIVE, label: 'Live Monitor', icon: Radio, pulse: true },
@@ -186,60 +185,67 @@ AdaptiveSparkPlan isFinalPlan=true
                 <button 
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all relative ${
+                  className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all relative group ${
                     activeTab === tab.id 
-                    ? 'text-white bg-slate-800' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'text-white bg-white/10 shadow-inner' 
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>}
-                  <tab.icon className={`w-4 h-4 ${tab.pulse && activeTab === tab.id ? 'animate-pulse text-orange-400' : ''}`} /> {tab.label}
+                  {/* RED BORDER INDICATOR - MATCHING DATABRICKS STYLE */}
+                  {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 shadow-[0_0_12px_rgba(220,38,38,0.6)]"></div>}
+                  
+                  <tab.icon className={`w-4 h-4 transition-transform group-hover:scale-110 ${
+                    tab.pulse && activeTab === tab.id 
+                      ? 'animate-pulse text-red-400' 
+                      : activeTab === tab.id ? 'text-red-400' : ''
+                  }`} /> 
+                  {tab.label}
                 </button>
               ))}
               
-              <div className="my-6 border-t border-slate-700 mx-6"></div>
+              <div className="my-6 border-t border-white/10 mx-6"></div>
               
               <button 
                 onClick={resetApp}
-                className="w-full flex items-center gap-3 px-6 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+                className="w-full flex items-center gap-3 px-6 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors group"
               >
-                <LogOut className="w-4 h-4" /> New Analysis
+                <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> New Analysis
               </button>
             </>
           ) : (
             <div className="px-6 space-y-6">
-              <div className="px-4 py-5 bg-slate-800/50 rounded-lg border border-slate-700 text-sm text-slate-300 leading-relaxed">
-                <p className="font-bold text-white mb-1">Optimization Workspace</p>
+              <div className="px-4 py-5 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 text-sm text-slate-300 leading-relaxed shadow-lg">
+                <p className="font-bold text-white mb-2">Optimization Workspace</p>
                 Upload a Spark Plan or Paste Logs to begin analysis.
               </div>
 
               {/* Repo Connection Panel */}
-              <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-4">
-                 <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+              <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-lg">
+                 <h4 className="text-[10px] font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
                     <Github className="w-3 h-3" /> Connect Repo
                  </h4>
                  {repoFiles.length > 0 ? (
                     <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-3 py-2 rounded border border-emerald-500/20">
+                        <div className="flex items-center gap-2 text-sm text-emerald-300 bg-emerald-500/20 px-3 py-2 rounded-lg border border-emerald-500/30">
                           <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
                           {repoFiles.length} files indexed
                         </div>
                         {repoConfig.url === 'DEMO_MODE_ACTIVE' && (
-                           <div className="text-[10px] text-slate-500 px-1">Using Demo Repository</div>
+                           <div className="text-[10px] text-slate-400 px-1">Using Demo Repository</div>
                         )}
                     </div>
                  ) : (
                    <div className="space-y-3">
                       <input 
                         placeholder="https://github.com/..." 
-                        className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500/50 placeholder-slate-500 transition-colors"
                         value={repoConfig.url}
                         onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}
                       />
                        <input 
                         placeholder="Token (Optional)" 
                         type="password"
-                        className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500 placeholder-slate-500"
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500/50 placeholder-slate-500 transition-colors"
                         value={repoConfig.token}
                         onChange={e => setRepoConfig({...repoConfig, token: e.target.value})}
                       />
@@ -247,14 +253,14 @@ AdaptiveSparkPlan isFinalPlan=true
                         <button 
                           onClick={handleFetchRepo}
                           disabled={isFetchingRepo || !repoConfig.url}
-                          className="flex-1 bg-slate-700 hover:bg-slate-600 text-xs font-bold py-2 rounded text-white transition-colors disabled:opacity-50"
+                          className="flex-1 bg-white/10 hover:bg-white/20 text-xs font-bold py-2 rounded-lg text-white transition-colors disabled:opacity-50 border border-white/5"
                         >
                           {isFetchingRepo ? 'Fetching...' : 'Link'}
                         </button>
                       </div>
                       <button 
                         onClick={loadDemoRepo}
-                        className="w-full bg-orange-600/10 hover:bg-orange-600/20 border border-orange-600/20 text-xs font-bold py-2 rounded text-orange-300 transition-colors flex items-center justify-center gap-2 mt-2"
+                        className="w-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-xs font-bold py-2 rounded-lg text-orange-300 transition-colors flex items-center justify-center gap-2 mt-2"
                       >
                         <Code2 className="w-3 h-3" /> Load Demo Repo
                       </button>
@@ -265,7 +271,7 @@ AdaptiveSparkPlan isFinalPlan=true
           )}
         </div>
 
-        <div className="p-6 border-t border-slate-700 bg-slate-900">
+        <div className="p-6 border-t border-white/10 bg-black/10 backdrop-blur-sm">
           <button onClick={() => setShowProdGuide(true)} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors mb-3">
             <BookOpen className="w-3 h-3" /> Production Guide
           </button>
@@ -275,11 +281,11 @@ AdaptiveSparkPlan isFinalPlan=true
         </div>
       </aside>
 
-      {/* Main Content - Light Theme */}
+      {/* Main Content - Transparent Glass */}
       <main className="flex-1 overflow-auto h-screen relative scroll-smooth bg-transparent">
         
         {/* Mobile Header */}
-        <header className="md:hidden h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center px-4 justify-between sticky top-0 z-50">
+        <header className="md:hidden h-16 bg-white/60 backdrop-blur-xl border-b border-white/20 flex items-center px-4 justify-between sticky top-0 z-50">
            <div className="font-bold text-slate-900 flex items-center gap-2">
              <Activity className="w-5 h-5 text-orange-600" /> BrickOptima
            </div>
@@ -294,34 +300,34 @@ AdaptiveSparkPlan isFinalPlan=true
           {appState !== AppState.SUCCESS && (
             <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh]">
               <div className="mb-12 text-center max-w-3xl mx-auto relative z-10">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-semibold mb-6 shadow-sm">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/40 border border-white/60 text-orange-700 text-xs font-bold mb-6 shadow-lg backdrop-blur-md">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                   </span>
                   Next-Gen Spark Optimization
                 </div>
-                <h1 className="text-5xl font-bold text-slate-900 mb-6 tracking-tight leading-tight">
+                <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 tracking-tight leading-tight drop-shadow-sm">
                   Optimize your <br/>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600">Databricks Workflows</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-500 filter drop-shadow-sm">Databricks Workflows</span>
                 </h1>
-                <p className="text-xl text-slate-600 font-light leading-relaxed max-w-2xl mx-auto">
+                <p className="text-xl text-slate-700 font-medium leading-relaxed max-w-2xl mx-auto drop-shadow-sm">
                   Visualize execution plans, pinpoint bottlenecks, and get AI-powered code fixes in seconds.
                 </p>
               </div>
 
-              {/* Glass Input Card */}
-              <div className="w-full max-w-4xl bg-white/70 backdrop-blur-2xl rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden relative z-10">
+              {/* Hyper-Glass Input Card */}
+              <div className="w-full max-w-4xl bg-white/40 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden relative z-10 ring-1 ring-white/60">
                 
-                <div className="flex border-b border-slate-200 bg-slate-50/50">
+                <div className="flex border-b border-white/30 bg-white/20">
                   {['text', 'file'].map(mode => (
                     <button 
                       key={mode}
                       onClick={() => setInputMode(mode as any)}
-                      className={`flex-1 py-4 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                      className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                         inputMode === mode 
-                        ? 'text-orange-600 bg-white border-b-2 border-orange-500 shadow-sm' 
-                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                        ? 'text-orange-700 bg-white/40 border-b-2 border-orange-500 shadow-sm' 
+                        : 'text-slate-600 hover:bg-white/30 hover:text-slate-800'
                       }`}
                     >
                       {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
@@ -336,19 +342,19 @@ AdaptiveSparkPlan isFinalPlan=true
                       <textarea 
                         value={textContent}
                         onChange={(e) => setTextContent(e.target.value)}
-                        className="w-full h-72 p-6 bg-white text-slate-800 font-mono text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400"
+                        className="w-full h-72 p-6 bg-white/40 backdrop-blur-md text-slate-900 font-mono text-sm rounded-2xl border border-white/50 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 focus:bg-white/60 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-500"
                         placeholder="Paste your 'EXPLAIN EXTENDED' output here..."
                       ></textarea>
-                      <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-slate-100 text-slate-600 hover:text-orange-600 px-3 py-1.5 rounded border border-slate-200 hover:bg-white transition-all shadow-sm font-medium">
+                      <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white/60 backdrop-blur text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-white/50 hover:bg-white/80 transition-all shadow-sm font-bold">
                         Load Demo Plan
                       </button>
                     </div>
                   ) : (
-                    <div className="h-72 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all relative group cursor-pointer">
-                      <div className="p-5 bg-white rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-500 border border-slate-100">
+                    <div className="h-72 border-2 border-dashed border-slate-400/50 rounded-2xl flex flex-col items-center justify-center bg-white/20 hover:bg-white/30 transition-all relative group cursor-pointer backdrop-blur-sm">
+                      <div className="p-5 bg-white/60 rounded-full shadow-lg mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-white/50">
                           <Upload className="w-8 h-8" />
                       </div>
-                      <p className="text-slate-700 font-bold text-lg">Click to Upload</p>
+                      <p className="text-slate-800 font-bold text-lg">Click to Upload</p>
                       <input 
                         type="file" 
                         accept=".json,.txt,.log"
@@ -362,7 +368,7 @@ AdaptiveSparkPlan isFinalPlan=true
                     <button 
                       onClick={handleAnalyze}
                       disabled={!textContent.trim() || appState === AppState.ANALYZING}
-                      className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 border border-orange-400/50 backdrop-blur-sm"
                     >
                       {appState === AppState.ANALYZING ? (
                         <>
@@ -378,7 +384,7 @@ AdaptiveSparkPlan isFinalPlan=true
                   </div>
 
                   {error && (
-                    <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 text-sm flex items-center gap-3 animate-fade-in">
+                    <div className="mt-6 p-4 bg-red-50/80 backdrop-blur-md text-red-800 rounded-2xl border border-red-200/50 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm">
                       <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                       {error}
                     </div>
@@ -400,25 +406,25 @@ AdaptiveSparkPlan isFinalPlan=true
                     { id: ActiveTab.COST, label: 'Cost' },
                     { id: ActiveTab.CHAT, label: 'Consultant' }
                  ].map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold border ${activeTab === tab.id ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{tab.label}</button>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold border shadow-sm backdrop-blur-md ${activeTab === tab.id ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white/60 border-white/40 text-slate-700'}`}>{tab.label}</button>
                  ))}
               </div>
 
               {/* Views */}
               {activeTab === ActiveTab.DASHBOARD && (
                 <div className="space-y-8">
-                  <section className="bg-white/70 backdrop-blur-2xl rounded-2xl shadow-sm border border-slate-200/60 p-8 relative overflow-hidden">
+                  <section className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-8 relative overflow-hidden ring-1 ring-white/40">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                     <div className="flex items-start gap-6 relative z-10">
-                      <div className="p-4 bg-orange-50 text-orange-600 rounded-xl border border-orange-100 hidden sm:block">
+                      <div className="p-4 bg-orange-50/80 backdrop-blur-md text-orange-600 rounded-2xl border border-orange-100 hidden sm:block shadow-sm">
                         <Activity className="w-8 h-8" />
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-3">
                            <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Summary</h3>
-                           <span className="px-3 py-1 bg-orange-50 border border-orange-200 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide">AI Generated</span>
+                           <span className="px-3 py-1 bg-white/60 border border-white/60 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm backdrop-blur-md">AI Generated</span>
                         </div>
-                        <p className="text-slate-700 leading-relaxed text-lg font-light">{result.summary}</p>
+                        <p className="text-slate-800 leading-relaxed text-lg font-medium">{result.summary}</p>
                       </div>
                     </div>
                   </section>
@@ -442,19 +448,19 @@ AdaptiveSparkPlan isFinalPlan=true
         </div>
       </main>
 
-      {/* Info Modals - Dark for contrast */}
+      {/* Info Modals - Glass Style */}
       {showProdGuide && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white/80 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative border border-white/50">
+             <div className="p-6 border-b border-slate-200/50 flex justify-between items-center bg-white/40">
               <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><BookOpen className="w-5 h-5 text-orange-600" /> Production Guide</h3>
-              <button onClick={() => setShowProdGuide(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+              <button onClick={() => setShowProdGuide(false)} className="p-2 hover:bg-white/50 rounded-full text-slate-500 hover:text-slate-700 transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] text-slate-700">
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] text-slate-800 font-medium">
                <p>Use these methods to extract execution plans from restricted production environments:</p>
                <div className="space-y-4">
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200"><h4 className="font-bold text-slate-900 text-sm mb-2">PySpark Notebook</h4><pre className="text-sm font-mono text-slate-600 bg-white p-3 rounded border border-slate-200">df.explain(True)</pre></div>
-                  <div className="bg-slate-50 p-5 rounded-xl border border-slate-200"><h4 className="font-bold text-slate-900 text-sm mb-2">Spark UI</h4><p className="text-sm text-slate-600">SQL Tab &gt; Query Description &gt; "Physical Plan"</p></div>
+                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm"><h4 className="font-bold text-slate-900 text-sm mb-2">PySpark Notebook</h4><pre className="text-sm font-mono text-slate-700 bg-white/50 p-3 rounded-xl border border-white/60">df.explain(True)</pre></div>
+                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm"><h4 className="font-bold text-slate-900 text-sm mb-2">Spark UI</h4><p className="text-sm text-slate-700">SQL Tab &gt; Query Description &gt; "Physical Plan"</p></div>
                </div>
             </div>
           </div>
@@ -462,13 +468,13 @@ AdaptiveSparkPlan isFinalPlan=true
       )}
       
       {showImplGuide && (
-         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+           <div className="bg-white/80 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative border border-white/50">
+             <div className="p-6 border-b border-slate-200/50 flex justify-between items-center bg-white/40">
                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
-               <button onClick={() => setShowImplGuide(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+               <button onClick={() => setShowImplGuide(false)} className="p-2 hover:bg-white/50 rounded-full text-slate-500 hover:text-slate-700 transition-colors"><X className="w-5 h-5" /></button>
              </div>
-             <div className="p-8 text-sm text-slate-600 leading-relaxed">
+             <div className="p-8 text-sm text-slate-800 font-medium leading-relaxed">
                 <p>BrickOptima uses a client-side React architecture powered by Google Gemini.</p>
                 <ul className="list-disc ml-5 mt-4 space-y-2">
                    <li><strong>Analysis Engine:</strong> Gemini 2.0 Flash processes raw text plans into JSON structures.</li>
