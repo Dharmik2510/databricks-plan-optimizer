@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { OptimizationTip, Severity } from '../types';
 import { AlertTriangle, CheckCircle, Zap, Copy, Code, ArrowRight } from 'lucide-react';
@@ -17,69 +18,67 @@ export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h3 className="text-2xl font-bold text-white flex items-center gap-3 mb-8 drop-shadow-md">
-        <div className="p-2 bg-amber-500/20 rounded-lg border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-           <Zap className="w-6 h-6 text-amber-400" />
+      <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-3 mb-8">
+        <div className="p-2 bg-orange-100 rounded-lg border border-orange-200">
+           <Zap className="w-6 h-6 text-orange-500" />
         </div>
         Performance Recommendations
       </h3>
       
       {optimizations.map((opt, idx) => (
-        <div key={idx} className="bg-slate-900/60 backdrop-blur-2xl rounded-3xl shadow-xl border border-white/10 overflow-hidden group transition-all hover:bg-slate-900/80 hover:border-white/20 hover:shadow-[0_10px_50px_rgba(0,0,0,0.5)] hover:translate-y-[-2px] relative">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
-
+        <div key={idx} className="bg-white/70 backdrop-blur-2xl rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden group transition-all hover:shadow-md hover:border-orange-200 hover:translate-y-[-1px]">
+          
           <div className={`p-6 flex flex-col md:flex-row gap-5 justify-between items-start border-l-4 ${
-            opt.severity === Severity.HIGH ? 'border-red-500 bg-red-500/5' : 
-            opt.severity === Severity.MEDIUM ? 'border-amber-500 bg-amber-500/5' : 'border-emerald-500 bg-emerald-500/5'
+            opt.severity === Severity.HIGH ? 'border-red-500 bg-red-50/50' : 
+            opt.severity === Severity.MEDIUM ? 'border-amber-500 bg-amber-50/50' : 'border-emerald-500 bg-emerald-50/50'
           }`}>
             <div className="flex gap-5">
               <div className="mt-1 flex-shrink-0">
-                {opt.severity === Severity.HIGH && <div className="p-3 bg-red-500/20 text-red-400 rounded-xl border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"><AlertTriangle className="w-6 h-6" /></div>}
-                {opt.severity === Severity.MEDIUM && <div className="p-3 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]"><AlertTriangle className="w-6 h-6" /></div>}
-                {opt.severity === Severity.LOW && <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]"><CheckCircle className="w-6 h-6" /></div>}
+                {opt.severity === Severity.HIGH && <div className="p-2 bg-white text-red-500 rounded-lg border border-red-200 shadow-sm"><AlertTriangle className="w-6 h-6" /></div>}
+                {opt.severity === Severity.MEDIUM && <div className="p-2 bg-white text-amber-500 rounded-lg border border-amber-200 shadow-sm"><AlertTriangle className="w-6 h-6" /></div>}
+                {opt.severity === Severity.LOW && <div className="p-2 bg-white text-emerald-500 rounded-lg border border-emerald-200 shadow-sm"><CheckCircle className="w-6 h-6" /></div>}
               </div>
               <div>
-                <h4 className="text-xl font-bold text-white tracking-wide drop-shadow-md">{opt.title}</h4>
-                <p className="text-slate-200 mt-2 leading-relaxed text-base font-light tracking-wide">{opt.description}</p>
+                <h4 className="text-xl font-bold text-slate-900 tracking-tight">{opt.title}</h4>
+                <p className="text-slate-600 mt-2 leading-relaxed text-base">{opt.description}</p>
               </div>
             </div>
-            <span className={`text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider flex-shrink-0 backdrop-blur-md border shadow-sm ${
-               opt.severity === Severity.HIGH ? 'bg-red-500/10 text-red-300 border-red-500/20' : 
-               opt.severity === Severity.MEDIUM ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+            <span className={`text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider flex-shrink-0 border shadow-sm ${
+               opt.severity === Severity.HIGH ? 'bg-white border-red-200 text-red-600' : 
+               opt.severity === Severity.MEDIUM ? 'bg-white border-amber-200 text-amber-600' : 'bg-white border-emerald-200 text-emerald-600'
             }`}>
               {opt.severity} Priority
             </span>
           </div>
 
           {opt.codeSuggestion && (
-            <div className="border-t border-white/10 grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-white/10">
+            <div className="border-t border-slate-200 grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
               {opt.originalPattern && (
-                <div className="p-6 bg-black/40 backdrop-blur-sm">
-                  <div className="flex items-center gap-2 text-xs font-bold text-red-400 uppercase mb-4 tracking-wider">
+                <div className="p-6 bg-slate-50/50">
+                  <div className="flex items-center gap-2 text-xs font-bold text-red-600 uppercase mb-4 tracking-wider">
                     <AlertTriangle className="w-3 h-3" /> Current Pattern
                   </div>
-                  <div className="font-mono text-sm text-slate-300 bg-black/60 p-4 rounded-xl border border-white/10 shadow-inner">
+                  <div className="font-mono text-sm text-slate-600 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                     <pre className="whitespace-pre-wrap break-words">{opt.originalPattern}</pre>
                   </div>
                 </div>
               )}
 
-              <div className={`p-6 bg-black/50 backdrop-blur-sm relative ${!opt.originalPattern ? 'col-span-2' : ''}`}>
+              <div className={`p-6 bg-white relative ${!opt.originalPattern ? 'col-span-2' : ''}`}>
                 <div className="flex items-center justify-between mb-4">
-                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-wider">
                      <Code className="w-3 h-3" /> Optimized Code
                    </div>
                    <button 
                     onClick={() => copyToClipboard(opt.codeSuggestion!, idx)}
-                    className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md"
+                    className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"
                   >
-                    {copiedIdx === idx ? <CheckCircle className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedIdx === idx ? <CheckCircle className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                     {copiedIdx === idx ? "Copied" : "Copy"}
                   </button>
                 </div>
                 <div className="relative">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur opacity-20"></div>
-                  <pre className="relative text-sm font-mono text-emerald-200 overflow-x-auto p-4 bg-black/80 rounded-xl border border-white/10 shadow-inner">
+                  <pre className="relative text-sm font-mono text-emerald-700 overflow-x-auto p-4 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
                     <code>{opt.codeSuggestion}</code>
                   </pre>
                 </div>

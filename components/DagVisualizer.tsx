@@ -22,7 +22,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // Memoize the level computation to avoid recalculating on every render if data hasn't changed
+  // Memoize the level computation to avoid recalculating on every render
   const levels = useMemo(() => {
     const adjacency = new Map<string, string[]>();
     const inDegree = new Map<string, number>();
@@ -85,7 +85,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("viewBox", [0, 0, width, height])
       .style("cursor", "grab");
 
-    // Define Arrowhead Marker
+    // Define Arrowhead Marker - Dark Gray for Light Theme
     const defs = svg.append("defs");
     defs.append("marker")
       .attr("id", "arrowhead")
@@ -97,7 +97,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("orient", "auto")
       .append("path")
       .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", "#94a3b8");
+      .attr("fill", "#64748b"); // Slate 500
 
     const g = svg.append("g");
 
@@ -131,8 +131,8 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
 
     // Draw Links
     const link = g.append("g")
-      .attr("stroke", "#cbd5e1")
-      .attr("stroke-opacity", 0.5)
+      .attr("stroke", "#cbd5e1") // Slate 300
+      .attr("stroke-opacity", 0.8)
       .selectAll("path")
       .data(simLinks)
       .join("path")
@@ -150,23 +150,23 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
         .on("drag", dragged)
         .on("end", dragended));
 
-    // Node Background Circle (Glow)
+    // Node Background Circle - Updated for Light Theme Visibility
     node.append("circle")
       .attr("r", 28)
       .attr("fill", (d) => {
          const t = d.type.toLowerCase();
-         if (t.includes('shuffle') || t.includes('exchange')) return 'rgba(248, 113, 113, 0.15)'; 
-         if (t.includes('scan') || t.includes('read')) return 'rgba(74, 222, 128, 0.15)';
-         if (t.includes('join')) return 'rgba(251, 191, 36, 0.15)';
-         if (t.includes('filter') || t.includes('project')) return 'rgba(6, 182, 212, 0.15)';
-         return 'rgba(148, 163, 184, 0.15)';
+         if (t.includes('shuffle') || t.includes('exchange')) return '#fee2e2'; // Red 100
+         if (t.includes('scan') || t.includes('read')) return '#dcfce7'; // Green 100
+         if (t.includes('join')) return '#fef3c7'; // Amber 100
+         if (t.includes('filter') || t.includes('project')) return '#cffafe'; // Cyan 100
+         return '#f1f5f9'; // Slate 100
       })
       .attr("stroke-width", 2)
       .attr("stroke", (d) => {
         const t = d.type.toLowerCase();
-        if (t.includes('shuffle') || t.includes('exchange')) return '#f87171'; 
-        if (t.includes('scan') || t.includes('read')) return '#4ade80'; 
-        if (t.includes('join')) return '#fbbf24'; 
+        if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; 
+        if (t.includes('scan') || t.includes('read')) return '#22c55e'; 
+        if (t.includes('join')) return '#f59e0b'; 
         if (t.includes('filter') || t.includes('project')) return '#06b6d4'; 
         return '#94a3b8';
       });
@@ -183,7 +183,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
         return '#cbd5e1';
       });
 
-    // Node Label
+    // Node Label - Dark Text with White Halo
     node.append("text")
       .attr("x", 0)
       .attr("y", -40)
@@ -191,9 +191,13 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .text((d) => d.name)
       .attr("font-weight", "600")
       .attr("font-size", "12px")
-      .attr("fill", "#ffffff") 
+      .attr("fill", "#1e293b") // Slate 800
       .style("pointer-events", "none")
-      .style("text-shadow", "0 2px 4px rgba(0,0,0,1)") 
+      .style("paint-order", "stroke")
+      .style("stroke", "#ffffff")
+      .style("stroke-width", "3px")
+      .style("stroke-linecap", "butt")
+      .style("stroke-linejoin", "miter")
       .call(getWrapText);
 
     // Metric Label
@@ -203,7 +207,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("text-anchor", "middle")
       .text((d) => d.metric || "")
       .attr("font-size", "10px")
-      .attr("fill", "#94a3b8")
+      .attr("fill", "#64748b") // Slate 500
       .style("pointer-events", "none");
 
     // Curved Links
@@ -268,32 +272,31 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-slate-900/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden flex flex-col h-[600px] group hover:shadow-[0_0_40px_rgba(6,182,212,0.15)] transition-all relative">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+    <div ref={containerRef} className="w-full bg-white/70 backdrop-blur-2xl rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden flex flex-col h-[600px] relative group">
       
-      <div className="p-5 border-b border-white/10 bg-white/5 flex justify-between items-center flex-shrink-0">
-        <h3 className="font-bold text-white drop-shadow-sm text-lg">Execution Plan Flow</h3>
+      <div className="p-5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center flex-shrink-0">
+        <h3 className="font-bold text-slate-900 text-lg">Execution Plan Flow</h3>
         <div className="flex items-center gap-3">
-           <div className="flex gap-3 mr-4 border-r border-white/10 pr-4 hidden sm:flex">
-               <div className="flex items-center gap-1.5 text-[10px] text-slate-300">
-                 <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></span> Scan
+           <div className="flex gap-3 mr-4 border-r border-slate-300 pr-4 hidden sm:flex">
+               <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                 <span className="w-2 h-2 rounded-full bg-green-500"></span> Scan
                </div>
-               <div className="flex items-center gap-1.5 text-[10px] text-slate-300">
-                 <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"></span> Shuffle
+               <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                 <span className="w-2 h-2 rounded-full bg-red-500"></span> Shuffle
                </div>
-               <div className="flex items-center gap-1.5 text-[10px] text-slate-300">
-                 <span className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_5px_rgba(6,182,212,0.5)]"></span> Transform
+               <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                 <span className="w-2 h-2 rounded-full bg-cyan-500"></span> Transform
                </div>
            </div>
-           <div className="flex bg-black/30 rounded-lg border border-white/10 shadow-sm backdrop-blur-md">
-              <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"><ZoomIn className="w-4 h-4" /></button>
-              <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-white/10 text-slate-300 hover:text-white border-l border-white/10 transition-colors"><ZoomOut className="w-4 h-4" /></button>
+           <div className="flex bg-white rounded-lg border border-slate-300 shadow-sm">
+              <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"><ZoomIn className="w-4 h-4" /></button>
+              <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border-l border-slate-200 transition-colors"><ZoomOut className="w-4 h-4" /></button>
            </div>
         </div>
       </div>
-      <div className="flex-1 relative overflow-hidden bg-slate-950/30">
+      <div className="flex-1 relative overflow-hidden bg-slate-50/30">
          {/* Grid Background */}
-         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
          <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>
       </div>
     </div>
