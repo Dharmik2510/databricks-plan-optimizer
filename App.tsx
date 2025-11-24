@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio } from 'lucide-react';
+import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DagVisualizer } from './components/DagVisualizer';
 import { ResourceChart } from './components/ResourceChart';

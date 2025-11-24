@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { OptimizationTip, Severity } from '../types';
 import { AlertTriangle, CheckCircle, Zap, Copy, Code } from 'lucide-react';
