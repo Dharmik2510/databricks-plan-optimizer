@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { OptimizationTip, Severity } from '../types';
-import { AlertTriangle, CheckCircle, Zap, Copy, Code, ArrowRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Zap, Copy, Code } from 'lucide-react';
 
 interface Props {
   optimizations: OptimizationTip[];
@@ -8,6 +8,13 @@ interface Props {
 
 export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  
+  const totalTimeSaved = optimizations.reduce((sum, opt) => 
+    sum + (opt.estimated_time_saved_seconds || 0), 0);
+  const totalCostSaved = optimizations.reduce((sum, opt) => 
+    sum + (opt.estimated_cost_saved_usd || 0), 0);
+  const avgConfidence = optimizations.reduce((sum, opt) => 
+    sum + (opt.confidence_score || 0), 0) / optimizations.length;
 
   const copyToClipboard = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
@@ -23,7 +30,52 @@ export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
         </div>
         Performance Recommendations
       </h3>
+
+      {/* Total Optimization Potential Summary Card */}
+      {(totalTimeSaved > 0 || totalCostSaved > 0) && (
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 backdrop-blur-3xl rounded-3xl shadow-lg border border-orange-200/50 p-6 mb-8 ring-1 ring-orange-100/40">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-white/80 rounded-xl shadow-sm">
+              <Zap className="w-5 h-5 text-orange-600" />
+            </div>
+            <h4 className="font-bold text-slate-900 text-lg">Total Optimization Potential</h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Time Reduction Card */}
+            <div className="bg-white/70 backdrop-blur-md p-4 rounded-2xl border border-white/60 shadow-sm">
+              <div className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Time Reduction</div>
+              <div className="text-2xl font-bold text-blue-700">
+                {totalTimeSaved < 60 
+                  ? `${totalTimeSaved.toFixed(0)}s`
+                  : totalTimeSaved < 3600
+                  ? `${(totalTimeSaved / 60).toFixed(1)}m`
+                  : `${(totalTimeSaved / 3600).toFixed(1)}h`}
+              </div>
+              <div className="text-xs text-slate-600 mt-1">per execution</div>
+            </div>
+            
+            {/* Cost Savings Card */}
+            <div className="bg-white/70 backdrop-blur-md p-4 rounded-2xl border border-white/60 shadow-sm">
+              <div className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Cost Savings</div>
+              <div className="text-2xl font-bold text-emerald-700">${totalCostSaved.toFixed(2)}</div>
+              <div className="text-xs text-slate-600 mt-1">per run · ${(totalCostSaved * 365).toFixed(0)}/year if daily</div>
+            </div>
+            
+            {/* Average Confidence Card */}
+            <div className="bg-white/70 backdrop-blur-md p-4 rounded-2xl border border-white/60 shadow-sm">
+              <div className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Avg Confidence</div>
+              <div className="flex items-baseline gap-2">
+                <div className={`text-2xl font-bold ${avgConfidence >= 80 ? 'text-emerald-700' : avgConfidence >= 60 ? 'text-amber-700' : 'text-slate-700'}`}>
+                  {avgConfidence.toFixed(0)}%
+                </div>
+                <div className="text-xs text-slate-600">across {optimizations.length} issues</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
+      {/* Individual Optimization Cards */}
       {optimizations.map((opt, idx) => (
         <div key={idx} className={`bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border overflow-hidden group transition-all hover:shadow-xl hover:translate-y-[-2px] ring-1 ring-white/40 ${
           opt.severity === Severity.HIGH ? 'border-red-500' : 'border-white/60 hover:border-orange-200 hover:bg-white/60'
@@ -33,17 +85,90 @@ export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
             opt.severity === Severity.HIGH ? 'border-red-500 bg-red-50/30' : 
             opt.severity === Severity.MEDIUM ? 'border-amber-500 bg-amber-50/30' : 'border-emerald-500 bg-emerald-50/30'
           }`}>
-            <div className="flex gap-5">
+            <div className="flex gap-5 flex-1">
+              {/* Severity Icon */}
               <div className="mt-1 flex-shrink-0">
                 {opt.severity === Severity.HIGH && <div className="p-2 bg-white/80 text-red-600 rounded-xl border border-red-200 shadow-sm"><AlertTriangle className="w-6 h-6" /></div>}
                 {opt.severity === Severity.MEDIUM && <div className="p-2 bg-white/80 text-amber-600 rounded-xl border border-amber-200 shadow-sm"><AlertTriangle className="w-6 h-6" /></div>}
                 {opt.severity === Severity.LOW && <div className="p-2 bg-white/80 text-emerald-600 rounded-xl border border-emerald-200 shadow-sm"><CheckCircle className="w-6 h-6" /></div>}
               </div>
-              <div>
-                <h4 className="text-xl font-bold text-slate-900 tracking-tight">{opt.title}</h4>
+              
+              {/* Content Section */}
+              <div className="flex-1">
+                {/* Title with Confidence Score */}
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <h4 className="text-xl font-bold text-slate-900 tracking-tight">{opt.title}</h4>
+                  
+                  {/* Confidence Score Badge */}
+                  {opt.confidence_score && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-white/60 rounded-lg border border-white/50 text-xs">
+                      <span className="text-slate-500 font-semibold">Confidence:</span>
+                      <span className={`font-bold ${
+                        opt.confidence_score >= 80 ? 'text-emerald-600' : 
+                        opt.confidence_score >= 60 ? 'text-amber-600' : 'text-slate-600'
+                      }`}>
+                        {opt.confidence_score}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Description */}
                 <p className="text-slate-800 mt-2 leading-relaxed text-base font-medium">{opt.description}</p>
+                
+                {/* Impact Metrics Badges */}
+                {(opt.estimated_time_saved_seconds || opt.estimated_cost_saved_usd || opt.implementation_complexity) && (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {/* Time Saved Badge */}
+                    {opt.estimated_time_saved_seconds && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50/80 border border-blue-200/50 rounded-lg">
+                        <span className="text-xs text-blue-600 font-bold">⏱️ Time Saved:</span>
+                        <span className="text-sm font-bold text-blue-800">
+                          {opt.estimated_time_saved_seconds < 60 
+                            ? `${opt.estimated_time_saved_seconds.toFixed(0)}s`
+                            : `${(opt.estimated_time_saved_seconds / 60).toFixed(1)}m`}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Cost Saved Badge */}
+                    {opt.estimated_cost_saved_usd && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50/80 border border-emerald-200/50 rounded-lg">
+                        <span className="text-xs text-emerald-600 font-bold">💰 Cost Saved:</span>
+                        <span className="text-sm font-bold text-emerald-800">${opt.estimated_cost_saved_usd.toFixed(2)}/run</span>
+                      </div>
+                    )}
+                    
+                    {/* Implementation Complexity Badge */}
+                    {opt.implementation_complexity && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50/80 border border-purple-200/50 rounded-lg">
+                        <span className="text-xs text-purple-600 font-bold">🔧 Complexity:</span>
+                        <span className={`text-sm font-bold ${
+                          opt.implementation_complexity === 'Low' ? 'text-emerald-700' :
+                          opt.implementation_complexity === 'Medium' ? 'text-amber-700' : 'text-red-700'
+                        }`}>{opt.implementation_complexity}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Affected Stages */}
+                {opt.affected_stages && opt.affected_stages.length > 0 && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+                    <span className="font-semibold">Affects Stages:</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {opt.affected_stages.map((stage, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded font-mono font-bold text-slate-700">
+                          {stage}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+            
+            {/* Severity Badge */}
             <span className={`text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider flex-shrink-0 border shadow-sm backdrop-blur-md ${
                opt.severity === Severity.HIGH ? 'bg-white/80 border-red-200 text-red-700' : 
                opt.severity === Severity.MEDIUM ? 'bg-white/80 border-amber-200 text-amber-700' : 'bg-white/80 border-emerald-200 text-emerald-700'
@@ -52,8 +177,10 @@ export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
             </span>
           </div>
 
+          {/* Code Suggestions Section */}
           {opt.codeSuggestion && (
             <div className="border-t border-slate-200/50 grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/50">
+              {/* Current Pattern (if exists) */}
               {opt.originalPattern && (
                 <div className="p-6 bg-slate-50/30 backdrop-blur-sm">
                   <div className="flex items-center gap-2 text-xs font-bold text-red-700 uppercase mb-4 tracking-wider">
@@ -65,6 +192,7 @@ export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
                 </div>
               )}
 
+              {/* Optimized Code */}
               <div className={`p-6 bg-white/40 backdrop-blur-sm relative ${!opt.originalPattern ? 'col-span-2' : ''}`}>
                 <div className="flex items-center justify-between mb-4">
                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 uppercase tracking-wider">
