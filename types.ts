@@ -36,7 +36,12 @@ export interface OptimizationTip {
   severity: Severity;
   description: string;
   codeSuggestion?: string;
-  originalPattern?: string; // What it looked like before
+  originalPattern?: string;
+  estimated_time_saved_seconds?: number;
+  estimated_cost_saved_usd?: number;
+  confidence_score?: number; // 0-100
+  implementation_complexity?: 'Low' | 'Medium' | 'High';
+  affected_stages?: string[];
 }
 
 export interface AnalysisResult {
@@ -46,7 +51,14 @@ export interface AnalysisResult {
   resourceMetrics: ResourceMetric[];
   optimizations: OptimizationTip[];
   estimatedDurationMin?: number;
-  codeMappings?: CodeSnippet[]; // Global list of relevant code parts
+  codeMappings?: CodeSnippet[];
+  query_complexity_score?: number; // 0-100
+  optimization_impact_score?: number; // 0-100  
+  risk_assessment?: {
+    data_skew_risk: 'Low' | 'Medium' | 'High';
+    oom_risk: 'Low' | 'Medium' | 'High';
+    shuffle_overhead_risk: 'Low' | 'Medium' | 'High';
+  };
 }
 
 export interface ChatMessage {

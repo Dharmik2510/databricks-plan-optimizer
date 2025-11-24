@@ -9,23 +9,90 @@ let chatSession: Chat | null = null;
 export const analyzeDagContent = async (content: string, repoFiles: RepoFile[] = []): Promise<AnalysisResult> => {
   
   const systemInstruction = `
-    You are a Principal Data Engineer and Databricks Performance Architect. 
-    Your job is to analyze Spark Physical Plans (DAGs), SQL Explains, or Logs to find performance killers.
-
-    Focus on identifying these specific anti-patterns:
-    1. **Cartesian Products**: Look for 'BroadcastNestedLoopJoin' without a join condition.
-    2. **Shuffle Storms**: 'Exchange hashpartitioning' causing excessive data movement.
-    3. **Spill to Disk**: If memory metrics imply data not fitting in RAM.
-    4. **Scan Inefficiency**: 'FileScan' reading full schemas, missing PartitionFilters, or not using Z-Ordering.
+  You are an AI-powered Spark Performance Analyzer with deep expertise in distributed systems optimization.
     
-    **CODE MAPPING TASK**:
-    If source code is provided, you MUST attempt to map specific DAG nodes back to the source code file and line number.
-    Look for:
-    - Table/View names in Scan nodes matching code.
-    - Column transformations matching 'withColumn' or SQL expressions.
-    - Join conditions matching 'join' operations.
+    **ANALYSIS METHODOLOGY** (Multi-Pass Pipeline):
     
-    Return valid JSON conforming to the schema.
+    PASS 1 - STRUCTURAL PARSING:
+    - Extract all operators: Scan, Filter, Join, Exchange, Aggregate, Sort
+    - Build operator dependency tree
+    - Identify stage boundaries (Exchange nodes)
+    - Calculate operator cardinality estimates
+    
+    PASS 2 - ANTI-PATTERN DETECTION:
+    Detect these critical issues with QUANTIFIED IMPACT:
+    
+    1. **Cartesian Product** (BroadcastNestedLoopJoin without condition)
+       - Impact: O(n*m) complexity, typical 100-1000x slowdown
+       - Cost: Estimate rows_left * rows_right * 0.001 seconds
+    
+    2. **Shuffle Explosion** (Multiple Exchanges with high cardinality)
+       - Impact: Network saturation, spill to disk
+       - Cost: (shuffle_bytes / 100MB) * 2 seconds per stage
+    
+    3. **Missing Partition Filters** (FileScan without PartitionFilters on partitioned tables)
+       - Impact: Full table scan instead of partition pruning
+       - Cost: (total_partitions - needed_partitions) * avg_partition_scan_time
+    
+    4. **Broadcast Join Size Violation** (BroadcastExchange > 10MB default)
+       - Impact: Driver OOM, task serialization overhead
+       - Cost: If broadcast_size > threshold, penalize 5-50x
+    
+    5. **Sort Before Shuffle** (Sort followed by Exchange)
+       - Impact: Wasted sorting, data re-sorted after shuffle
+       - Cost: Redundant_sort_time = rows * log(rows) * 0.000001
+    
+    6. **Skewed Join Keys** (Mentions "skew" or uneven partition sizes)
+       - Impact: Stragglers, most tasks idle
+       - Cost: (max_partition_time - avg_partition_time) * num_tasks
+    
+    7. **Inefficient File Formats** (CSV/JSON in FileScan)
+       - Impact: No columnar pruning, no compression
+       - Cost: 3-10x slower than Parquet/Delta
+    
+    8. **Wide Transformations in Loops** (Joins/Aggregates in iterative patterns)
+       - Impact: Repeated shuffles
+       - Cost: iterations * shuffle_cost
+    
+    9. **Schema Inference on Read** (inferSchema=true in logs/code)
+       - Impact: Two-pass read
+       - Cost: 2x scan time
+    
+    10. **Missing Z-Order/Data Clustering** (Delta tables without OPTIMIZE)
+        - Impact: Excessive file reads
+        - Cost: file_count * seek_time
+    
+    PASS 3 - OPTIMIZATION SYNTHESIS:
+    For EACH detected issue:
+    - Generate 2-3 alternative solutions
+    - Rank by (impact * probability_of_success)
+    - Provide code transformation with before/after
+    - Estimate % performance gain and cost savings
+    
+    PASS 4 - HOLISTIC RECOMMENDATIONS:
+    - Suggest configuration tuning (spark.sql.shuffle.partitions, etc)
+    - Recommend data layout changes (partitioning strategy, Z-ordering)
+    - Propose architectural refactoring (denormalization, materialized views)
+    
+    **CODE MAPPING**:
+    If source code provided:
+    - Use table/view names to map Scan nodes
+    - Match join predicates to .join() calls
+    - Trace column references through transformations
+    - Identify the EXACT line causing each bottleneck
+    
+    **COMPARATIVE ANALYSIS** (if multiple plans detected):
+    If the input contains "BEFORE:" and "AFTER:" sections, or multiple explain outputs:
+    - Identify what changed between versions
+    - Quantify the improvement (or regression)
+    - Highlight which optimizations were successfully applied
+    - Calculate ROI of the changes
+    
+    **OUTPUT REQUIREMENTS**:
+    - Rank optimizations by estimated_time_saved_seconds DESC
+    - Include confidence_score (0-100) for each recommendation
+    - Provide estimated_cost_impact_usd based on DBU pricing
+    - Generate executable code fixes, not just descriptions
   `;
 
   let codeContext = "";
@@ -113,10 +180,31 @@ export const analyzeDagContent = async (content: string, repoFiles: RepoFile[] =
                 type: Type.OBJECT,
                 properties: {
                   title: { type: Type.STRING },
-                  severity: { type: Type.STRING, enum: [Severity.HIGH, Severity.MEDIUM, Severity.LOW] },
+                  severity: { type: Type.STRING },
                   description: { type: Type.STRING },
-                  codeSuggestion: { type: Type.STRING, description: "The improved code" },
-                  originalPattern: { type: Type.STRING, description: "The inefficient code pattern found" }
+                  codeSuggestion: { type: Type.STRING },
+                  originalPattern: { type: Type.STRING },
+                  estimated_time_saved_seconds: { 
+                    type: Type.NUMBER, 
+                    description: "Quantified time impact" 
+                  },
+                  estimated_cost_saved_usd: { 
+                    type: Type.NUMBER, 
+                    description: "Dollar cost savings per run" 
+                  },
+                  confidence_score: { 
+                    type: Type.NUMBER, 
+                    description: "Certainty 0-100" 
+                  },
+                  implementation_complexity: { 
+                    type: Type.STRING, 
+                    enum: ["Low", "Medium", "High"] 
+                  },
+                  affected_stages: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING },
+                    description: "Stage IDs impacted"
+                  }
                 },
                 required: ["title", "severity", "description"]
               }
@@ -134,7 +222,23 @@ export const analyzeDagContent = async (content: string, repoFiles: RepoFile[] =
                   relevanceExplanation: { type: Type.STRING }
                 }
               }
-            }
+            },
+            query_complexity_score: { 
+                type: Type.NUMBER, 
+                description: "0-100 complexity rating"
+              },
+              optimization_impact_score: { 
+                type: Type.NUMBER, 
+                description: "0-100 potential improvement"
+              },
+              risk_assessment: {
+                type: Type.OBJECT,
+                properties: {
+                  data_skew_risk: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                  oom_risk: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                  shuffle_overhead_risk: { type: Type.STRING, enum: ["Low", "Medium", "High"] }
+                }
+              }
           },
           required: ["summary", "dagNodes", "dagLinks", "resourceMetrics", "optimizations"]
         }

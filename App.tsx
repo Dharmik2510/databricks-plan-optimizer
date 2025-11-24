@@ -128,25 +128,46 @@ function App() {
 
   const insertDemoData = () => {
     const demo = `== Physical Plan ==
-AdaptiveSparkPlan isFinalPlan=true
-+- == Final Plan ==
-   ResultQueryStage
-   +- Project [user_id#12, sum(amount)#45 AS total_spend#99]
-      +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])
-         +- Sort [user_id#12 ASC NULLS FIRST], true, 0
-            +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]
-               +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])
-                  +- Sort [user_id#12 ASC NULLS FIRST], false, 0
-                     +- Project [user_id#12, amount#45]
-                        +- BroadcastNestedLoopJoin BuildRight, Inner
-                           :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))
-                           :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] Batched: true, DataFilters: [isnotnull(transaction_date#40)], Format: Parquet, Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], PartitionFilters: [], PushedFilters: [IsNotNull(transaction_date)], ReadSchema: struct<user_id:string,transaction_date:date,amount:double>
-                           +- BroadcastExchange IdentityBroadcastMode, [id=#98]
-                              +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))
-                                 +- FileScan csv db.users[user_id#10, status#20] Batched: false, Format: CSV, Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], PartitionFilters: [], PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], ReadSchema: struct<user_id:string,status:string>`;
-    setTextContent(demo);
-  };
+  AdaptiveSparkPlan isFinalPlan=true
+  +- == Final Plan ==
+    ResultQueryStage 1 (est. rows: 2.5M, size: 180MB)
+    +- Project [user_id#12, sum(amount)#45 AS total_spend#99]
+        +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])
+          +- Sort [user_id#12 ASC NULLS FIRST], true, 0
+              +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]
+                +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])
+                    +- Sort [user_id#12 ASC NULLS FIRST], false, 0
+                      +- Project [user_id#12, amount#45]
+                          +- BroadcastNestedLoopJoin BuildRight, Inner (WARNING: Missing Join Condition - Cartesian Product)
+                            :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))
+                            :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] 
+                            :     Batched: true, 
+                            :     DataFilters: [isnotnull(transaction_date#40)], 
+                            :     Format: Parquet, 
+                            :     Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], 
+                            :     PartitionFilters: [], 
+                            :     PushedFilters: [IsNotNull(transaction_date)], 
+                            :     ReadSchema: struct<user_id:string,transaction_date:date,amount:double>
+                            :     Statistics: rows=15000000, size=1.2GB
+                            +- BroadcastExchange IdentityBroadcastMode, [id=#98] (size: 45MB)
+                                +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))
+                                  +- FileScan csv db.users[user_id#10, status#20] 
+                                      Batched: false, 
+                                      Format: CSV, 
+                                      Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], 
+                                      PartitionFilters: [], 
+                                      PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], 
+                                      ReadSchema: struct<user_id:string,status:string>
+                                      Statistics: rows=500000, size=25MB
 
+  == Additional Context ==
+  - Table 'transactions' is partitioned by year/month but PartitionFilters is empty
+  - Broadcast size (45MB) exceeds recommended threshold of 10MB
+  - CSV format used for 'users' table instead of Parquet
+  - Query execution time: 847 seconds
+  - Estimated cost: $12.40 per run on m5.2xlarge cluster (8 DBUs)`;
+    setTextContent(demo);
+};
   const resetApp = () => {
     setResult(null);
     setAppState(AppState.IDLE);
@@ -428,6 +449,89 @@ AdaptiveSparkPlan isFinalPlan=true
                       </div>
                     </div>
                   </section>
+                  {(result.query_complexity_score !== undefined || 
+                    result.optimization_impact_score !== undefined || 
+                    result.risk_assessment) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Complexity Score */}
+                      {result.query_complexity_score !== undefined && (
+                        <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-bold text-slate-900 text-sm">Query Complexity</h4>
+                            <div className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                              result.query_complexity_score <= 30 ? 'bg-emerald-100 text-emerald-700' :
+                              result.query_complexity_score <= 60 ? 'bg-amber-100 text-amber-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {result.query_complexity_score <= 30 ? 'Simple' : 
+                              result.query_complexity_score <= 60 ? 'Moderate' : 'Complex'}
+                            </div>
+                          </div>
+                          <div className="relative pt-2">
+                            <div className="flex items-center justify-center">
+                              <div className="text-5xl font-bold text-slate-900">{result.query_complexity_score}</div>
+                              <div className="text-2xl text-slate-500 ml-1">/100</div>
+                            </div>
+                            <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all ${
+                                  result.query_complexity_score <= 30 ? 'bg-emerald-500' :
+                                  result.query_complexity_score <= 60 ? 'bg-amber-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${result.query_complexity_score}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                  {/* Improvement Potential */}
+                  {result.optimization_impact_score !== undefined && (
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 backdrop-blur-3xl rounded-3xl shadow-lg border border-emerald-200/50 p-6 ring-1 ring-emerald-100/40">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-slate-900 text-sm">Improvement Potential</h4>
+                        <Zap className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div className="relative pt-2">
+                        <div className="flex items-center justify-center">
+                          <div className="text-5xl font-bold text-emerald-700">{result.optimization_impact_score}</div>
+                          <div className="text-2xl text-emerald-500 ml-1">%</div>
+                        </div>
+                        <div className="mt-4 text-center text-xs text-slate-600 font-semibold">
+                          Potential speedup if all fixes applied
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Risk Assessment */}
+                  {result.risk_assessment && (
+                    <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
+                      <h4 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        Risk Assessment
+                      </h4>
+                      <div className="space-y-3">
+                        {Object.entries(result.risk_assessment).map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center">
+                            <span className="text-xs text-slate-600 font-medium capitalize">
+                              {key.replace(/_/g, ' ')}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              value === 'Low' ? 'bg-emerald-100 text-emerald-700' :
+                              value === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
 
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     <DagVisualizer nodes={result.dagNodes} links={result.dagLinks} />
