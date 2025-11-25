@@ -150,7 +150,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
         .on("drag", dragged)
         .on("end", dragended));
 
-    // Node Background Circle - High opacity colors for contrast against glass
+    // Node Background Circle
     node.append("circle")
       .attr("r", 28)
       .attr("fill", (d) => {
@@ -161,7 +161,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
          if (t.includes('filter') || t.includes('project')) return '#cffafe'; 
          return '#ffffff'; 
       })
-      .attr("stroke-width", 3) // Thicker stroke
+      .attr("stroke-width", 3)
       .attr("stroke", (d) => {
         const t = d.type.toLowerCase();
         if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; 
@@ -170,7 +170,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
         if (t.includes('filter') || t.includes('project')) return '#0891b2'; 
         return '#64748b';
       })
-      .style("filter", "drop-shadow(0px 4px 6px rgba(0,0,0,0.1))"); // Node shadow
+      .style("filter", "drop-shadow(0px 4px 6px rgba(0,0,0,0.1))");
 
     // Inner Node Dot
     node.append("circle")
@@ -184,24 +184,51 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
         return '#64748b';
       });
 
-    // Node Label - Pure Black with robust White Halo
+    // --- TEXT RENDERING FIX START ---
+    // 1. Halo Text (Stroke background)
     node.append("text")
       .attr("x", 0)
       .attr("y", -40)
       .attr("text-anchor", "middle")
       .text((d) => d.name)
-      .attr("font-weight", "700") // Bolder
+      .attr("font-weight", "700")
+      .attr("font-size", "12px")
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 4)
+      .attr("stroke-linejoin", "round")
+      .attr("stroke-linecap", "round")
+      .attr("fill", "none")
+      .style("pointer-events", "none")
+      .call(getWrapText);
+
+    // 2. Main Text (Fill foreground)
+    node.append("text")
+      .attr("x", 0)
+      .attr("y", -40)
+      .attr("text-anchor", "middle")
+      .text((d) => d.name)
+      .attr("font-weight", "700")
       .attr("font-size", "12px")
       .attr("fill", "#0f172a") // Deep Slate
       .style("pointer-events", "none")
-      .style("paint-order", "stroke")
-      .style("stroke", "#ffffff")
-      .style("stroke-width", "4px") // Thicker halo
-      .style("stroke-linecap", "butt")
-      .style("stroke-linejoin", "miter")
       .call(getWrapText);
+    // --- TEXT RENDERING FIX END ---
 
-    // Metric Label
+    // Metric Label - Halo
+    node.append("text")
+      .attr("x", 0)
+      .attr("y", 45)
+      .attr("text-anchor", "middle")
+      .text((d) => d.metric || "")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600")
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 3)
+      .attr("stroke-linejoin", "round")
+      .attr("fill", "none")
+      .style("pointer-events", "none");
+    
+    // Metric Label - Fill
     node.append("text")
       .attr("x", 0)
       .attr("y", 45)
@@ -210,10 +237,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("font-size", "11px")
       .attr("font-weight", "600")
       .attr("fill", "#475569")
-      .style("pointer-events", "none")
-      .style("stroke", "#ffffff")
-      .style("stroke-width", "3px")
-      .style("paint-order", "stroke");
+      .style("pointer-events", "none");
 
     // Curved Links
     function linkArc(d: any) {
@@ -299,7 +323,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
            </div>
         </div>
       </div>
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden bg-white">
          {/* Grid Background */}
          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', backgroundSize: '20px 20px' }}></div>
          <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>

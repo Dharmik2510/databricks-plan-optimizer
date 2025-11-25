@@ -84,7 +84,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-3 ml-1">Node Type</label>
             <div className="relative">
                 <select 
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 text-slate-900 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 appearance-none cursor-pointer hover:bg-slate-100 transition-colors shadow-sm"
+                className="w-full border border-slate-200 rounded-xl px-4 pr-10 py-3 bg-slate-50 text-slate-900 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 appearance-none cursor-pointer hover:bg-slate-100 transition-colors shadow-sm"
                 onChange={(e) => {
                     const selected = INSTANCE_TYPES.find(t => t.name === e.target.value);
                     if(selected) setInstanceType(selected);
@@ -112,4 +112,13 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
            </div>
            <div className="bg-orange-600 p-6 rounded-2xl border border-orange-500 relative overflow-hidden group shadow-lg text-white">
              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-               <TrendingDown className="w-20 h-20
+               <TrendingDown className="w-20 h-20" />
+             </div>
+             <p className="text-xs text-orange-100 font-bold uppercase tracking-wider mb-2">Annual Savings (Daily)</p>
+             <p className="text-3xl font-bold text-white tracking-tight">${annualSavings.toFixed(0)}</p>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
