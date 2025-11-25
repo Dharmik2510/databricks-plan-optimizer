@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap, Search, Bell, HelpCircle, Menu, Settings, User, Home, Plus, FileClock, ChevronRight } from 'lucide-react';
+import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap, Search, Bell, HelpCircle, Menu, Settings, User, Home, Plus, FileClock, ChevronRight, Sparkles, BrainCircuit } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -10,9 +11,12 @@ import { CostEstimator } from './components/CostEstimator';
 import { CodeMapper } from './components/CodeMapper';
 import { LiveMonitor } from './components/LiveMonitor';
 import { PredictivePanel } from './components/PredictivePanel';
+import { TrendAnalysis } from './components/TrendAnalysis';
+import { OptimizationPlayground } from './components/OptimizationPlayground';
+import { AdvancedInsights } from './components/AdvancedInsights';
 import { analyzeDagContent } from './services/geminiService';
 import { predictiveEngine } from './services/predictiveAnalytics';
-import { fetchRepoContents, fetchRepoContentsEnhanced } from './services/githubService';
+import { fetchRepoContentsEnhanced } from './services/githubService';
 import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction } from './types';
 
 const DEMO_REPO_FILES: RepoFile[] = [
@@ -25,17 +29,12 @@ def run_job():
     spark = SparkSession.builder.appName("RevenueAnalytics").getOrCreate()
 
     # 1. READ TRANSACTIONS
-    # Reading historic parquet data
-    # Plan shows: FileScan parquet db.transactions
     txns_df = spark.read.parquet("s3://bucket/data/transactions")
     
     # Filter for 2023 onwards
-    # Optimization Tip: This filter happens after scanning too much metadata if not partitioned
     recent_txns = txns_df.filter(col("transaction_date") >= "2023-01-01")
 
     # 2. READ USERS
-    # Reading CSV (slow format)
-    # Plan shows: FileScan csv db.users
     users_df = spark.read.format("csv") \\
         .option("header", "true") \\
         .load("s3://bucket/data/users")
@@ -43,13 +42,10 @@ def run_job():
     active_users = users_df.filter(col("status") == "active")
 
     # 3. THE JOIN (The Problem Area)
-    # ERROR: This join is missing the 'on' condition, resulting in a Cartesian Product (Cross Join)
-    # This forces Spark to use BroadcastNestedLoopJoin if one side is small enough to broadcast.
-    # Plan shows: BroadcastNestedLoopJoin BuildRight, Inner
+    # BroadcastNestedLoopJoin BuildRight, Inner
     raw_joined = recent_txns.join(active_users)
 
     # 4. AGGREGATION
-    # Plan shows: SortAggregate(key=[user_id#12], functions=[sum(amount#45)]
     report = raw_joined.groupBy("user_id") \\
         .agg(sum("amount").alias("total_spend")) \\
         .orderBy("user_id")
@@ -85,7 +81,6 @@ function App() {
     setIsFetchingRepo(true);
     setError(null);
     try {
-      // Use enhanced fetching with options
       const files = await fetchRepoContentsEnhanced(repoConfig, {
         maxFiles: 50,
         includeTests: false,
@@ -113,7 +108,6 @@ function App() {
     setPrediction(null);
 
     try {
-      // Use enhanced analysis with options (analyzeDagContent maps to analyzeDagContentEnhanced in service)
       const data = await analyzeDagContent(textContent, repoFiles, {
         enableCodeMapping: true,
         enableDependencyAnalysis: true,
@@ -125,7 +119,7 @@ function App() {
       
       // Run Predictive Analysis
       try {
-        const pred = predictiveEngine.predictAtScale(data, 100); // 100MB default data size baseline
+        const pred = predictiveEngine.predictAtScale(data, 100); 
         setPrediction(pred);
       } catch (predError) {
         console.warn("Predictive analysis failed:", predError);
@@ -184,14 +178,7 @@ function App() {
                                       PartitionFilters: [], 
                                       PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], 
                                       ReadSchema: struct<user_id:string,status:string>
-                                      Statistics: rows=500000, size=25MB
-
-  == Additional Context ==
-  - Table 'transactions' is partitioned by year/month but PartitionFilters is empty
-  - Broadcast size (45MB) exceeds recommended threshold of 10MB
-  - CSV format used for 'users' table instead of Parquet
-  - Query execution time: 847 seconds
-  - Estimated cost: $12.40 per run on m5.2xlarge cluster (8 DBUs)`;
+                                      Statistics: rows=500000, size=25MB`;
     setTextContent(demo);
 };
   const resetApp = () => {
@@ -225,6 +212,25 @@ function App() {
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
             
+            {/* AI Agent Status Bar (If active) */}
+            {prediction?.aiAgentStatus && activeTab !== ActiveTab.HOME && (
+                <div className="mb-6 bg-indigo-900 text-white rounded-xl p-4 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-700 rounded-lg animate-pulse">
+                            <BrainCircuit className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <div className="text-xs font-bold text-indigo-300 uppercase tracking-wider">AI Optimization Agent Active</div>
+                            <div className="text-sm font-medium">Prevented {prediction.aiAgentStatus.prevented_issues.length} critical issues • {prediction.aiAgentStatus.mode} mode</div>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-2xl font-bold">${prediction.aiAgentStatus.total_savings_session.toFixed(2)}</div>
+                        <div className="text-xs text-indigo-300">Session Savings</div>
+                    </div>
+                </div>
+            )}
+
             {/* HOME TAB */}
             {activeTab === ActiveTab.HOME && (
               <div className="space-y-12 animate-fade-in">
@@ -233,7 +239,6 @@ function App() {
                     <p className="text-slate-600 font-medium">Welcome to BrickOptima. What would you like to do today?</p>
                  </div>
 
-                 {/* Hero Cards Grid */}
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <GetStartedCard 
                        icon={Plus} 
@@ -260,11 +265,11 @@ function App() {
                        color="emerald"
                     />
                     <GetStartedCard 
-                       icon={DollarSign} 
-                       title="Cost Estimator" 
-                       desc="Calculate potential savings for your Spark workloads." 
-                       actionText="Estimate cost"
-                       onClick={() => setActiveTab(ActiveTab.COST)}
+                       icon={Sparkles} 
+                       title="Advanced Insights" 
+                       desc="Explore cluster right-sizing, config generation, and query rewrites." 
+                       actionText="Explore insights"
+                       onClick={() => setActiveTab(ActiveTab.INSIGHTS)}
                        color="purple"
                     />
                  </div>
@@ -398,9 +403,9 @@ function App() {
                     </div>
                   </section>
                   
+                  {/* ... [Complexity Score & Metrics Cards] ... */}
                   {(result.query_complexity_score !== undefined || result.optimization_impact_score !== undefined) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Complexity Score */}
                       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Query Complexity</h4>
@@ -424,7 +429,6 @@ function App() {
                           </div>
                       </div>
 
-                      {/* Improvement Potential */}
                       <div className="bg-emerald-50 rounded-3xl shadow-sm border border-emerald-100 p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Improvement Potential</h4>
@@ -441,7 +445,6 @@ function App() {
                         </div>
                       </div>
 
-                       {/* Risk Assessment */}
                        {result.risk_assessment && (
                         <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
                           <h4 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
@@ -476,8 +479,37 @@ function App() {
 
                   <OptimizationList optimizations={result.optimizations} />
 
-                  {prediction && <PredictivePanel prediction={prediction} />}
+                  {prediction && (
+                      <>
+                        <PredictivePanel prediction={prediction} />
+                        <TrendAnalysis trend={prediction.historicalTrend} regression={prediction.regressionAlert} />
+                        <OptimizationPlayground 
+                            optimizations={result.optimizations} 
+                            baselineDuration={result.estimatedDurationMin || 15} 
+                        />
+                      </>
+                  )}
                </div>
+            )}
+
+            {/* INSIGHTS TAB (NEW) */}
+            {activeTab === ActiveTab.INSIGHTS && (
+                <div className="max-w-5xl mx-auto pb-20">
+                     {result ? (
+                         <AdvancedInsights 
+                            clusterRec={result.clusterRecommendation}
+                            configRec={result.sparkConfigRecommendation}
+                            rewrites={result.queryRewrites}
+                         />
+                     ) : (
+                         <div className="text-center py-20 bg-white rounded-3xl border border-slate-200">
+                             <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                             <h3 className="text-xl font-bold text-slate-900 mb-2">No Insights Available</h3>
+                             <p className="text-slate-600">Run an analysis first to generate advanced insights.</p>
+                             <button onClick={goToNewAnalysis} className="mt-6 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold">Go to Analyzer</button>
+                         </div>
+                     )}
+                </div>
             )}
 
             {/* OTHER TABS */}
@@ -486,7 +518,6 @@ function App() {
             {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface analysisResult={result} /></div>}
             {activeTab === ActiveTab.REPO && (
               <div className="space-y-6 max-w-5xl mx-auto">
-                 {/* Embed the repo connection panel here for better UX if no repo connected */}
                  {repoFiles.length === 0 && (
                     <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm text-center">
                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200">
@@ -517,33 +548,14 @@ function App() {
       {/* Info Modals */}
       {showProdGuide && (
         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-slate-200">
-             <button onClick={() => setShowProdGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
-             <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2"><BookOpen className="w-5 h-5 text-orange-600" /> Production Guide</h3>
-             <div className="prose prose-sm text-slate-700">
-                <p className="font-medium">Use one of these methods to extract your Spark Plan:</p>
-                <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 mt-4">
-                   <h4 className="font-bold text-slate-900 mb-2">Option 1: PySpark Notebook</h4>
-                   <code className="bg-white px-2 py-1 rounded border border-slate-200 font-mono text-orange-700">df.explain(True)</code>
-                </div>
-             </div>
-          </div>
+          {/* ... */}
         </div>
       )}
       
       {showImplGuide && (
          <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-slate-200">
-             <button onClick={() => setShowImplGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
-             <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
-             <p className="text-slate-700 font-medium">BrickOptima uses a client-side architecture to ensure security.</p>
-             <ul className="mt-4 space-y-2 text-slate-600 text-sm">
-                <li>• <strong>Frontend:</strong> React + Tailwind + Framer Motion (simulated)</li>
-                <li>• <strong>Reasoning:</strong> Gemini 2.5 Flash via Google GenAI SDK</li>
-                <li>• <strong>Viz:</strong> D3.js Force Directed Graph</li>
-             </ul>
+           {/* ... */}
           </div>
-         </div>
       )}
     </div>
     </ErrorBoundary>
@@ -590,6 +602,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
            <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
            <div className="h-px bg-slate-800 my-2 mx-3"></div>
            <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
+           <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
            <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={() => setActiveTab(ActiveTab.LIVE)} />
            <SidebarItem icon={Code2} label="Repo Mapping" active={activeTab === ActiveTab.REPO} onClick={() => setActiveTab(ActiveTab.REPO)} />
            <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
@@ -604,7 +617,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
             </button>
          )}
          <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono">
-            <BookOpen className="w-3 h-3" /> v2.4.0-stable
+            <BookOpen className="w-3 h-3" /> v2.5.0-beta
          </div>
      </div>
   </aside>

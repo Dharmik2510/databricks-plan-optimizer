@@ -67,6 +67,9 @@ export interface OptimizationTip {
   relatedCodeSnippets?: EnhancedCodeSnippet[]; // Multiple code locations
   rootCauseFile?: string; // Primary file causing the issue
   propagationPath?: string[]; // How the issue propagates through files
+  
+  // Playground Support
+  enabledInPlayground?: boolean; // UI state for sandbox
 }
 
 export interface RepositoryAnalysis {
@@ -108,6 +111,53 @@ export interface CodeSmell {
   description: string;
 }
 
+// --- New Advanced Features Types ---
+
+export interface RegressionAlert {
+  previousRunTime: number;
+  currentRunTime: number;
+  regressionPercent: number;
+  suspectedCause: string;
+  autoFix?: string;
+}
+
+export interface ClusterRecommendation {
+  current: { nodes: number; type: string; costPerHour: number };
+  recommended: { nodes: number; type: string; costPerHour: number };
+  reasoning: string;
+  expectedImprovement: string;
+}
+
+export interface HistoricalTrend {
+  dates: string[];
+  executionTimes: number[];
+  costs: number[];
+  optimizationsApplied: string[]; // Markers for graph
+  roi: number; // Return on investment %
+}
+
+export interface QueryRewrite {
+  original: string;
+  rewritten: string;
+  strategy: 'denormalize' | 'materialized_view' | 'aggregation_pushdown' | 'join_reorder' | 'syntax_modernization';
+  expectedSpeedup: string;
+  tradeoffs: string;
+}
+
+export interface SparkConfigRecommendation {
+  configs: Record<string, string | number | boolean>;
+  reasoning: Record<string, string>;
+  estimatedImpact: string;
+}
+
+export interface AIAgentStatus {
+  mode: 'suggest' | 'auto-apply';
+  confidence_threshold: number;
+  actions_taken: string[];
+  prevented_issues: string[];
+  total_savings_session: number;
+}
+
 export interface AnalysisResult {
   summary: string;
   dagNodes: DagNode[];
@@ -127,6 +177,11 @@ export interface AnalysisResult {
     oom_risk: 'Low' | 'Medium' | 'High';
     shuffle_overhead_risk: 'Low' | 'Medium' | 'High';
   };
+
+  // Advanced Dynamic Insights
+  clusterRecommendation?: ClusterRecommendation;
+  sparkConfigRecommendation?: SparkConfigRecommendation;
+  queryRewrites?: QueryRewrite[];
 }
 
 export interface ChatMessage {
@@ -146,6 +201,7 @@ export enum AppState {
 export enum ActiveTab {
   HOME = 'HOME',
   DASHBOARD = 'DASHBOARD',
+  INSIGHTS = 'INSIGHTS', // New Tab
   CHAT = 'CHAT',
   COST = 'COST',
   REPO = 'REPO',
@@ -297,4 +353,9 @@ export interface PerformancePrediction {
   };
   bottleneckProgression: BottleneckTimeline[];
   whatIfScenarios: WhatIfScenario[];
+  
+  // New
+  historicalTrend: HistoricalTrend;
+  regressionAlert?: RegressionAlert;
+  aiAgentStatus: AIAgentStatus;
 }

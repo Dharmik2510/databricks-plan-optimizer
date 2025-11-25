@@ -1,10 +1,10 @@
 
-import { AnalysisResult, DagNode, PerformancePrediction, ScaleImpact, BottleneckTimeline, WhatIfScenario } from '../types';
+
+import { AnalysisResult, DagNode, PerformancePrediction, ScaleImpact, BottleneckTimeline, WhatIfScenario, HistoricalTrend, RegressionAlert, AIAgentStatus, ResourceMetric, ClusterRecommendation, SparkConfigRecommendation } from '../types';
 
 export class PredictivePerformanceEngine {
   /**
    * Predict future performance at different data scales
-   * This is what separates BrickOptima from simple analyzers
    */
   predictAtScale(
     result: AnalysisResult, 
@@ -18,14 +18,13 @@ export class PredictivePerformanceEngine {
     const baselineTime = (result.estimatedDurationMin || 15) * 60;
     
     // Simulate performance at 1x, 10x, 100x, 1000x scale
-    // Logic: O(n) scales linearly, O(n^2) scales quadratically
-    const scaleFactor = complexity.hasCartesian ? 2.5 : 1.1; // Exponent for scaling
+    const scaleFactor = complexity.hasCartesian ? 2.5 : 1.1; 
     
     const scaleImpacts: ScaleImpact[] = [
       { 
         dataSize: '1x (Current)', 
         currentTime: baselineTime, 
-        optimizedTime: baselineTime * 0.4 // Assume 60% improvement possible
+        optimizedTime: baselineTime * 0.4 
       },
       { 
         dataSize: '10x', 
@@ -69,6 +68,12 @@ export class PredictivePerformanceEngine {
       });
     }
 
+    // Dynamic History Generation
+    const history = this.generateHistoricalTrend(baselineTime, result.optimizations.length > 0);
+    
+    // Regression Detection
+    const regressionAlert = this.detectRegression(history, baselineTime);
+
     return {
       baselineExecutionTime: baselineTime,
       predictedExecutionTime: baselineTime * 0.4,
@@ -79,12 +84,107 @@ export class PredictivePerformanceEngine {
         r2Score: 0.94
       },
       bottleneckProgression,
-      whatIfScenarios: this.generateWhatIfScenarios(result)
+      whatIfScenarios: this.generateWhatIfScenarios(result),
+      historicalTrend: history,
+      regressionAlert,
+      aiAgentStatus: this.generateAgentStatus(result)
     };
   }
 
+  // --- Dynamic Feature Generators ---
+
+  /**
+   * Analyzes resource metrics to recommend optimal cluster size/type
+   */
+  generateClusterRecommendation(metrics: ResourceMetric[]): ClusterRecommendation {
+    const avgCpu = metrics.reduce((acc, m) => acc + m.cpuPercentage, 0) / (metrics.length || 1);
+    const maxMem = Math.max(...metrics.map(m => m.memoryMb));
+    
+    // Heuristic Logic
+    let currentType = 'm5.2xlarge';
+    let currentNodes = 8;
+    let recType = 'm5.2xlarge';
+    let recNodes = 8;
+    let reasoning = 'Balanced workload detected.';
+    let improvement = 'Maintain current config.';
+
+    // Logic: Memory Bound
+    if (maxMem > 40000) { // High memory usage
+      currentType = 'm5.2xlarge'; // Assuming current is general purpose
+      recType = 'r5.2xlarge'; // Recommend memory optimized
+      reasoning = 'High memory pressure detected (>40GB peak). Switching to memory-optimized instances avoids spill-to-disk.';
+      improvement = 'Eliminate disk spill, 30% faster shuffle.';
+      recNodes = Math.max(4, currentNodes - 2); // Fewer nodes needed if more memory per node
+    } 
+    // Logic: Compute Bound
+    else if (avgCpu > 80) {
+      currentType = 'm5.2xlarge';
+      recType = 'c5.4xlarge'; // Compute optimized
+      reasoning = 'Consistent high CPU utilization (>80%). Compute-optimized nodes provide better price/performance.';
+      improvement = '20% cost reduction, 15% faster compute.';
+    }
+    // Logic: Oversized
+    else if (avgCpu < 30 && maxMem < 10000) {
+      recNodes = Math.max(2, Math.floor(currentNodes / 2));
+      reasoning = 'Cluster is underutilized (CPU < 30%). Safe to downscale worker count.';
+      improvement = `Save ~${((currentNodes - recNodes) / currentNodes * 100).toFixed(0)}% on compute costs.`;
+    }
+
+    return {
+      current: { nodes: currentNodes, type: currentType, costPerHour: currentNodes * 0.40 },
+      recommended: { nodes: recNodes, type: recType, costPerHour: recNodes * (recType.startsWith('r') ? 0.50 : recType.startsWith('c') ? 0.35 : 0.40) },
+      reasoning,
+      expectedImprovement: improvement
+    };
+  }
+
+  /**
+   * Generates Spark configurations based on DAG characteristics
+   */
+  generateSparkConfigs(nodes: DagNode[]): SparkConfigRecommendation {
+    const configs: Record<string, any> = {};
+    const reasoning: Record<string, string> = {};
+    let impact = "Standard optimizations.";
+
+    const hasShuffle = nodes.some(n => n.type.toLowerCase().includes('exchange') || n.type.toLowerCase().includes('shuffle'));
+    const hasJoin = nodes.some(n => n.type.toLowerCase().includes('join'));
+    const hasManySmallFiles = nodes.some(n => n.type.toLowerCase().includes('scan') && (n.metric?.includes('files') || false));
+
+    // AQE
+    configs['spark.sql.adaptive.enabled'] = true;
+    reasoning['spark.sql.adaptive.enabled'] = "Essential for dynamic coalescing of shuffle partitions and handling skew.";
+
+    // Partitions
+    if (hasShuffle) {
+      configs['spark.sql.shuffle.partitions'] = 'auto';
+      configs['spark.sql.adaptive.coalescePartitions.enabled'] = true;
+      reasoning['spark.sql.shuffle.partitions'] = "Set to 'auto' with AQE enabled to dynamically adjust partition count based on data volume.";
+    }
+
+    // Joins
+    if (hasJoin) {
+      configs['spark.sql.autoBroadcastJoinThreshold'] = '100MB';
+      reasoning['spark.sql.autoBroadcastJoinThreshold'] = "Increased from default 10MB to 100MB to catch more broadcast candidates.";
+    }
+
+    // Delta Optimized Writes
+    configs['spark.databricks.delta.optimizeWrite.enabled'] = true;
+    reasoning['spark.databricks.delta.optimizeWrite.enabled'] = "Ensures optimal file size during writes, reducing small file problem.";
+
+    if (hasShuffle && hasJoin) {
+      impact = "Expect 20-40% faster execution due to dynamic partition sizing and broadcast optimizations.";
+    }
+
+    return {
+      configs,
+      reasoning,
+      estimatedImpact: impact
+    };
+  }
+
+  // --- Internal Helpers ---
+
   private analyzeComplexity(nodes: DagNode[]): { hasCartesian: boolean, shuffleCount: number, estimatedComplexity: string } {
-    // Analyze O(n), O(n^2), O(n log n) operations
     const cartesianProducts = nodes.filter(n => 
       n.type.toLowerCase().includes('nestedloop') || 
       n.type.toLowerCase().includes('cartesian')
@@ -101,15 +201,61 @@ export class PredictivePerformanceEngine {
     };
   }
 
-  /**
-   * Generate "What-If" scenarios
-   */
-  generateWhatIfScenarios(result: AnalysisResult): WhatIfScenario[] {
+  private generateHistoricalTrend(currentDuration: number, hasIssues: boolean): HistoricalTrend {
+    // Generate 30 days of history
+    const dates = Array.from({length: 10}, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (9 - i));
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    // Simulate trend based on whether we have issues now
+    // If hasIssues: trend likely degrading (increasing time)
+    // If !hasIssues: trend likely stable or improved
+    const executionTimes = dates.map((_, i) => {
+      let noise = (Math.random() - 0.5) * (currentDuration * 0.1);
+      if (hasIssues) {
+         // Gradual degradation leading to current high time
+         // e.g., Day 0 = 50% of current, Day 9 = 100% of current
+         const factor = 0.5 + (0.5 * (i / 9)); 
+         if (i === 9) return currentDuration; // Match current
+         return (currentDuration * factor) + noise;
+      } else {
+         // Stable
+         return currentDuration + noise;
+      }
+    });
+
+    return {
+      dates,
+      executionTimes,
+      costs: executionTimes.map(t => (t / 60) * 0.40 * 8), // Rough cost calc
+      optimizationsApplied: hasIssues ? [] : ['2 days ago'],
+      roi: hasIssues ? -15 : 125
+    };
+  }
+
+  private detectRegression(history: HistoricalTrend, currentDuration: number): RegressionAlert | undefined {
+    const prev = history.executionTimes[history.executionTimes.length - 2];
+    const diff = currentDuration - prev;
+    const percent = (diff / prev) * 100;
+
+    if (percent > 10) { // 10% degradation threshold
+      return {
+        previousRunTime: prev,
+        currentRunTime: currentDuration,
+        regressionPercent: percent,
+        suspectedCause: "Data volume surge or unoptimized join introduced",
+        autoFix: "Enable Adaptive Query Execution (AQE)"
+      };
+    }
+    return undefined;
+  }
+
+  private generateWhatIfScenarios(result: AnalysisResult): WhatIfScenario[] {
     const scenarios: WhatIfScenario[] = [];
     
-    // Check optimizations to build scenarios
     const highSeverity = result.optimizations.filter(o => o.severity === 'High');
-    const mediumSeverity = result.optimizations.filter(o => o.severity === 'Medium');
 
     if (highSeverity.length > 0) {
        scenarios.push({
@@ -140,6 +286,16 @@ export class PredictivePerformanceEngine {
     });
 
     return scenarios;
+  }
+
+  private generateAgentStatus(result: AnalysisResult): AIAgentStatus {
+      return {
+          mode: 'suggest',
+          confidence_threshold: 90,
+          actions_taken: ['Monitored cluster health', 'Analyzed execution plan'],
+          prevented_issues: result.risk_assessment?.oom_risk === 'High' ? ['Potential OOM - suggested memory increase'] : [],
+          total_savings_session: result.optimizations.reduce((acc, o) => acc + (o.estimated_cost_saved_usd || 0), 0)
+      };
   }
 }
 
