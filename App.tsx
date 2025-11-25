@@ -2,16 +2,18 @@
 import React, { useState } from 'react';
 import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap, Search, Bell, HelpCircle, Menu, Settings, User, Home, Plus, FileClock, ChevronRight } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { DagVisualizer } from './components/DagVisualizer';
+import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
 import { OptimizationList } from './components/OptimizationList';
 import { ChatInterface } from './components/ChatInterface';
 import { CostEstimator } from './components/CostEstimator';
 import { CodeMapper } from './components/CodeMapper';
 import { LiveMonitor } from './components/LiveMonitor';
+import { PredictivePanel } from './components/PredictivePanel';
 import { analyzeDagContent } from './services/geminiService';
+import { predictiveEngine } from './services/predictiveAnalytics';
 import { fetchRepoContents, fetchRepoContentsEnhanced } from './services/githubService';
-import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile } from './types';
+import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction } from './types';
 
 const DEMO_REPO_FILES: RepoFile[] = [
   {
@@ -66,6 +68,7 @@ function App() {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.HOME);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [prediction, setPrediction] = useState<PerformancePrediction | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // Repo State
@@ -107,6 +110,7 @@ function App() {
     
     setAppState(AppState.ANALYZING);
     setError(null);
+    setPrediction(null);
 
     try {
       // Use enhanced analysis with options (analyzeDagContent maps to analyzeDagContentEnhanced in service)
@@ -118,6 +122,15 @@ function App() {
         deepAnalysis: true
       });
       setResult(data);
+      
+      // Run Predictive Analysis
+      try {
+        const pred = predictiveEngine.predictAtScale(data, 100); // 100MB default data size baseline
+        setPrediction(pred);
+      } catch (predError) {
+        console.warn("Predictive analysis failed:", predError);
+      }
+
       setAppState(AppState.SUCCESS);
       setActiveTab(ActiveTab.DASHBOARD);
     } catch (e: any) {
@@ -183,6 +196,7 @@ function App() {
 };
   const resetApp = () => {
     setResult(null);
+    setPrediction(null);
     setAppState(AppState.IDLE);
     setTextContent('');
     setActiveTab(ActiveTab.HOME);
@@ -197,14 +211,14 @@ function App() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-transparent">
+    <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-transparent selection:bg-orange-500/30">
       
-      {/* Top Navigation - Azure Databricks Style */}
+      {/* Top Navigation - Glassy Dark */}
       <Header />
 
       <div className="flex flex-1 overflow-hidden">
         
-        {/* Sidebar */}
+        {/* Sidebar - Glassy Dark */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} appState={appState} resetApp={resetApp} goToNewAnalysis={goToNewAnalysis} />
 
         {/* Main Content Area */}
@@ -215,8 +229,8 @@ function App() {
             {activeTab === ActiveTab.HOME && (
               <div className="space-y-12 animate-fade-in">
                  <div>
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Get started</h1>
-                    <p className="text-slate-600">Welcome to BrickOptima. What would you like to do today?</p>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2 drop-shadow-sm">Get started</h1>
+                    <p className="text-slate-600 font-medium">Welcome to BrickOptima. What would you like to do today?</p>
                  </div>
 
                  {/* Hero Cards Grid */}
@@ -258,15 +272,15 @@ function App() {
                  {/* Recents Section */}
                  <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                       <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                       <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 drop-shadow-sm">
                           <FileClock className="w-5 h-5 text-slate-500" /> Recents
                        </h2>
                        <button className="text-sm text-blue-600 font-bold hover:underline">View all</button>
                     </div>
 
-                    <div className="bg-white/60 backdrop-blur-3xl rounded-xl border border-white/60 shadow-sm overflow-hidden ring-1 ring-white/40">
+                    <div className="bg-white/30 backdrop-blur-3xl rounded-2xl border border-white/40 shadow-lg overflow-hidden ring-1 ring-white/30">
                        <table className="w-full text-sm text-left">
-                          <thead className="bg-white/40 border-b border-white/50 text-slate-500 uppercase text-xs font-bold">
+                          <thead className="bg-white/30 border-b border-white/30 text-slate-600 uppercase text-xs font-bold backdrop-blur-md">
                              <tr>
                                 <th className="px-6 py-4">Name</th>
                                 <th className="px-6 py-4">Type</th>
@@ -274,7 +288,7 @@ function App() {
                                 <th className="px-6 py-4">Status</th>
                              </tr>
                           </thead>
-                          <tbody className="divide-y divide-white/40">
+                          <tbody className="divide-y divide-white/30">
                              <RecentRow name="Revenue_Join_Optimization" type="Analysis" date="2 hours ago" status="Completed" />
                              <RecentRow name="Nightly_ETL_Pipeline" type="Repository" date="Yesterday" status="Connected" />
                              <RecentRow name="Customer360_View" type="Monitor" date="2 days ago" status="Critical" />
@@ -289,16 +303,16 @@ function App() {
             {/* DASHBOARD INPUT STATE */}
             {activeTab === ActiveTab.DASHBOARD && appState !== AppState.SUCCESS && (
               <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
-                  <div className="w-full max-w-4xl bg-white/40 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden relative z-10 ring-1 ring-white/60">
-                    <div className="flex border-b border-white/30 bg-white/20">
+                  <div className="w-full max-w-4xl bg-white/30 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden relative z-10 ring-1 ring-white/30">
+                    <div className="flex border-b border-white/20 bg-white/10">
                       {['text', 'file'].map(mode => (
                         <button 
                           key={mode}
                           onClick={() => setInputMode(mode as any)}
                           className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                             inputMode === mode 
-                            ? 'text-orange-700 bg-white/40 border-b-2 border-orange-500 shadow-sm' 
-                            : 'text-slate-600 hover:bg-white/30 hover:text-slate-800'
+                            ? 'text-orange-700 bg-white/40 border-b-2 border-orange-500 shadow-inner' 
+                            : 'text-slate-600 hover:bg-white/20 hover:text-slate-800'
                           }`}
                         >
                           {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
@@ -313,16 +327,16 @@ function App() {
                           <textarea 
                             value={textContent}
                             onChange={(e) => setTextContent(e.target.value)}
-                            className="w-full h-72 p-6 bg-white/40 backdrop-blur-md text-slate-900 font-mono text-sm rounded-2xl border border-white/50 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white/60 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-500"
+                            className="w-full h-72 p-6 bg-white/40 backdrop-blur-md text-slate-900 font-mono text-sm rounded-2xl border border-white/40 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white/60 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-500"
                             placeholder="Paste your 'EXPLAIN EXTENDED' output here..."
                           ></textarea>
-                          <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white/60 backdrop-blur text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-white/50 hover:bg-white/80 transition-all shadow-sm font-bold">
+                          <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white/60 backdrop-blur text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-white/40 hover:bg-white/80 transition-all shadow-sm font-bold">
                             Load Demo Plan
                           </button>
                         </div>
                       ) : (
-                        <div className="h-72 border-2 border-dashed border-slate-400/50 rounded-2xl flex flex-col items-center justify-center bg-white/20 hover:bg-white/30 transition-all relative group cursor-pointer backdrop-blur-sm">
-                          <div className="p-5 bg-white/60 rounded-full shadow-lg mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-white/50">
+                        <div className="h-72 border-2 border-dashed border-slate-400/40 rounded-2xl flex flex-col items-center justify-center bg-white/20 hover:bg-white/30 transition-all relative group cursor-pointer backdrop-blur-sm">
+                          <div className="p-5 bg-white/60 rounded-full shadow-lg mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-white/40">
                               <Upload className="w-8 h-8" />
                           </div>
                           <p className="text-slate-800 font-bold text-lg">Click to Upload</p>
@@ -368,16 +382,16 @@ function App() {
             {/* ANALYSIS RESULTS DASHBOARD */}
             {activeTab === ActiveTab.DASHBOARD && result && appState === AppState.SUCCESS && (
                <div className="space-y-8 animate-fade-in pb-20">
-                  <section className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-8 relative overflow-hidden ring-1 ring-white/40">
+                  <section className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-8 relative overflow-hidden ring-1 ring-white/30">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                     <div className="flex items-start gap-6 relative z-10">
-                      <div className="p-4 bg-orange-50/80 backdrop-blur-md text-orange-600 rounded-2xl border border-orange-100 hidden sm:block shadow-sm">
+                      <div className="p-4 bg-orange-50/60 backdrop-blur-md text-orange-600 rounded-2xl border border-orange-100/50 hidden sm:block shadow-sm">
                         <Activity className="w-8 h-8" />
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-3">
                            <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Summary</h3>
-                           <span className="px-3 py-1 bg-white/60 border border-white/60 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm backdrop-blur-md">AI Generated</span>
+                           <span className="px-3 py-1 bg-white/60 border border-white/40 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm backdrop-blur-md">AI Generated</span>
                         </div>
                         <p className="text-slate-800 leading-relaxed text-lg font-medium">{result.summary}</p>
                       </div>
@@ -387,13 +401,13 @@ function App() {
                   {(result.query_complexity_score !== undefined || result.optimization_impact_score !== undefined) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Complexity Score */}
-                      <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
+                      <div className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-6 ring-1 ring-white/30">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Query Complexity</h4>
-                            <div className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                              (result.query_complexity_score || 0) <= 30 ? 'bg-emerald-100 text-emerald-700' :
-                              (result.query_complexity_score || 0) <= 60 ? 'bg-amber-100 text-amber-700' :
-                              'bg-red-100 text-red-700'
+                            <div className={`px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-md ${
+                              (result.query_complexity_score || 0) <= 30 ? 'bg-emerald-100/80 text-emerald-800' :
+                              (result.query_complexity_score || 0) <= 60 ? 'bg-amber-100/80 text-amber-800' :
+                              'bg-red-100/80 text-red-800'
                             }`}>
                               {(result.query_complexity_score || 0) <= 30 ? 'Simple' : 
                               (result.query_complexity_score || 0) <= 60 ? 'Moderate' : 'Complex'}
@@ -404,14 +418,14 @@ function App() {
                               <div className="text-5xl font-bold text-slate-900">{result.query_complexity_score || 50}</div>
                               <div className="text-2xl text-slate-500 ml-1">/100</div>
                             </div>
-                            <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div className={`h-full transition-all bg-slate-900`} style={{ width: `${result.query_complexity_score || 50}%` }}></div>
+                            <div className="mt-4 h-2 bg-slate-200/60 rounded-full overflow-hidden backdrop-blur-sm">
+                              <div className={`h-full transition-all bg-slate-900/80`} style={{ width: `${result.query_complexity_score || 50}%` }}></div>
                             </div>
                           </div>
                       </div>
 
                       {/* Improvement Potential */}
-                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 backdrop-blur-3xl rounded-3xl shadow-lg border border-emerald-200/50 p-6 ring-1 ring-emerald-100/40">
+                      <div className="bg-emerald-50/40 backdrop-blur-3xl rounded-3xl shadow-lg border border-emerald-100/50 p-6 ring-1 ring-emerald-100/30">
                         <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Improvement Potential</h4>
                             <Zap className="w-5 h-5 text-emerald-600" />
@@ -429,7 +443,7 @@ function App() {
 
                        {/* Risk Assessment */}
                        {result.risk_assessment && (
-                        <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
+                        <div className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-6 ring-1 ring-white/30">
                           <h4 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-amber-600" />
                             Risk Assessment
@@ -440,10 +454,10 @@ function App() {
                                 <span className="text-xs text-slate-600 font-medium capitalize">
                                   {key.replace(/_/g, ' ')}
                                 </span>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  value === 'Low' ? 'bg-emerald-100 text-emerald-700' :
-                                  value === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                                  'bg-red-100 text-red-700'
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm ${
+                                  value === 'Low' ? 'bg-emerald-100/80 text-emerald-800' :
+                                  value === 'Medium' ? 'bg-amber-100/80 text-amber-800' :
+                                  'bg-red-100/80 text-red-800'
                                 }`}>
                                   {value}
                                 </span>
@@ -456,11 +470,13 @@ function App() {
                   )}
 
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <DagVisualizer nodes={result.dagNodes} links={result.dagLinks} />
+                    <EnhancedDagVisualizer nodes={result.dagNodes} links={result.dagLinks} optimizations={result.optimizations} />
                     <ResourceChart data={result.resourceMetrics} />
                   </div>
 
                   <OptimizationList optimizations={result.optimizations} />
+
+                  {prediction && <PredictivePanel prediction={prediction} />}
                </div>
             )}
 
@@ -472,19 +488,21 @@ function App() {
               <div className="space-y-6 max-w-5xl mx-auto">
                  {/* Embed the repo connection panel here for better UX if no repo connected */}
                  {repoFiles.length === 0 && (
-                    <div className="bg-white/50 backdrop-blur-3xl rounded-3xl border border-white/60 p-8 shadow-lg ring-1 ring-white/40 text-center">
-                       <GitBranch className="w-12 h-12 mx-auto text-slate-400 mb-4"/>
+                    <div className="bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-8 shadow-lg ring-1 ring-white/30 text-center">
+                       <div className="w-16 h-16 bg-slate-100/50 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-slate-200/50">
+                          <GitBranch className="w-8 h-8 text-slate-400"/>
+                       </div>
                        <h3 className="text-xl font-bold text-slate-900 mb-2">Connect a Repository</h3>
                        <p className="text-slate-600 mb-6">Link your GitHub repository to enable deep code traceability.</p>
                        <div className="max-w-md mx-auto space-y-4">
                            <input 
                               placeholder="https://github.com/..." 
-                              className="w-full bg-white/60 border border-slate-300 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none"
+                              className="w-full bg-white/60 border border-white/50 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none backdrop-blur-sm"
                               value={repoConfig.url}
                               onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}
                            />
-                           <button onClick={handleFetchRepo} className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition-colors">Link Repository</button>
-                           <button onClick={loadDemoRepo} className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg hover:bg-orange-200 transition-colors border border-orange-200">Load Demo Repo</button>
+                           <button onClick={handleFetchRepo} className="w-full bg-slate-900/90 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition-colors shadow-md backdrop-blur-sm">Link Repository</button>
+                           <button onClick={loadDemoRepo} className="w-full bg-orange-100/50 text-orange-700 font-bold py-3 rounded-lg hover:bg-orange-100/70 transition-colors border border-orange-200/50 backdrop-blur-sm">Load Demo Repo</button>
                        </div>
                     </div>
                  )}
@@ -498,21 +516,32 @@ function App() {
 
       {/* Info Modals */}
       {showProdGuide && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white/90 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50">
-             <button onClick={() => setShowProdGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
-             <h3 className="text-xl font-bold mb-4">Production Guide</h3>
-             <p className="text-slate-700">Use `df.explain(True)` in Databricks notebooks to get the physical plan.</p>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-lg z-[60] flex items-center justify-center p-4">
+          <div className="bg-white/80 backdrop-blur-3xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50 ring-1 ring-white/40">
+             <button onClick={() => setShowProdGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100/50 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
+             <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2"><BookOpen className="w-5 h-5 text-orange-600" /> Production Guide</h3>
+             <div className="prose prose-sm text-slate-700">
+                <p className="font-medium">Use one of these methods to extract your Spark Plan:</p>
+                <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/50 mt-4 backdrop-blur-sm">
+                   <h4 className="font-bold text-slate-900 mb-2">Option 1: PySpark Notebook</h4>
+                   <code className="bg-white/60 px-2 py-1 rounded border border-white/50 font-mono text-orange-700">df.explain(True)</code>
+                </div>
+             </div>
           </div>
         </div>
       )}
       
       {showImplGuide && (
-         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-            <div className="bg-white/90 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50">
-             <button onClick={() => setShowImplGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
-             <h3 className="text-xl font-bold mb-4">Architecture</h3>
-             <p className="text-slate-700">Client-side React SPA powered by Gemini 2.0 Flash.</p>
+         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-lg z-[60] flex items-center justify-center p-4">
+            <div className="bg-white/80 backdrop-blur-3xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50 ring-1 ring-white/40">
+             <button onClick={() => setShowImplGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100/50 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
+             <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
+             <p className="text-slate-700 font-medium">BrickOptima uses a client-side architecture to ensure security.</p>
+             <ul className="mt-4 space-y-2 text-slate-600 text-sm">
+                <li>• <strong>Frontend:</strong> React + Tailwind + Framer Motion (simulated)</li>
+                <li>• <strong>Reasoning:</strong> Gemini 2.5 Flash via Google GenAI SDK</li>
+                <li>• <strong>Viz:</strong> D3.js Force Directed Graph</li>
+             </ul>
           </div>
          </div>
       )}
@@ -524,23 +553,23 @@ function App() {
 // --- SUB-COMPONENTS ---
 
 const Header = () => (
-  <header className="h-16 bg-[#1E1E1E] text-white flex items-center justify-between px-4 shadow-md z-30 flex-shrink-0">
+  <header className="h-16 bg-slate-900/50 backdrop-blur-xl border-b border-white/10 text-white flex items-center justify-between px-4 shadow-lg z-30 flex-shrink-0">
     <div className="flex items-center gap-4">
-       <div className="font-bold text-lg flex items-center gap-2">
-         <span className="bg-gradient-to-br from-orange-500 to-orange-600 p-1.5 rounded-lg shadow-orange-500/20 shadow-lg">
-            <Activity className="w-5 h-5" />
+       <div className="font-bold text-lg flex items-center gap-2 text-white/90">
+         <span className="bg-gradient-to-br from-orange-500 to-orange-600 p-1.5 rounded-lg shadow-[0_0_15px_rgba(249,115,22,0.4)] border border-orange-400/30">
+            <Activity className="w-5 h-5 text-white" />
          </span>
-         BrickOptima
+         <span className="tracking-tight drop-shadow-sm">BrickOptima</span>
        </div>
-       <div className="h-6 w-px bg-white/20 mx-2"></div>
-       <div className="text-sm font-medium text-slate-300">Staging Workspace</div>
+       <div className="h-6 w-px bg-white/10 mx-2"></div>
+       <div className="text-sm font-medium text-slate-300/80">Staging Workspace</div>
     </div>
     
     <div className="flex items-center gap-4 text-slate-400">
-       <HelpCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
-       <Settings className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
-       <Bell className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
-       <div className="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold text-xs border-2 border-[#1E1E1E] outline outline-1 outline-white/20">
+       <HelpCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+       <Settings className="w-5 h-5 hover:text-white cursor-pointer transition-colors hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+       <Bell className="w-5 h-5 hover:text-white cursor-pointer transition-colors hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-xs border border-white/20 shadow-lg">
           JS
        </div>
     </div>
@@ -548,11 +577,11 @@ const Header = () => (
 );
 
 const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis }: any) => (
-  <aside className="w-[240px] bg-[#1E1E1E]/95 backdrop-blur-xl flex flex-col border-r border-white/5 z-20 shadow-2xl">
+  <aside className="w-[240px] bg-slate-900/50 backdrop-blur-2xl flex flex-col border-r border-white/10 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
      <div className="p-4">
         <button 
            onClick={goToNewAnalysis}
-           className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors shadow-sm mb-6"
+           className="w-full bg-white/90 text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-white transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)] mb-6 border border-white/50"
         >
            <Plus className="w-5 h-5" /> New
         </button>
@@ -568,13 +597,13 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
         </div>
      </div>
 
-     <div className="mt-auto p-4 border-t border-white/5">
+     <div className="mt-auto p-4 border-t border-white/10">
          {appState === AppState.SUCCESS && (
-            <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors">
+            <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-colors">
                <LogOut className="w-4 h-4" /> Reset Context
             </button>
          )}
-         <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2">
+         <div className="flex items-center gap-3 px-3 py-2 text-slate-500/70 text-xs mt-2 font-mono">
             <BookOpen className="w-3 h-3" /> v2.4.0-stable
          </div>
      </div>
@@ -586,34 +615,35 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
     onClick={onClick}
     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
       active 
-      ? 'bg-white/10 text-white shadow-sm border border-white/5' 
+      ? 'bg-white/10 text-white shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] border border-white/5 relative overflow-hidden' 
       : 'text-slate-400 hover:text-white hover:bg-white/5'
     }`}
   >
-    <Icon className={`w-4 h-4 ${active ? 'text-orange-500' : ''}`} />
+    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]"></div>}
+    <Icon className={`w-4 h-4 ${active ? 'text-orange-400 drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]' : ''}`} />
     {label}
   </button>
 );
 
 const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }: any) => {
    const colorMap: any = {
-       blue: 'text-blue-600 bg-blue-50',
-       orange: 'text-orange-600 bg-orange-50',
-       emerald: 'text-emerald-600 bg-emerald-50',
-       purple: 'text-purple-600 bg-purple-50'
+       blue: 'text-blue-600 bg-blue-50/50 border-blue-100/50',
+       orange: 'text-orange-600 bg-orange-50/50 border-orange-100/50',
+       emerald: 'text-emerald-600 bg-emerald-50/50 border-emerald-100/50',
+       purple: 'text-purple-600 bg-purple-50/50 border-purple-100/50'
    };
    const theme = colorMap[color] || colorMap.blue;
 
    return (
      <div 
        onClick={onClick}
-       className="bg-white/60 backdrop-blur-3xl p-6 rounded-2xl border border-white/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group ring-1 ring-white/40 flex flex-col"
+       className="bg-white/30 backdrop-blur-3xl p-6 rounded-2xl border border-white/40 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ring-1 ring-white/30 flex flex-col"
      >
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border border-white/50 shadow-sm`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border shadow-sm backdrop-blur-sm`}>
            <Icon className="w-6 h-6" />
         </div>
-        <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
-        <p className="text-sm text-slate-600 mb-6 flex-1 leading-relaxed">{desc}</p>
+        <h3 className="font-bold text-slate-900 mb-2 tracking-tight">{title}</h3>
+        <p className="text-sm text-slate-600 mb-6 flex-1 leading-relaxed font-medium">{desc}</p>
         <div className="text-xs font-bold text-slate-900 flex items-center gap-1 group-hover:gap-2 transition-all">
            {actionText} <ChevronRight className="w-3 h-3 text-orange-600" />
         </div>
@@ -622,19 +652,19 @@ const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }:
 };
 
 const RecentRow = ({ name, type, date, status }: any) => (
-   <tr className="hover:bg-white/40 transition-colors border-b border-white/30 last:border-0 cursor-pointer group">
-      <td className="px-6 py-4 font-bold text-slate-700 group-hover:text-orange-700 flex items-center gap-2">
-         <FileClock className="w-4 h-4 text-slate-400" />
+   <tr className="hover:bg-white/20 transition-colors border-b border-white/20 last:border-0 cursor-pointer group backdrop-blur-sm">
+      <td className="px-6 py-4 font-bold text-slate-700 group-hover:text-orange-700 flex items-center gap-2 transition-colors">
+         <FileClock className="w-4 h-4 text-slate-400 group-hover:text-orange-500" />
          {name}
       </td>
-      <td className="px-6 py-4 text-slate-600">{type}</td>
-      <td className="px-6 py-4 text-slate-500">{date}</td>
+      <td className="px-6 py-4 text-slate-600 font-medium">{type}</td>
+      <td className="px-6 py-4 text-slate-500 font-medium">{date}</td>
       <td className="px-6 py-4">
-         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-            status === 'Critical' ? 'bg-red-100 text-red-700' :
-            status === 'Optimized' ? 'bg-emerald-100 text-emerald-700' :
-            status === 'Completed' ? 'bg-blue-100 text-blue-700' :
-            'bg-slate-100 text-slate-700'
+         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase backdrop-blur-md ${
+            status === 'Critical' ? 'bg-red-100/80 text-red-700' :
+            status === 'Optimized' ? 'bg-emerald-100/80 text-emerald-700' :
+            status === 'Completed' ? 'bg-blue-100/80 text-blue-700' :
+            'bg-slate-100/80 text-slate-700'
          }`}>
             {status}
          </span>

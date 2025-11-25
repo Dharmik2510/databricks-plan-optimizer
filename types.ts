@@ -1,4 +1,5 @@
 
+
 export enum Severity {
   HIGH = 'High',
   MEDIUM = 'Medium',
@@ -258,4 +259,42 @@ export interface DatabricksConfig {
   host: string; // e.g. https://adb-xxxx.azuredatabricks.net
   clusterId: string;
   token: string;
+}
+
+// --- Predictive Analytics Types ---
+
+export interface WhatIfScenario {
+  scenario: string;
+  timeReduction: string;
+  costSavings: string;
+  complexity: string;
+  implementation: string;
+}
+
+export interface ScaleImpact {
+  dataSize: string; // "1x", "10x", "100x"
+  currentTime: number;
+  optimizedTime: number;
+  breakingPoint?: string; // When it becomes critical
+}
+
+export interface BottleneckTimeline {
+  stage: string;
+  currentImpact: number; // % of total time
+  at10xScale: number;
+  at100xScale: number;
+  recommendation: string;
+}
+
+export interface PerformancePrediction {
+  baselineExecutionTime: number; // seconds
+  predictedExecutionTime: number; // after optimizations
+  dataScaleImpact: ScaleImpact[];
+  regressionModel: {
+    inputSize: number[];
+    executionTime: number[];
+    r2Score: number;
+  };
+  bottleneckProgression: BottleneckTimeline[];
+  whatIfScenarios: WhatIfScenario[];
 }

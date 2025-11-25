@@ -1,0 +1,117 @@
+
+import React from 'react';
+import { PerformancePrediction } from '../types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, Clock, AlertTriangle, FastForward, CheckSquare } from 'lucide-react';
+
+interface Props {
+  prediction: PerformancePrediction;
+}
+
+export const PredictivePanel: React.FC<Props> = ({ prediction }) => {
+  return (
+    <div className="space-y-8 animate-fade-in mt-12">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="p-3 bg-purple-100/60 backdrop-blur-md text-purple-700 rounded-xl border border-purple-200/50 shadow-sm">
+           <TrendingUp className="w-6 h-6" />
+        </div>
+        <div>
+           <h3 className="text-2xl font-bold text-slate-900 drop-shadow-sm">Predictive Analytics & Scalability</h3>
+           <p className="text-slate-600 font-medium">AI-driven projection of workload performance at scale.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Baseline vs Prediction */}
+        <div className="grid grid-cols-2 gap-6">
+            <div className="bg-white/40 backdrop-blur-3xl rounded-3xl border border-white/50 p-6 shadow-lg ring-1 ring-white/30 flex flex-col justify-center">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Current Runtime
+                </div>
+                <div className="text-3xl font-bold text-slate-900">
+                    {(prediction.baselineExecutionTime / 60).toFixed(1)} <span className="text-base text-slate-500 font-medium">min</span>
+                </div>
+            </div>
+            <div className="bg-emerald-50/40 backdrop-blur-3xl rounded-3xl border border-emerald-100/50 p-6 shadow-lg ring-1 ring-emerald-100/30 flex flex-col justify-center">
+                <div className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <FastForward className="w-4 h-4" /> Predicted
+                </div>
+                <div className="text-3xl font-bold text-emerald-700">
+                    {(prediction.predictedExecutionTime / 60).toFixed(1)} <span className="text-base text-emerald-600 font-medium">min</span>
+                </div>
+                 <div className="text-xs text-emerald-600 font-bold mt-1">
+                    -{((1 - prediction.predictedExecutionTime / prediction.baselineExecutionTime) * 100).toFixed(0)}% reduction
+                 </div>
+            </div>
+        </div>
+
+        {/* Scalability Chart */}
+        <div className="bg-white/40 backdrop-blur-3xl rounded-3xl border border-white/50 p-6 shadow-lg ring-1 ring-white/30">
+            <h4 className="font-bold text-slate-900 text-sm mb-4">Scalability Forecast (Log Scale)</h4>
+            <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={prediction.dataScaleImpact}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(203, 213, 225, 0.5)" vertical={false} />
+                        <XAxis dataKey="dataSize" tick={{fontSize: 10, fontWeight: 600, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(val) => `${(val/60).toFixed(0)}m`} tick={{fontSize: 10, fontWeight: 600, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                        <Tooltip 
+                            formatter={(val: number) => [`${(val/60).toFixed(1)} min`, 'Runtime']}
+                            contentStyle={{backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}}
+                        />
+                        <Line type="monotone" dataKey="currentTime" name="Current" stroke="#ef4444" strokeWidth={3} dot={{r: 4}} />
+                        <Line type="monotone" dataKey="optimizedTime" name="Optimized" stroke="#10b981" strokeWidth={3} dot={{r: 4}} />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+         {/* Bottleneck Progression */}
+         <div className="lg:col-span-2 bg-white/40 backdrop-blur-3xl rounded-3xl border border-white/50 p-6 shadow-lg ring-1 ring-white/30">
+            <h4 className="font-bold text-slate-900 text-lg mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600" /> Bottleneck Evolution
+            </h4>
+            <div className="space-y-4">
+                {prediction.bottleneckProgression.map((b, i) => (
+                    <div key={i} className="bg-white/50 rounded-xl p-4 border border-white/60">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="font-mono text-sm font-bold text-slate-800">{b.stage}</span>
+                            <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">Risk at Scale</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-medium text-slate-600 mb-2">
+                             <div className="flex-1">Current Impact: <span className="text-slate-900">{b.currentImpact}%</span></div>
+                             <div className="flex-1">At 10x: <span className="text-amber-700 font-bold">{b.at10xScale}%</span></div>
+                             <div className="flex-1">At 100x: <span className="text-red-700 font-bold">{b.at100xScale}%</span></div>
+                        </div>
+                        <div className="text-xs text-slate-700 italic border-t border-slate-200 pt-2 mt-2">
+                            "{b.recommendation}"
+                        </div>
+                    </div>
+                ))}
+            </div>
+         </div>
+
+         {/* What-If Scenarios */}
+         <div className="bg-slate-900/5 backdrop-blur-3xl rounded-3xl border border-white/50 p-6 shadow-lg ring-1 ring-white/30">
+             <h4 className="font-bold text-slate-900 text-lg mb-4">What-If Scenarios</h4>
+             <div className="space-y-3">
+                 {prediction.whatIfScenarios.map((s, i) => (
+                     <div key={i} className="bg-white/70 rounded-xl p-4 border border-white/60 shadow-sm transition-transform hover:scale-[1.02]">
+                         <div className="flex items-center gap-2 font-bold text-slate-800 text-sm mb-2">
+                             <CheckSquare className="w-4 h-4 text-blue-600" /> {s.scenario}
+                         </div>
+                         <div className="grid grid-cols-2 gap-2 text-xs">
+                             <div className="text-slate-500">Reduction: <span className="text-emerald-600 font-bold">{s.timeReduction}</span></div>
+                             <div className="text-slate-500">Savings: <span className="text-emerald-600 font-bold">{s.costSavings}</span></div>
+                             <div className="text-slate-500">Effort: <span className="text-slate-700 font-bold">{s.complexity}</span></div>
+                             <div className="text-slate-500">Time: <span className="text-slate-700 font-bold">{s.implementation}</span></div>
+                         </div>
+                     </div>
+                 ))}
+             </div>
+         </div>
+      </div>
+    </div>
+  );
+};

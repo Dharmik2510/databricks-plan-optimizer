@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Server, Clock, TrendingDown } from 'lucide-react';
 
@@ -38,10 +39,10 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/60 p-8 relative overflow-hidden ring-1 ring-white/40">
+      <div className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/40 p-8 relative overflow-hidden ring-1 ring-white/30">
 
         <div className="flex items-center gap-4 mb-8 relative z-10">
-          <div className="p-3 bg-emerald-100/80 backdrop-blur text-emerald-700 rounded-xl border border-emerald-200 shadow-sm">
+          <div className="p-3 bg-emerald-100/60 backdrop-blur-md text-emerald-700 rounded-xl border border-emerald-200/50 shadow-sm">
             <DollarSign className="w-6 h-6" />
           </div>
           <div>
@@ -53,7 +54,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 relative z-10">
           <div className="group">
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-3 ml-1">Cluster Size</label>
-            <div className="flex items-center border border-white/60 rounded-xl px-4 py-3 bg-white/40 backdrop-blur-md focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all shadow-sm">
+            <div className="flex items-center border border-white/40 rounded-xl px-4 py-3 bg-white/30 backdrop-blur-md focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all shadow-sm">
               <Server className="w-5 h-5 text-slate-600 mr-3" />
               <input 
                 type="number" 
@@ -68,7 +69,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
 
           <div className="group">
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-3 ml-1">Job Duration (Min)</label>
-            <div className="flex items-center border border-white/60 rounded-xl px-4 py-3 bg-white/40 backdrop-blur-md focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all shadow-sm">
+            <div className="flex items-center border border-white/40 rounded-xl px-4 py-3 bg-white/30 backdrop-blur-md focus-within:ring-2 focus-within:ring-orange-500/30 focus-within:border-orange-500 transition-all shadow-sm">
               <Clock className="w-5 h-5 text-slate-600 mr-3" />
               <input 
                 type="number" 
@@ -83,7 +84,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-3 ml-1">Node Type</label>
             <div className="relative">
                 <select 
-                className="w-full border border-white/60 rounded-xl px-4 py-3 bg-white/40 backdrop-blur-md text-slate-900 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 appearance-none cursor-pointer hover:bg-white/60 transition-colors shadow-sm"
+                className="w-full border border-white/40 rounded-xl px-4 py-3 bg-white/30 backdrop-blur-md text-slate-900 text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 appearance-none cursor-pointer hover:bg-white/40 transition-colors shadow-sm"
                 onChange={(e) => {
                     const selected = INSTANCE_TYPES.find(t => t.name === e.target.value);
                     if(selected) setInstanceType(selected);
@@ -101,11 +102,11 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
 
         {/* Result Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-           <div className="bg-white/60 backdrop-blur-md p-6 rounded-2xl border border-white/60 hover:bg-white/80 transition-colors shadow-md group">
+           <div className="bg-white/40 backdrop-blur-md p-6 rounded-2xl border border-white/40 hover:bg-white/60 transition-colors shadow-md group">
              <p className="text-xs text-slate-600 font-bold uppercase tracking-wider mb-2">Current Cost (Per Run)</p>
              <p className="text-3xl font-bold text-slate-900 tracking-tight group-hover:text-orange-600 transition-colors">${currentCost.toFixed(2)}</p>
            </div>
-           <div className="bg-emerald-100/40 backdrop-blur-md p-6 rounded-2xl border border-emerald-200/50 hover:bg-emerald-100/60 transition-colors shadow-md group">
+           <div className="bg-emerald-100/30 backdrop-blur-md p-6 rounded-2xl border border-emerald-200/40 hover:bg-emerald-100/50 transition-colors shadow-md group">
              <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider mb-2">Projected (Optimized)</p>
              <p className="text-3xl font-bold text-emerald-800 tracking-tight">${optimizedCost.toFixed(2)}</p>
            </div>

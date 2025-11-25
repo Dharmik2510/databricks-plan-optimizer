@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { ResourceMetric } from '../types';
@@ -8,7 +9,7 @@ interface ResourceChartProps {
 
 export const ResourceChart: React.FC<ResourceChartProps> = ({ data }) => {
   return (
-    <div className="w-full bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 h-[600px] flex flex-col relative overflow-hidden ring-1 ring-white/40">
+    <div className="w-full bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-6 h-[600px] flex flex-col relative overflow-hidden ring-1 ring-white/30">
       <h3 className="font-bold text-slate-900 mb-6 text-lg drop-shadow-sm">Resource Consumption</h3>
       <div className="flex-1 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -42,10 +43,10 @@ export const ResourceChart: React.FC<ResourceChartProps> = ({ data }) => {
               label={{ value: 'Memory (MB)', angle: 90, position: 'insideRight', fill: '#475569', fontWeight: 600 }} 
             />
             <Tooltip 
-              cursor={{ fill: 'rgba(255,255,255,0.3)' }}
+              cursor={{ fill: 'rgba(255,255,255,0.2)' }}
               contentStyle={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-                backdropFilter: 'blur(10px)',
+                backgroundColor: 'rgba(255, 255, 255, 0.8)', 
+                backdropFilter: 'blur(12px)',
                 borderColor: '#fff',
                 borderRadius: '12px',
                 color: '#0f172a',

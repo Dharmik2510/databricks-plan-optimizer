@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { DagNode, DagLink } from '../types';
@@ -276,31 +277,31 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 overflow-hidden flex flex-col h-[600px] relative group ring-1 ring-white/40">
+    <div ref={containerRef} className="w-full bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 overflow-hidden flex flex-col h-[600px] relative group ring-1 ring-white/30">
       
-      <div className="p-5 border-b border-white/40 bg-white/20 flex justify-between items-center flex-shrink-0 backdrop-blur-sm">
+      <div className="p-5 border-b border-white/20 bg-white/10 flex justify-between items-center flex-shrink-0 backdrop-blur-sm">
         <h3 className="font-bold text-slate-900 text-lg drop-shadow-sm">Execution Plan Flow</h3>
         <div className="flex items-center gap-3">
-           <div className="flex gap-3 mr-4 border-r border-slate-300 pr-4 hidden sm:flex">
+           <div className="flex gap-3 mr-4 border-r border-slate-300/50 pr-4 hidden sm:flex">
                <div className="flex items-center gap-1.5 text-[10px] text-slate-700 font-bold">
-                 <span className="w-2 h-2 rounded-full bg-green-500"></span> Scan
+                 <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm"></span> Scan
                </div>
                <div className="flex items-center gap-1.5 text-[10px] text-slate-700 font-bold">
-                 <span className="w-2 h-2 rounded-full bg-red-500"></span> Shuffle
+                 <span className="w-2 h-2 rounded-full bg-red-500 shadow-sm"></span> Shuffle
                </div>
                <div className="flex items-center gap-1.5 text-[10px] text-slate-700 font-bold">
-                 <span className="w-2 h-2 rounded-full bg-cyan-500"></span> Transform
+                 <span className="w-2 h-2 rounded-full bg-cyan-500 shadow-sm"></span> Transform
                </div>
            </div>
-           <div className="flex bg-white/80 rounded-lg border border-white/60 shadow-sm">
-              <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-white text-slate-600 hover:text-slate-900 transition-colors"><ZoomIn className="w-4 h-4" /></button>
-              <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-white text-slate-600 hover:text-slate-900 border-l border-white/60 transition-colors"><ZoomOut className="w-4 h-4" /></button>
+           <div className="flex bg-white/60 rounded-lg border border-white/40 shadow-sm backdrop-blur-sm">
+              <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-white/80 text-slate-600 hover:text-slate-900 transition-colors"><ZoomIn className="w-4 h-4" /></button>
+              <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-white/80 text-slate-600 hover:text-slate-900 border-l border-white/40 transition-colors"><ZoomOut className="w-4 h-4" /></button>
            </div>
         </div>
       </div>
       <div className="flex-1 relative overflow-hidden">
          {/* Grid Background */}
-         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', backgroundSize: '20px 20px' }}></div>
+         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', backgroundSize: '20px 20px' }}></div>
          <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>
       </div>
     </div>
