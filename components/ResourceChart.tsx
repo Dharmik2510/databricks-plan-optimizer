@@ -9,8 +9,8 @@ interface ResourceChartProps {
 
 export const ResourceChart: React.FC<ResourceChartProps> = ({ data }) => {
   return (
-    <div className="w-full bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-6 h-[600px] flex flex-col relative overflow-hidden ring-1 ring-white/30">
-      <h3 className="font-bold text-slate-900 mb-6 text-lg drop-shadow-sm">Resource Consumption</h3>
+    <div className="w-full bg-white rounded-3xl shadow-sm border border-slate-200 p-6 h-[600px] flex flex-col relative overflow-hidden">
+      <h3 className="font-bold text-slate-900 mb-6 text-lg">Resource Consumption</h3>
       <div className="flex-1 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -43,14 +43,13 @@ export const ResourceChart: React.FC<ResourceChartProps> = ({ data }) => {
               label={{ value: 'Memory (MB)', angle: 90, position: 'insideRight', fill: '#475569', fontWeight: 600 }} 
             />
             <Tooltip 
-              cursor={{ fill: 'rgba(255,255,255,0.2)' }}
+              cursor={{ fill: 'rgba(0,0,0,0.05)' }}
               contentStyle={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.8)', 
-                backdropFilter: 'blur(12px)',
-                borderColor: '#fff',
+                backgroundColor: '#fff', 
+                borderColor: '#e2e8f0',
                 borderRadius: '12px',
                 color: '#0f172a',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 fontWeight: 500
               }}
               itemStyle={{ color: '#0f172a' }}

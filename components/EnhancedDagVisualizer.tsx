@@ -310,7 +310,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         return '#64748b';
       })
       .attr("stroke-width", d => (highlightMode === 'bottlenecks' && d.isBottleneck) ? 4 : 3)
-      .style("filter", "drop-shadow(0px 4px 8px rgba(0,0,0,0.15))");
+      .style("filter", "drop-shadow(0px 2px 4px rgba(0,0,0,0.1))");
 
     // Inner icon dot
     node.append("circle")
@@ -417,175 +417,153 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       svg.style("cursor", "grab");
     }
 
-    // Zoom handlers
-    const zoomIn = () => {
+    const exportDAG = () => {
+      if (!svgRef.current) return;
+      const svgData = new XMLSerializer().serializeToString(svgRef.current);
+      const blob = new Blob([svgData], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'execution-plan-dag.svg';
+      a.click();
+    };
+
+    const handleZoom = (factor: number) => {
       if (!svgRef.current) return;
       const svg = d3.select(svgRef.current);
-      svg.transition().duration(500).call(zoom.scaleBy, 1.2);
+      const zoom: any = d3.zoom().on("zoom", (event) => {
+          d3.select(svgRef.current).select("g").attr("transform", event.transform);
+          setZoomLevel(event.transform.k);
+      });
+      svg.transition().duration(500).call(zoom.scaleBy, factor);
     };
 
-    const zoomOut = () => {
-      if (!svgRef.current) return;
-      const svg = d3.select(svgRef.current);
-      svg.transition().duration(500).call(zoom.scaleBy, 0.8);
-    };
-
-    // Expose zoom functions to parent or buttons? We'll bind buttons directly.
-    // For now we use internal state binding in JSX.
-    
-    // Cleanup
-    return () => {
-        simulation.stop();
-    };
-  }, [nodes, links, enhancedLayout, showMetrics, highlightMode]);
-
-  const exportDAG = () => {
-    if (!svgRef.current) return;
-    const svgData = new XMLSerializer().serializeToString(svgRef.current);
-    const blob = new Blob([svgData], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'execution-plan-dag.svg';
-    a.click();
-  };
-
-  const handleZoom = (factor: number) => {
-    if (!svgRef.current) return;
-    const svg = d3.select(svgRef.current);
-    const zoom: any = d3.zoom().on("zoom", (event) => {
-        d3.select(svgRef.current).select("g").attr("transform", event.transform);
-        setZoomLevel(event.transform.k);
-    });
-    svg.transition().duration(500).call(zoom.scaleBy, factor);
-  };
-
-  return (
-    <div ref={containerRef} className="w-full bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 overflow-hidden flex flex-col h-[700px] relative group ring-1 ring-white/40">
-      
-      {/* Enhanced Controls */}
-      <div className="p-5 border-b border-white/40 bg-white/20 flex justify-between items-center flex-shrink-0 backdrop-blur-sm">
-        <div>
-          <h3 className="font-bold text-slate-900 text-lg drop-shadow-sm">Intelligent Execution Flow</h3>
-          <p className="text-xs text-slate-600 mt-1">
-            {nodes.filter(n => isBottleneckNode(n, optimizations)).length} bottlenecks detected
-          </p>
-        </div>
+    return (
+      <div ref={containerRef} className="w-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] relative group">
         
-        <div className="flex items-center gap-3">
-          {/* Highlight mode selector */}
-          <div className="flex bg-white/80 rounded-lg border border-white/60 shadow-sm p-1">
-            <button 
-              onClick={() => setHighlightMode('bottlenecks')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'bottlenecks' ? 'bg-red-100 text-red-700' : 'text-slate-600'}`}
-            >
-              <AlertCircle className="w-3 h-3 inline mr-1" />
-              Issues
-            </button>
-            <button 
-              onClick={() => setHighlightMode('cost')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'cost' ? 'bg-orange-100 text-orange-700' : 'text-slate-600'}`}
-            >
-              <Zap className="w-3 h-3 inline mr-1" />
-              Cost
-            </button>
+        {/* Enhanced Controls */}
+        <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center flex-shrink-0">
+          <div>
+            <h3 className="font-bold text-slate-900 text-lg">Intelligent Execution Flow</h3>
+            <p className="text-xs text-slate-600 mt-1">
+              {nodes.filter(n => isBottleneckNode(n, optimizations)).length} bottlenecks detected
+            </p>
           </div>
-
-          <button 
-            onClick={() => setShowMetrics(!showMetrics)}
-            className="p-2 bg-white/80 rounded-lg hover:bg-white border border-white/60 text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            {showMetrics ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          </button>
-
-          <button 
-            onClick={exportDAG}
-            className="p-2 bg-white/80 rounded-lg hover:bg-white border border-white/60 text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-          </button>
           
-          <div className="flex bg-white/80 rounded-lg border border-white/60 shadow-sm">
-            <button 
-              onClick={() => handleZoom(1.2)} 
-              className="p-2 hover:bg-white text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => handleZoom(0.8)} 
-              className="p-2 hover:bg-white text-slate-600 hover:text-slate-900 border-l border-white/60 transition-colors"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+          <div className="flex items-center gap-3">
+            {/* Highlight mode selector */}
+            <div className="flex bg-white rounded-lg border border-slate-200 shadow-sm p-1">
+              <button 
+                onClick={() => setHighlightMode('bottlenecks')}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'bottlenecks' ? 'bg-red-100 text-red-700' : 'text-slate-600'}`}
+              >
+                <AlertCircle className="w-3 h-3 inline mr-1" />
+                Issues
+              </button>
+              <button 
+                onClick={() => setHighlightMode('cost')}
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'cost' ? 'bg-orange-100 text-orange-700' : 'text-slate-600'}`}
+              >
+                <Zap className="w-3 h-3 inline mr-1" />
+                Cost
+              </button>
+            </div>
 
-      <div className="flex-1 relative overflow-hidden" onClick={() => setSelectedNode(null)}>
-        <div className="absolute inset-0 opacity-15" style={{ 
-          backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', 
-          backgroundSize: '25px 25px' 
-        }}></div>
-        <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>
-        
-        {/* Node detail panel */}
-        {selectedNode && (
-          <div className="absolute top-4 right-4 w-80 bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/60 p-6 animate-fade-in z-20">
             <button 
-              onClick={() => setSelectedNode(null)}
-              className="absolute top-2 right-2 text-slate-400 hover:text-slate-700"
+              onClick={() => setShowMetrics(!showMetrics)}
+              className="p-2 bg-white rounded-lg hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
             >
-              ×
+              {showMetrics ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
-            <h4 className="font-bold text-slate-900 mb-4">{selectedNode.name}</h4>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Type:</span>
-                <span className="font-bold text-slate-900">{selectedNode.type}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Level:</span>
-                <span className="font-bold text-slate-900">Stage {selectedNode.level}</span>
-              </div>
-              {selectedNode.rowsProcessed ? (
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Rows:</span>
-                  <span className="font-bold text-slate-900">
-                    {(selectedNode.rowsProcessed / 1000000).toFixed(2)}M
-                  </span>
-                </div>
-              ) : null}
-               <div className="flex justify-between">
-                  <span className="text-slate-600">Est. Cost Score:</span>
-                  <span className="font-bold text-slate-900">{selectedNode.estimatedCost}</span>
-              </div>
-              {selectedNode.isBottleneck && (
-                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200 shadow-sm">
-                  <div className="flex items-center gap-2 text-red-700 font-bold text-xs mb-2">
-                    <AlertCircle className="w-4 h-4" />
-                    PERFORMANCE BOTTLENECK
-                  </div>
-                  <p className="text-xs text-red-600 leading-snug">
-                    This operation is slowing down your pipeline. Check optimizations tab for solutions.
-                  </p>
-                </div>
-              )}
+
+            <button 
+              onClick={exportDAG}
+              className="p-2 bg-white rounded-lg hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            
+            <div className="flex bg-white rounded-lg border border-slate-200 shadow-sm">
+              <button 
+                onClick={() => handleZoom(1.2)} 
+                className="p-2 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => handleZoom(0.8)} 
+                className="p-2 hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-l border-slate-200 transition-colors"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.7; }
-          50% { opacity: 1; }
-        }
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
-  );
+        <div className="flex-1 relative overflow-hidden" onClick={() => setSelectedNode(null)}>
+          <div className="absolute inset-0 opacity-15" style={{ 
+            backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', 
+            backgroundSize: '25px 25px' 
+          }}></div>
+          <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>
+          
+          {/* Node detail panel */}
+          {selectedNode && (
+            <div className="absolute top-4 right-4 w-80 bg-white/95 rounded-2xl shadow-xl border border-slate-200 p-6 animate-fade-in z-20">
+              <button 
+                onClick={() => setSelectedNode(null)}
+                className="absolute top-2 right-2 text-slate-400 hover:text-slate-700"
+              >
+                ×
+              </button>
+              <h4 className="font-bold text-slate-900 mb-4">{selectedNode.name}</h4>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Type:</span>
+                  <span className="font-bold text-slate-900">{selectedNode.type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Level:</span>
+                  <span className="font-bold text-slate-900">Stage {selectedNode.level}</span>
+                </div>
+                {selectedNode.rowsProcessed ? (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Rows:</span>
+                    <span className="font-bold text-slate-900">
+                      {(selectedNode.rowsProcessed / 1000000).toFixed(2)}M
+                    </span>
+                  </div>
+                ) : null}
+                 <div className="flex justify-between">
+                    <span className="text-slate-600">Est. Cost Score:</span>
+                    <span className="font-bold text-slate-900">{selectedNode.estimatedCost}</span>
+                </div>
+                {selectedNode.isBottleneck && (
+                  <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200 shadow-sm">
+                    <div className="flex items-center gap-2 text-red-700 font-bold text-xs mb-2">
+                      <AlertCircle className="w-4 h-4" />
+                      PERFORMANCE BOTTLENECK
+                    </div>
+                    <p className="text-xs text-red-600 leading-snug">
+                      This operation is slowing down your pipeline. Check optimizations tab for solutions.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+          }
+          @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
 };

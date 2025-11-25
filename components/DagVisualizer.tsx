@@ -277,12 +277,12 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 overflow-hidden flex flex-col h-[600px] relative group ring-1 ring-white/30">
+    <div ref={containerRef} className="w-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px] relative group">
       
-      <div className="p-5 border-b border-white/20 bg-white/10 flex justify-between items-center flex-shrink-0 backdrop-blur-sm">
+      <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center flex-shrink-0">
         <h3 className="font-bold text-slate-900 text-lg drop-shadow-sm">Execution Plan Flow</h3>
         <div className="flex items-center gap-3">
-           <div className="flex gap-3 mr-4 border-r border-slate-300/50 pr-4 hidden sm:flex">
+           <div className="flex gap-3 mr-4 border-r border-slate-300 pr-4 hidden sm:flex">
                <div className="flex items-center gap-1.5 text-[10px] text-slate-700 font-bold">
                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm"></span> Scan
                </div>
@@ -293,9 +293,9 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
                  <span className="w-2 h-2 rounded-full bg-cyan-500 shadow-sm"></span> Transform
                </div>
            </div>
-           <div className="flex bg-white/60 rounded-lg border border-white/40 shadow-sm backdrop-blur-sm">
-              <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-white/80 text-slate-600 hover:text-slate-900 transition-colors"><ZoomIn className="w-4 h-4" /></button>
-              <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-white/80 text-slate-600 hover:text-slate-900 border-l border-white/40 transition-colors"><ZoomOut className="w-4 h-4" /></button>
+           <div className="flex bg-white rounded-lg border border-slate-200 shadow-sm">
+              <button onClick={() => handleZoom(1.2)} className="p-2 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors"><ZoomIn className="w-4 h-4" /></button>
+              <button onClick={() => handleZoom(0.8)} className="p-2 hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-l border-slate-200 transition-colors"><ZoomOut className="w-4 h-4" /></button>
            </div>
         </div>
       </div>

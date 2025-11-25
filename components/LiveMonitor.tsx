@@ -231,8 +231,8 @@ export const LiveMonitor: React.FC = () => {
       
       {/* Connection Config Modal */}
       {showConfig && (
-        <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-lg flex items-center justify-center p-4 rounded-3xl">
-          <div className="bg-white/80 backdrop-blur-3xl rounded-2xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden border border-white/50 ring-1 ring-white/30">
+        <div className="absolute inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4 rounded-3xl">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden border border-slate-200">
              <button onClick={() => setShowConfig(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"><X className="w-5 h-5"/></button>
              
              <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
@@ -245,7 +245,7 @@ export const LiveMonitor: React.FC = () => {
                  <input 
                     type="text" 
                     placeholder="https://adb-xxxx.azuredatabricks.net" 
-                    className="w-full bg-slate-50/80 border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-900 focus:border-orange-500 outline-none font-medium backdrop-blur-sm"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-900 focus:border-orange-500 outline-none font-medium"
                     value={config.host}
                     onChange={e => setConfig({...config, host: e.target.value})}
                  />
@@ -255,7 +255,7 @@ export const LiveMonitor: React.FC = () => {
                  <input 
                     type="text" 
                     placeholder="0923-123456-abcde" 
-                    className="w-full bg-slate-50/80 border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-900 focus:border-orange-500 outline-none font-medium backdrop-blur-sm"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-900 focus:border-orange-500 outline-none font-medium"
                     value={config.clusterId}
                     onChange={e => setConfig({...config, clusterId: e.target.value})}
                  />
@@ -266,7 +266,7 @@ export const LiveMonitor: React.FC = () => {
                    <input 
                       type="password" 
                       placeholder="dapi..." 
-                      className="w-full bg-slate-50/80 border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-900 focus:border-orange-500 outline-none pl-10 font-medium backdrop-blur-sm"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-900 focus:border-orange-500 outline-none pl-10 font-medium"
                       value={config.token}
                       onChange={e => setConfig({...config, token: e.target.value})}
                    />
@@ -287,13 +287,13 @@ export const LiveMonitor: React.FC = () => {
       )}
 
       {/* Header Controls */}
-      <div className="bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-6 flex justify-between items-center shadow-lg ring-1 ring-white/30">
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-xl border shadow-sm backdrop-blur-md transition-colors ${
-            status === StreamStatus.DISCONNECTED ? 'bg-slate-100/50 border-slate-200 text-slate-400' :
-            status === StreamStatus.CRITICAL ? 'bg-red-50/50 border-red-500/50 text-red-600' :
-            status === StreamStatus.DEGRADING ? 'bg-amber-50/50 border-amber-200/50 text-amber-600' :
-            'bg-emerald-50/50 border-emerald-200/50 text-emerald-600'
+          <div className={`p-3 rounded-xl border shadow-sm transition-colors ${
+            status === StreamStatus.DISCONNECTED ? 'bg-slate-50 border-slate-200 text-slate-400' :
+            status === StreamStatus.CRITICAL ? 'bg-red-50 border-red-200 text-red-600' :
+            status === StreamStatus.DEGRADING ? 'bg-amber-50 border-amber-200 text-amber-600' :
+            'bg-emerald-50 border-emerald-200 text-emerald-600'
           }`}>
             <Activity className="w-6 h-6" />
           </div>
@@ -328,20 +328,20 @@ export const LiveMonitor: React.FC = () => {
             <>
              <button 
                 onClick={handleInjectFailure}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-600 rounded-xl text-xs font-bold transition-all backdrop-blur-md shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl text-xs font-bold transition-all shadow-sm"
              >
                 <AlertTriangle className="w-3 h-3" /> Inject Failure
              </button>
-             <div className="flex bg-white/30 rounded-xl p-1 border border-white/40 mr-2 backdrop-blur-md">
+             <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200 mr-2">
                 <button 
                   onClick={() => setActiveView('metrics')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeView === 'metrics' ? 'bg-white/60 text-orange-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeView === 'metrics' ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Metrics
                 </button>
                 <button 
                   onClick={() => setActiveView('dag')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeView === 'dag' ? 'bg-white/60 text-orange-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeView === 'dag' ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Live DAG
                 </button>
@@ -350,11 +350,11 @@ export const LiveMonitor: React.FC = () => {
            )}
 
           {status === StreamStatus.DISCONNECTED ? (
-            <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20 backdrop-blur-md">
+            <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-orange-500/20">
               <Network className="w-4 h-4" /> Connect
             </button>
           ) : (
-             <button onClick={stopSimulation} className="flex items-center gap-2 px-6 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl font-bold transition-all shadow-sm backdrop-blur-md">
+             <button onClick={stopSimulation} className="flex items-center gap-2 px-6 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-xl font-bold transition-all shadow-sm">
               <Square className="w-4 h-4 fill-current" /> Stop
             </button>
           )}
@@ -362,7 +362,7 @@ export const LiveMonitor: React.FC = () => {
       </div>
 
       {status === StreamStatus.DISCONNECTED ? (
-        <div className="flex-1 flex items-center justify-center bg-white/20 backdrop-blur-xl rounded-3xl border border-white/30 border-dashed ring-1 ring-white/20">
+        <div className="flex-1 flex items-center justify-center bg-white rounded-3xl border border-slate-200 border-dashed">
           <div className="text-center text-slate-500">
             <WifiOff className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-bold text-slate-700">No Active Stream</p>
@@ -379,7 +379,7 @@ export const LiveMonitor: React.FC = () => {
               <div className="lg:col-span-2 space-y-6 flex flex-col h-full overflow-y-auto pr-2 custom-scrollbar">
                 
                 {/* Throughput */}
-                <div className="flex-shrink-0 h-60 bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-6 relative overflow-hidden shadow-lg ring-1 ring-white/30">
+                <div className="flex-shrink-0 h-60 bg-white rounded-3xl border border-slate-200 p-6 relative overflow-hidden shadow-sm">
                   <div className="flex justify-between items-center mb-4">
                      <h3 className="text-slate-900 font-bold flex items-center gap-2 drop-shadow-sm"><Database className="w-4 h-4 text-orange-600"/> Throughput</h3>
                   </div>
@@ -399,7 +399,7 @@ export const LiveMonitor: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(226, 232, 240, 0.5)" vertical={false} />
                         <XAxis dataKey="timestamp" tick={{fontSize: 10, fill: '#334155', fontWeight: 600}} tickLine={false} axisLine={false} />
                         <YAxis tick={{fontSize: 10, fill: '#334155', fontWeight: 600}} tickLine={false} axisLine={false} />
-                        <Tooltip contentStyle={{backgroundColor: 'rgba(255,255,255,0.8)', borderColor: '#fff', color: '#1e293b', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backdropFilter: 'blur(8px)'}} />
+                        <Tooltip contentStyle={{backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                         <Area type="monotone" dataKey="inputRate" name="Input Rows/s" stroke="#ea580c" strokeWidth={3} fill="url(#colorInput)" />
                         <Area type="monotone" dataKey="processRate" name="Process Rows/s" stroke="#10b981" strokeWidth={3} fill="url(#colorProcess)" />
                       </AreaChart>
@@ -409,7 +409,7 @@ export const LiveMonitor: React.FC = () => {
 
                 <div className="flex gap-6">
                     {/* Shuffle I/O */}
-                    <div className="flex-1 h-60 bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-6 relative overflow-hidden shadow-lg ring-1 ring-white/30">
+                    <div className="flex-1 h-60 bg-white rounded-3xl border border-slate-200 p-6 relative overflow-hidden shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-slate-900 font-bold flex items-center gap-2 drop-shadow-sm"><ArrowLeftRight className="w-4 h-4 text-blue-600"/> Shuffle I/O</h3>
                         </div>
@@ -419,7 +419,7 @@ export const LiveMonitor: React.FC = () => {
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(226, 232, 240, 0.5)" vertical={false} />
                                 <XAxis dataKey="timestamp" hide />
                                 <YAxis tickFormatter={formatBytes} tick={{fontSize: 10, fill: '#334155', fontWeight: 600}} tickLine={false} axisLine={false} />
-                                <Tooltip formatter={(val: number) => formatBytes(val)} contentStyle={{backgroundColor: 'rgba(255,255,255,0.8)', borderColor: '#fff', color: '#1e293b', borderRadius: '12px', backdropFilter: 'blur(8px)'}} />
+                                <Tooltip formatter={(val: number) => formatBytes(val)} contentStyle={{backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '12px'}} />
                                 <Area type="monotone" dataKey="shuffleReadBytes" name="Read" stroke="#3b82f6" fill="#93c5fd" fillOpacity={0.3} strokeWidth={2} />
                                 <Area type="monotone" dataKey="shuffleWriteBytes" name="Write" stroke="#8b5cf6" fill="#c4b5fd" fillOpacity={0.3} strokeWidth={2} />
                             </AreaChart>
@@ -428,7 +428,7 @@ export const LiveMonitor: React.FC = () => {
                     </div>
 
                     {/* Task Health */}
-                    <div className="flex-1 h-60 bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-6 relative overflow-hidden shadow-lg ring-1 ring-white/30">
+                    <div className="flex-1 h-60 bg-white rounded-3xl border border-slate-200 p-6 relative overflow-hidden shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-slate-900 font-bold flex items-center gap-2 drop-shadow-sm"><AlertOctagon className="w-4 h-4 text-purple-600"/> Task Health</h3>
                         </div>
@@ -438,7 +438,7 @@ export const LiveMonitor: React.FC = () => {
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(226, 232, 240, 0.5)" vertical={false} />
                                 <XAxis dataKey="timestamp" hide />
                                 <YAxis tick={{fontSize: 10, fill: '#334155', fontWeight: 600}} tickLine={false} axisLine={false} />
-                                <Tooltip contentStyle={{backgroundColor: 'rgba(255,255,255,0.8)', borderColor: '#fff', color: '#1e293b', borderRadius: '12px', backdropFilter: 'blur(8px)'}} />
+                                <Tooltip contentStyle={{backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '12px'}} />
                                 <Line type="monotone" dataKey="activeTasks" name="Active" stroke="#8b5cf6" strokeWidth={2} dot={false} />
                                 <Bar dataKey="taskFailures" name="Failures" fill="#ef4444" barSize={20} />
                             </ComposedChart>
@@ -448,7 +448,7 @@ export const LiveMonitor: React.FC = () => {
                 </div>
 
                 {/* System Resources + GC */}
-                <div className="flex-shrink-0 h-60 bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-6 relative overflow-hidden shadow-lg ring-1 ring-white/30">
+                <div className="flex-shrink-0 h-60 bg-white rounded-3xl border border-slate-200 p-6 relative overflow-hidden shadow-sm">
                   <div className="flex justify-between items-center mb-4">
                      <h3 className="text-slate-900 font-bold flex items-center gap-2 drop-shadow-sm"><Cpu className="w-4 h-4 text-amber-500"/> Resources & GC</h3>
                      <div className="flex gap-3 text-[10px] font-bold">
@@ -469,7 +469,7 @@ export const LiveMonitor: React.FC = () => {
                         {/* Right Axis: GC Time ms */}
                         <YAxis yAxisId="right" orientation="right" tick={{fontSize: 10, fill: '#64748b', fontWeight: 600}} tickLine={false} axisLine={false} label={{ value: 'GC (ms)', angle: 90, position: 'insideRight', fill: '#64748b', fontSize: 10 }} />
 
-                        <Tooltip contentStyle={{backgroundColor: 'rgba(255,255,255,0.8)', borderColor: '#fff', color: '#1e293b', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backdropFilter: 'blur(8px)'}} />
+                        <Tooltip contentStyle={{backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
                         
                         <Bar yAxisId="right" dataKey="gcTimeMs" name="GC Time" fill="#cbd5e1" barSize={10} radius={[4, 4, 0, 0]} opacity={0.7} />
                         <Line yAxisId="left" type="monotone" dataKey="driverMemory" name="Driver Heap" stroke="#f59e0b" strokeWidth={3} dot={false} />
@@ -482,8 +482,8 @@ export const LiveMonitor: React.FC = () => {
               </div>
 
               {/* RIGHT COL: Logs - Keep Dark for Terminal Feel but translucent */}
-              <div className="bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-slate-700/50 overflow-hidden flex flex-col relative shadow-2xl h-full ring-1 ring-white/10">
-                <div className="p-4 border-b border-slate-700/50 bg-slate-900/60 flex items-center justify-between flex-shrink-0">
+              <div className="bg-slate-900 rounded-3xl border border-slate-700 overflow-hidden flex flex-col relative shadow-lg h-full">
+                <div className="p-4 border-b border-slate-800 bg-slate-900 flex items-center justify-between flex-shrink-0">
                    <h3 className="font-bold text-slate-200 flex items-center gap-2 text-sm"><Terminal className="w-4 h-4 text-slate-500"/> Driver Logs</h3>
                    <div className="flex items-center gap-2">
                        <span onClick={() => setLogs([])} className="cursor-pointer text-slate-500 hover:text-slate-300"><Trash2 className="w-3 h-3" /></span>
@@ -507,11 +507,11 @@ export const LiveMonitor: React.FC = () => {
             </div>
           ) : (
             // LIVE DAG VIEW
-            <div className="h-full bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-8 relative overflow-hidden flex flex-col items-center shadow-lg ring-1 ring-white/30">
+            <div className="h-full bg-white rounded-3xl border border-slate-200 p-8 relative overflow-hidden flex flex-col items-center shadow-sm">
                 
                 {/* Header Section */}
                 <div className="text-center space-y-4 mb-12">
-                    <div className="inline-block p-4 rounded-full bg-white/50 border border-white/40 shadow-md relative backdrop-blur-md">
+                    <div className="inline-block p-4 rounded-full bg-slate-50 border border-slate-200 shadow-md relative">
                         <Layers className="w-10 h-10 text-orange-600" />
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
                             <Activity className="w-3 h-3 text-white animate-pulse" />
@@ -531,7 +531,7 @@ export const LiveMonitor: React.FC = () => {
                 <div className="w-full max-w-5xl flex items-center justify-between relative px-10">
                     
                     {/* Progress Bar Background */}
-                    <div className="absolute top-1/2 left-10 right-10 h-1 bg-slate-300/50 -translate-y-1/2 -z-10 rounded-full"></div>
+                    <div className="absolute top-1/2 left-10 right-10 h-1 bg-slate-200 -translate-y-1/2 -z-10 rounded-full"></div>
                     <div className="absolute top-1/2 left-10 right-10 h-1 bg-orange-500 -translate-y-1/2 -z-10 rounded-full transition-all duration-100 ease-linear" style={{ width: `${Math.max(0, batchProgress)}%` }}></div>
 
                     {/* Stages */}
@@ -545,11 +545,11 @@ export const LiveMonitor: React.FC = () => {
                             <div key={stage.id} className="flex flex-col items-center gap-4 relative group">
                                 
                                 {/* Node */}
-                                <div className={`w-40 h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all duration-300 shadow-sm backdrop-blur-md ${
-                                    isError ? 'bg-red-50/80 border-red-500 text-red-800 shadow-red-200' :
-                                    isCompleted ? 'bg-emerald-50/80 border-emerald-500 text-emerald-800 shadow-emerald-200' :
-                                    isRunning ? 'bg-orange-50/80 border-orange-500 text-orange-800 shadow-orange-200 scale-105' :
-                                    'bg-white/50 border-slate-300 text-slate-500'
+                                <div className={`w-40 h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all duration-300 shadow-sm ${
+                                    isError ? 'bg-red-50 border-red-500 text-red-800 shadow-red-200' :
+                                    isCompleted ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-emerald-200' :
+                                    isRunning ? 'bg-orange-50 border-orange-500 text-orange-800 shadow-orange-200 scale-105' :
+                                    'bg-white border-slate-300 text-slate-500'
                                 }`}>
                                     {isCompleted && <div className="absolute -top-2 -right-2 bg-emerald-500 text-white rounded-full p-1 shadow-md"><CheckCircle className="w-4 h-4" /></div>}
                                     {isRunning && <div className="absolute -top-2 -right-2 bg-orange-500 text-white rounded-full p-1 shadow-md animate-spin"><Loader2 className="w-4 h-4" /></div>}

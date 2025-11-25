@@ -211,25 +211,25 @@ function App() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-transparent selection:bg-orange-500/30">
+    <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 selection:bg-orange-500/30">
       
-      {/* Top Navigation - Glassy Dark */}
+      {/* Top Navigation */}
       <Header />
 
       <div className="flex flex-1 overflow-hidden">
         
-        {/* Sidebar - Glassy Dark */}
+        {/* Sidebar */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} appState={appState} resetApp={resetApp} goToNewAnalysis={goToNewAnalysis} />
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-transparent">
+        <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
             
             {/* HOME TAB */}
             {activeTab === ActiveTab.HOME && (
               <div className="space-y-12 animate-fade-in">
                  <div>
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2 drop-shadow-sm">Get started</h1>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Get started</h1>
                     <p className="text-slate-600 font-medium">Welcome to BrickOptima. What would you like to do today?</p>
                  </div>
 
@@ -272,15 +272,15 @@ function App() {
                  {/* Recents Section */}
                  <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                       <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 drop-shadow-sm">
+                       <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                           <FileClock className="w-5 h-5 text-slate-500" /> Recents
                        </h2>
                        <button className="text-sm text-blue-600 font-bold hover:underline">View all</button>
                     </div>
 
-                    <div className="bg-white/30 backdrop-blur-3xl rounded-2xl border border-white/40 shadow-lg overflow-hidden ring-1 ring-white/30">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                        <table className="w-full text-sm text-left">
-                          <thead className="bg-white/30 border-b border-white/30 text-slate-600 uppercase text-xs font-bold backdrop-blur-md">
+                          <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-xs font-bold">
                              <tr>
                                 <th className="px-6 py-4">Name</th>
                                 <th className="px-6 py-4">Type</th>
@@ -288,7 +288,7 @@ function App() {
                                 <th className="px-6 py-4">Status</th>
                              </tr>
                           </thead>
-                          <tbody className="divide-y divide-white/30">
+                          <tbody className="divide-y divide-slate-100">
                              <RecentRow name="Revenue_Join_Optimization" type="Analysis" date="2 hours ago" status="Completed" />
                              <RecentRow name="Nightly_ETL_Pipeline" type="Repository" date="Yesterday" status="Connected" />
                              <RecentRow name="Customer360_View" type="Monitor" date="2 days ago" status="Critical" />
@@ -303,16 +303,16 @@ function App() {
             {/* DASHBOARD INPUT STATE */}
             {activeTab === ActiveTab.DASHBOARD && appState !== AppState.SUCCESS && (
               <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
-                  <div className="w-full max-w-4xl bg-white/30 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden relative z-10 ring-1 ring-white/30">
-                    <div className="flex border-b border-white/20 bg-white/10">
+                  <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative z-10">
+                    <div className="flex border-b border-slate-200 bg-slate-50">
                       {['text', 'file'].map(mode => (
                         <button 
                           key={mode}
                           onClick={() => setInputMode(mode as any)}
                           className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                             inputMode === mode 
-                            ? 'text-orange-700 bg-white/40 border-b-2 border-orange-500 shadow-inner' 
-                            : 'text-slate-600 hover:bg-white/20 hover:text-slate-800'
+                            ? 'text-orange-700 bg-white border-b-2 border-orange-500 shadow-sm' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
                           }`}
                         >
                           {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
@@ -327,16 +327,16 @@ function App() {
                           <textarea 
                             value={textContent}
                             onChange={(e) => setTextContent(e.target.value)}
-                            className="w-full h-72 p-6 bg-white/40 backdrop-blur-md text-slate-900 font-mono text-sm rounded-2xl border border-white/40 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white/60 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-500"
+                            className="w-full h-72 p-6 bg-slate-50 text-slate-900 font-mono text-sm rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400"
                             placeholder="Paste your 'EXPLAIN EXTENDED' output here..."
                           ></textarea>
-                          <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white/60 backdrop-blur text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-white/40 hover:bg-white/80 transition-all shadow-sm font-bold">
+                          <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all shadow-sm font-bold">
                             Load Demo Plan
                           </button>
                         </div>
                       ) : (
-                        <div className="h-72 border-2 border-dashed border-slate-400/40 rounded-2xl flex flex-col items-center justify-center bg-white/20 hover:bg-white/30 transition-all relative group cursor-pointer backdrop-blur-sm">
-                          <div className="p-5 bg-white/60 rounded-full shadow-lg mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-white/40">
+                        <div className="h-72 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all relative group cursor-pointer">
+                          <div className="p-5 bg-white rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-slate-200">
                               <Upload className="w-8 h-8" />
                           </div>
                           <p className="text-slate-800 font-bold text-lg">Click to Upload</p>
@@ -353,7 +353,7 @@ function App() {
                         <button 
                           onClick={handleAnalyze}
                           disabled={!textContent.trim() || appState === AppState.ANALYZING}
-                          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 border border-orange-400/50 backdrop-blur-sm"
+                          className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
                         >
                           {appState === AppState.ANALYZING ? (
                             <>
@@ -369,7 +369,7 @@ function App() {
                       </div>
 
                       {error && (
-                        <div className="mt-6 p-4 bg-red-50/80 backdrop-blur-md text-red-800 rounded-2xl border border-red-200/50 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm">
+                        <div className="mt-6 p-4 bg-red-50 text-red-800 rounded-2xl border border-red-200 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm">
                           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                           {error}
                         </div>
@@ -382,16 +382,16 @@ function App() {
             {/* ANALYSIS RESULTS DASHBOARD */}
             {activeTab === ActiveTab.DASHBOARD && result && appState === AppState.SUCCESS && (
                <div className="space-y-8 animate-fade-in pb-20">
-                  <section className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-8 relative overflow-hidden ring-1 ring-white/30">
+                  <section className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                     <div className="flex items-start gap-6 relative z-10">
-                      <div className="p-4 bg-orange-50/60 backdrop-blur-md text-orange-600 rounded-2xl border border-orange-100/50 hidden sm:block shadow-sm">
+                      <div className="p-4 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100 hidden sm:block shadow-sm">
                         <Activity className="w-8 h-8" />
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-3">
                            <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Summary</h3>
-                           <span className="px-3 py-1 bg-white/60 border border-white/40 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm backdrop-blur-md">AI Generated</span>
+                           <span className="px-3 py-1 bg-slate-100 border border-slate-200 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span>
                         </div>
                         <p className="text-slate-800 leading-relaxed text-lg font-medium">{result.summary}</p>
                       </div>
@@ -401,13 +401,13 @@ function App() {
                   {(result.query_complexity_score !== undefined || result.optimization_impact_score !== undefined) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Complexity Score */}
-                      <div className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-6 ring-1 ring-white/30">
+                      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Query Complexity</h4>
-                            <div className={`px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-md ${
-                              (result.query_complexity_score || 0) <= 30 ? 'bg-emerald-100/80 text-emerald-800' :
-                              (result.query_complexity_score || 0) <= 60 ? 'bg-amber-100/80 text-amber-800' :
-                              'bg-red-100/80 text-red-800'
+                            <div className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                              (result.query_complexity_score || 0) <= 30 ? 'bg-emerald-100 text-emerald-800' :
+                              (result.query_complexity_score || 0) <= 60 ? 'bg-amber-100 text-amber-800' :
+                              'bg-red-100 text-red-800'
                             }`}>
                               {(result.query_complexity_score || 0) <= 30 ? 'Simple' : 
                               (result.query_complexity_score || 0) <= 60 ? 'Moderate' : 'Complex'}
@@ -418,14 +418,14 @@ function App() {
                               <div className="text-5xl font-bold text-slate-900">{result.query_complexity_score || 50}</div>
                               <div className="text-2xl text-slate-500 ml-1">/100</div>
                             </div>
-                            <div className="mt-4 h-2 bg-slate-200/60 rounded-full overflow-hidden backdrop-blur-sm">
-                              <div className={`h-full transition-all bg-slate-900/80`} style={{ width: `${result.query_complexity_score || 50}%` }}></div>
+                            <div className="mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full transition-all bg-slate-900`} style={{ width: `${result.query_complexity_score || 50}%` }}></div>
                             </div>
                           </div>
                       </div>
 
                       {/* Improvement Potential */}
-                      <div className="bg-emerald-50/40 backdrop-blur-3xl rounded-3xl shadow-lg border border-emerald-100/50 p-6 ring-1 ring-emerald-100/30">
+                      <div className="bg-emerald-50 rounded-3xl shadow-sm border border-emerald-100 p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Improvement Potential</h4>
                             <Zap className="w-5 h-5 text-emerald-600" />
@@ -443,7 +443,7 @@ function App() {
 
                        {/* Risk Assessment */}
                        {result.risk_assessment && (
-                        <div className="bg-white/30 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/40 p-6 ring-1 ring-white/30">
+                        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
                           <h4 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-amber-600" />
                             Risk Assessment
@@ -454,10 +454,10 @@ function App() {
                                 <span className="text-xs text-slate-600 font-medium capitalize">
                                   {key.replace(/_/g, ' ')}
                                 </span>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm ${
-                                  value === 'Low' ? 'bg-emerald-100/80 text-emerald-800' :
-                                  value === 'Medium' ? 'bg-amber-100/80 text-amber-800' :
-                                  'bg-red-100/80 text-red-800'
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  value === 'Low' ? 'bg-emerald-100 text-emerald-800' :
+                                  value === 'Medium' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-red-100 text-red-800'
                                 }`}>
                                   {value}
                                 </span>
@@ -488,8 +488,8 @@ function App() {
               <div className="space-y-6 max-w-5xl mx-auto">
                  {/* Embed the repo connection panel here for better UX if no repo connected */}
                  {repoFiles.length === 0 && (
-                    <div className="bg-white/30 backdrop-blur-3xl rounded-3xl border border-white/40 p-8 shadow-lg ring-1 ring-white/30 text-center">
-                       <div className="w-16 h-16 bg-slate-100/50 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-slate-200/50">
+                    <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm text-center">
+                       <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200">
                           <GitBranch className="w-8 h-8 text-slate-400"/>
                        </div>
                        <h3 className="text-xl font-bold text-slate-900 mb-2">Connect a Repository</h3>
@@ -497,12 +497,12 @@ function App() {
                        <div className="max-w-md mx-auto space-y-4">
                            <input 
                               placeholder="https://github.com/..." 
-                              className="w-full bg-white/60 border border-white/50 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none backdrop-blur-sm"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none"
                               value={repoConfig.url}
                               onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}
                            />
-                           <button onClick={handleFetchRepo} className="w-full bg-slate-900/90 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition-colors shadow-md backdrop-blur-sm">Link Repository</button>
-                           <button onClick={loadDemoRepo} className="w-full bg-orange-100/50 text-orange-700 font-bold py-3 rounded-lg hover:bg-orange-100/70 transition-colors border border-orange-200/50 backdrop-blur-sm">Load Demo Repo</button>
+                           <button onClick={handleFetchRepo} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Link Repository</button>
+                           <button onClick={loadDemoRepo} className="w-full bg-orange-50 text-orange-700 font-bold py-3 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200">Load Demo Repo</button>
                        </div>
                     </div>
                  )}
@@ -516,15 +516,15 @@ function App() {
 
       {/* Info Modals */}
       {showProdGuide && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-lg z-[60] flex items-center justify-center p-4">
-          <div className="bg-white/80 backdrop-blur-3xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50 ring-1 ring-white/40">
-             <button onClick={() => setShowProdGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100/50 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-slate-200">
+             <button onClick={() => setShowProdGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
              <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2"><BookOpen className="w-5 h-5 text-orange-600" /> Production Guide</h3>
              <div className="prose prose-sm text-slate-700">
                 <p className="font-medium">Use one of these methods to extract your Spark Plan:</p>
-                <div className="bg-slate-100/50 p-4 rounded-xl border border-slate-200/50 mt-4 backdrop-blur-sm">
+                <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 mt-4">
                    <h4 className="font-bold text-slate-900 mb-2">Option 1: PySpark Notebook</h4>
-                   <code className="bg-white/60 px-2 py-1 rounded border border-white/50 font-mono text-orange-700">df.explain(True)</code>
+                   <code className="bg-white px-2 py-1 rounded border border-slate-200 font-mono text-orange-700">df.explain(True)</code>
                 </div>
              </div>
           </div>
@@ -532,9 +532,9 @@ function App() {
       )}
       
       {showImplGuide && (
-         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-lg z-[60] flex items-center justify-center p-4">
-            <div className="bg-white/80 backdrop-blur-3xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50 ring-1 ring-white/40">
-             <button onClick={() => setShowImplGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100/50 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
+         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-slate-200">
+             <button onClick={() => setShowImplGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500"/></button>
              <h3 className="text-xl font-bold mb-4 text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
              <p className="text-slate-700 font-medium">BrickOptima uses a client-side architecture to ensure security.</p>
              <ul className="mt-4 space-y-2 text-slate-600 text-sm">
@@ -553,23 +553,23 @@ function App() {
 // --- SUB-COMPONENTS ---
 
 const Header = () => (
-  <header className="h-16 bg-slate-900/50 backdrop-blur-xl border-b border-white/10 text-white flex items-center justify-between px-4 shadow-lg z-30 flex-shrink-0">
+  <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-4 shadow-sm z-30 flex-shrink-0">
     <div className="flex items-center gap-4">
-       <div className="font-bold text-lg flex items-center gap-2 text-white/90">
-         <span className="bg-gradient-to-br from-orange-500 to-orange-600 p-1.5 rounded-lg shadow-[0_0_15px_rgba(249,115,22,0.4)] border border-orange-400/30">
+       <div className="font-bold text-lg flex items-center gap-2 text-white">
+         <span className="bg-orange-600 p-1.5 rounded-lg shadow-sm">
             <Activity className="w-5 h-5 text-white" />
          </span>
-         <span className="tracking-tight drop-shadow-sm">BrickOptima</span>
+         <span className="tracking-tight">BrickOptima</span>
        </div>
-       <div className="h-6 w-px bg-white/10 mx-2"></div>
-       <div className="text-sm font-medium text-slate-300/80">Staging Workspace</div>
+       <div className="h-6 w-px bg-slate-700 mx-2"></div>
+       <div className="text-sm font-medium text-slate-400">Staging Workspace</div>
     </div>
     
     <div className="flex items-center gap-4 text-slate-400">
-       <HelpCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
-       <Settings className="w-5 h-5 hover:text-white cursor-pointer transition-colors hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
-       <Bell className="w-5 h-5 hover:text-white cursor-pointer transition-colors hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
-       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-xs border border-white/20 shadow-lg">
+       <HelpCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+       <Settings className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+       <Bell className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-xs border border-white/20 shadow-sm">
           JS
        </div>
     </div>
@@ -577,18 +577,18 @@ const Header = () => (
 );
 
 const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis }: any) => (
-  <aside className="w-[240px] bg-slate-900/50 backdrop-blur-2xl flex flex-col border-r border-white/10 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
+  <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
      <div className="p-4">
         <button 
            onClick={goToNewAnalysis}
-           className="w-full bg-white/90 text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-white transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)] mb-6 border border-white/50"
+           className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors shadow-sm mb-6"
         >
            <Plus className="w-5 h-5" /> New
         </button>
 
         <div className="space-y-1">
            <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
-           <div className="h-px bg-white/10 my-2 mx-3"></div>
+           <div className="h-px bg-slate-800 my-2 mx-3"></div>
            <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
            <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={() => setActiveTab(ActiveTab.LIVE)} />
            <SidebarItem icon={Code2} label="Repo Mapping" active={activeTab === ActiveTab.REPO} onClick={() => setActiveTab(ActiveTab.REPO)} />
@@ -597,13 +597,13 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
         </div>
      </div>
 
-     <div className="mt-auto p-4 border-t border-white/10">
+     <div className="mt-auto p-4 border-t border-slate-800">
          {appState === AppState.SUCCESS && (
-            <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg text-sm font-medium transition-colors">
+            <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors">
                <LogOut className="w-4 h-4" /> Reset Context
             </button>
          )}
-         <div className="flex items-center gap-3 px-3 py-2 text-slate-500/70 text-xs mt-2 font-mono">
+         <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono">
             <BookOpen className="w-3 h-3" /> v2.4.0-stable
          </div>
      </div>
@@ -615,31 +615,31 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
     onClick={onClick}
     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
       active 
-      ? 'bg-white/10 text-white shadow-[inset_0_0_10px_rgba(255,255,255,0.05)] border border-white/5 relative overflow-hidden' 
-      : 'text-slate-400 hover:text-white hover:bg-white/5'
+      ? 'bg-slate-800 text-white relative' 
+      : 'text-slate-400 hover:text-white hover:bg-slate-800'
     }`}
   >
-    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]"></div>}
-    <Icon className={`w-4 h-4 ${active ? 'text-orange-400 drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]' : ''}`} />
+    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>}
+    <Icon className={`w-4 h-4 ${active ? 'text-orange-400' : ''}`} />
     {label}
   </button>
 );
 
 const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }: any) => {
    const colorMap: any = {
-       blue: 'text-blue-600 bg-blue-50/50 border-blue-100/50',
-       orange: 'text-orange-600 bg-orange-50/50 border-orange-100/50',
-       emerald: 'text-emerald-600 bg-emerald-50/50 border-emerald-100/50',
-       purple: 'text-purple-600 bg-purple-50/50 border-purple-100/50'
+       blue: 'text-blue-600 bg-blue-50 border-blue-100',
+       orange: 'text-orange-600 bg-orange-50 border-orange-100',
+       emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+       purple: 'text-purple-600 bg-purple-50 border-purple-100'
    };
    const theme = colorMap[color] || colorMap.blue;
 
    return (
      <div 
        onClick={onClick}
-       className="bg-white/30 backdrop-blur-3xl p-6 rounded-2xl border border-white/40 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group ring-1 ring-white/30 flex flex-col"
+       className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col"
      >
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border shadow-sm backdrop-blur-sm`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border shadow-sm`}>
            <Icon className="w-6 h-6" />
         </div>
         <h3 className="font-bold text-slate-900 mb-2 tracking-tight">{title}</h3>
@@ -652,7 +652,7 @@ const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }:
 };
 
 const RecentRow = ({ name, type, date, status }: any) => (
-   <tr className="hover:bg-white/20 transition-colors border-b border-white/20 last:border-0 cursor-pointer group backdrop-blur-sm">
+   <tr className="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 cursor-pointer group">
       <td className="px-6 py-4 font-bold text-slate-700 group-hover:text-orange-700 flex items-center gap-2 transition-colors">
          <FileClock className="w-4 h-4 text-slate-400 group-hover:text-orange-500" />
          {name}
@@ -660,11 +660,11 @@ const RecentRow = ({ name, type, date, status }: any) => (
       <td className="px-6 py-4 text-slate-600 font-medium">{type}</td>
       <td className="px-6 py-4 text-slate-500 font-medium">{date}</td>
       <td className="px-6 py-4">
-         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase backdrop-blur-md ${
-            status === 'Critical' ? 'bg-red-100/80 text-red-700' :
-            status === 'Optimized' ? 'bg-emerald-100/80 text-emerald-700' :
-            status === 'Completed' ? 'bg-blue-100/80 text-blue-700' :
-            'bg-slate-100/80 text-slate-700'
+         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+            status === 'Critical' ? 'bg-red-100 text-red-700' :
+            status === 'Optimized' ? 'bg-emerald-100 text-emerald-700' :
+            status === 'Completed' ? 'bg-blue-100 text-blue-700' :
+            'bg-slate-100 text-slate-700'
          }`}>
             {status}
          </span>
