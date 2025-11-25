@@ -236,7 +236,10 @@ export const analyzeDagContentEnhanced = async (
   // Reset chat session for fresh context
   chatSession = ai.chats.create({
     model: "gemini-2.5-flash",
-    config: { systemInstruction }
+    config: { 
+      systemInstruction,
+      temperature: 0 // Ensure deterministic chat responses
+    }
   });
 
   try {
@@ -245,6 +248,7 @@ export const analyzeDagContentEnhanced = async (
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
+        temperature: 0, // CRITICAL: Set to 0 for deterministic output
         responseMimeType: "application/json",
         responseSchema: buildEnhancedResponseSchema()
       }
