@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { StreamMetric, StreamLog, StreamStatus, DatabricksConfig } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ComposedChart, Bar } from 'recharts';
@@ -28,7 +27,7 @@ export const LiveMonitor: React.FC = () => {
 
   // Batch Progress Simulation
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     
     if (status !== StreamStatus.DISCONNECTED && status !== StreamStatus.CONNECTING) {
         interval = setInterval(() => {
