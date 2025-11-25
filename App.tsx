@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -10,7 +9,7 @@ import { CostEstimator } from './components/CostEstimator';
 import { CodeMapper } from './components/CodeMapper';
 import { LiveMonitor } from './components/LiveMonitor';
 import { analyzeDagContent } from './services/geminiService';
-import { fetchRepoContents } from './services/githubService';
+import { fetchRepoContents, fetchRepoContentsEnhanced } from './services/githubService';
 import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile } from './types';
 
 const DEMO_REPO_FILES: RepoFile[] = [
@@ -82,7 +81,12 @@ function App() {
     setIsFetchingRepo(true);
     setError(null);
     try {
-      const files = await fetchRepoContents(repoConfig);
+      // Use enhanced fetching with options
+      const files = await fetchRepoContentsEnhanced(repoConfig, {
+        maxFiles: 50,
+        includeTests: false,
+        fileExtensions: ['.py', '.scala', '.sql', '.ipynb']
+      });
       setRepoFiles(files);
     } catch (e: any) {
       console.error(e);
@@ -104,7 +108,14 @@ function App() {
     setError(null);
 
     try {
-      const data = await analyzeDagContent(textContent, repoFiles);
+      // Use enhanced analysis with options (analyzeDagContent maps to analyzeDagContentEnhanced in service)
+      const data = await analyzeDagContent(textContent, repoFiles, {
+        enableCodeMapping: true,
+        enableDependencyAnalysis: true,
+        confidenceThreshold: 50, 
+        maxMappingsPerNode: 3, 
+        deepAnalysis: true
+      });
       setResult(data);
       setAppState(AppState.SUCCESS);
       setActiveTab(ActiveTab.DASHBOARD);
@@ -576,16 +587,25 @@ function App() {
          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
            <div className="bg-white/80 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative border border-white/50">
              <div className="p-6 border-b border-slate-200/50 flex justify-between items-center bg-white/40">
-               <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
-               <button onClick={() => setShowImplGuide(false)} className="p-2 hover:bg-white/50 rounded-full text-slate-500 hover:text-slate-700 transition-colors"><X className="w-5 h-5" /></button>
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
+                <button onClick={() => setShowImplGuide(false)} className="p-2 hover:bg-white/50 rounded-full text-slate-500 hover:text-slate-700 transition-colors"><X className="w-5 h-5" /></button>
              </div>
-             <div className="p-8 text-sm text-slate-800 font-medium leading-relaxed">
-                <p>BrickOptima uses a client-side React architecture powered by Google Gemini.</p>
-                <ul className="list-disc ml-5 mt-4 space-y-2">
-                   <li><strong>Analysis Engine:</strong> Gemini 2.0 Flash processes raw text plans into JSON structures.</li>
-                   <li><strong>Visualization:</strong> D3.js renders force-directed DAGs with topological sorting.</li>
-                   <li><strong>Live Monitor:</strong> Simulates WebSocket telemetry for real-time metric demonstration.</li>
-                </ul>
+             <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] text-slate-800 font-medium">
+               <p>This platform uses a multi-layered approach to Spark optimization:</p>
+               <div className="space-y-4">
+                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm">
+                    <h4 className="font-bold text-slate-900 text-sm mb-2">1. Plan Analysis</h4>
+                    <p className="text-sm text-slate-700">The heuristic engine parses physical plans to build a DAG and identify structural anti-patterns (e.g., Cartesian products, missing filters).</p>
+                  </div>
+                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm">
+                    <h4 className="font-bold text-slate-900 text-sm mb-2">2. Code Traceability</h4>
+                    <p className="text-sm text-slate-700">The Code Analysis Engine indexes your repository to map DAG nodes back to specific lines of PySpark/Scala code.</p>
+                  </div>
+                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm">
+                    <h4 className="font-bold text-slate-900 text-sm mb-2">3. Gemini Intelligence</h4>
+                    <p className="text-sm text-slate-700">Gemini 2.5 Flash synthesizes findings to generate optimized code snippets and architectural recommendations.</p>
+                  </div>
+               </div>
              </div>
            </div>
          </div>

@@ -10,7 +10,7 @@ export interface DagNode {
   name: string;
   type: string; // e.g., 'Scan', 'Filter', 'Shuffle', 'Join'
   metric?: string; // e.g., '10M rows'
-  mappedCode?: CodeSnippet; // Link to source code
+  mappedCode?: EnhancedCodeSnippet; // Enhanced mapping
 }
 
 export interface DagLink {
@@ -31,6 +31,25 @@ export interface CodeSnippet {
   relevanceExplanation: string;
 }
 
+export interface EnhancedCodeSnippet extends CodeSnippet {
+  confidence: number; // 0-100: How confident we are about this mapping
+  matchType: 'exact' | 'partial' | 'inferred'; // Type of match
+  callStack?: string[]; // Function call hierarchy
+  dependencies?: DependencyInfo[]; // Library and internal dependencies
+  affectedByStages?: string[]; // DAG stages that affect this code
+  fileType?: 'python' | 'scala' | 'sql' | 'notebook'; // Source file type
+  functionContext?: string; // Name of the function containing this code
+}
+
+export interface DependencyInfo {
+  type: 'internal' | 'external'; // Internal file or external library
+  source: string; // Module/file name
+  importedAs?: string; // Alias used in import
+  usedFunctions?: string[]; // Specific functions used
+  version?: string; // Library version (if available)
+  nestedDependencies?: string[]; // Dependencies of dependencies
+}
+
 export interface OptimizationTip {
   title: string;
   severity: Severity;
@@ -42,6 +61,50 @@ export interface OptimizationTip {
   confidence_score?: number; // 0-100
   implementation_complexity?: 'Low' | 'Medium' | 'High';
   affected_stages?: string[];
+  
+  // Enhanced Code Mapping
+  relatedCodeSnippets?: EnhancedCodeSnippet[]; // Multiple code locations
+  rootCauseFile?: string; // Primary file causing the issue
+  propagationPath?: string[]; // How the issue propagates through files
+}
+
+export interface RepositoryAnalysis {
+  totalFiles: number;
+  analyzedFiles: number;
+  fileTypes: Record<string, number>; // { 'python': 15, 'scala': 3 }
+  totalFunctions: number;
+  totalTableReferences: number;
+  dependencyGraph: DependencyGraph;
+  hotspotFiles: HotspotFile[]; // Files with most operations
+  complexityMetrics: CodeComplexityMetrics;
+}
+
+export interface DependencyGraph {
+  nodes: { id: string; type: 'file' | 'function' | 'table' }[];
+  edges: { from: string; to: string; type: 'imports' | 'calls' | 'reads' }[];
+}
+
+export interface HotspotFile {
+  path: string;
+  operationCount: number;
+  complexityScore: number;
+  riskLevel: 'Low' | 'Medium' | 'High';
+  reason: string;
+}
+
+export interface CodeComplexityMetrics {
+  averageFunctionLength: number;
+  deepestNestingLevel: number;
+  cyclomaticComplexity: number;
+  codeSmells: CodeSmell[];
+}
+
+export interface CodeSmell {
+  type: 'long_function' | 'deep_nesting' | 'duplicate_code' | 'complex_condition';
+  file: string;
+  line: number;
+  severity: Severity;
+  description: string;
 }
 
 export interface AnalysisResult {
@@ -51,7 +114,11 @@ export interface AnalysisResult {
   resourceMetrics: ResourceMetric[];
   optimizations: OptimizationTip[];
   estimatedDurationMin?: number;
-  codeMappings?: CodeSnippet[];
+  
+  // Enhanced Code Mappings
+  codeMappings?: EnhancedCodeSnippet[]; // All code mappings
+  repositoryAnalysis?: RepositoryAnalysis; // Repo structure analysis
+  
   query_complexity_score?: number; // 0-100
   optimization_impact_score?: number; // 0-100  
   risk_assessment?: {
@@ -65,6 +132,7 @@ export interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
   timestamp: number;
+  codeReferences?: EnhancedCodeSnippet[];
 }
 
 export enum AppState {
@@ -86,11 +154,68 @@ export interface RepoConfig {
   url: string;
   token?: string; // Optional PAT for private repos
   branch: string;
+  // Enhanced options
+  maxFiles?: number; // Max files to analyze (default: 50)
+  includeTests?: boolean; // Include test files (default: false)
+  fileExtensions?: string[]; // File types to analyze (default: ['.py', '.scala', '.sql'])
+  analyzeNotebooks?: boolean; // Include Jupyter notebooks (default: true)
 }
 
 export interface RepoFile {
   path: string;
   content: string;
+  size?: number; // File size in bytes
+  sha?: string; // Git SHA
+  language?: string; // Detected language
+}
+
+export interface CodeContext {
+  file: RepoFile;
+  functions: FunctionDefinition[];
+  imports: ImportStatement[];
+  tableReferences: TableReference[];
+  sparkOperations: SparkOperation[];
+}
+
+export interface FunctionDefinition {
+  name: string;
+  startLine: number;
+  endLine: number;
+  parameters: string[];
+  calls: string[]; // Functions this function calls
+  usesDataframes: string[]; // Dataframes used
+  complexity?: number; // Cyclomatic complexity
+}
+
+export interface ImportStatement {
+  module: string;
+  items: string[];
+  alias?: string;
+  line: number;
+}
+
+export interface TableReference {
+  name: string;
+  operation: 'read' | 'write' | 'join' | 'aggregate';
+  line: number;
+  context: string; // Surrounding code
+  format?: 'parquet' | 'csv' | 'delta' | 'json'; // File format
+}
+
+export interface SparkOperation {
+  type: 'read' | 'write' | 'join' | 'filter' | 'aggregate' | 'transform';
+  line: number;
+  code: string;
+  dataframes: string[];
+  estimatedCost?: 'low' | 'medium' | 'high'; // Operation cost
+}
+
+export interface AnalysisOptions {
+  enableCodeMapping?: boolean; // Enable code traceability (default: true)
+  enableDependencyAnalysis?: boolean; // Analyze dependencies (default: true)
+  confidenceThreshold?: number; // Min confidence for mappings (default: 50)
+  maxMappingsPerNode?: number; // Max code mappings per DAG node (default: 3)
+  deepAnalysis?: boolean; // Enable deep multi-pass analysis (default: true)
 }
 
 // --- Streaming Types ---
