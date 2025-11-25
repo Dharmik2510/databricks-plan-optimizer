@@ -143,6 +143,7 @@ export enum AppState {
 }
 
 export enum ActiveTab {
+  HOME = 'HOME',
   DASHBOARD = 'DASHBOARD',
   CHAT = 'CHAT',
   COST = 'COST',

@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap } from 'lucide-react';
+import { Upload, Activity, Layers, X, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Github, Link as LinkIcon, Code2, Radio, AlertTriangle, Zap, Search, Bell, HelpCircle, Menu, Settings, User, Home, Plus, FileClock, ChevronRight } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DagVisualizer } from './components/DagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -63,7 +64,7 @@ function App() {
   const [inputMode, setInputMode] = useState<'file' | 'text'>('text');
   const [textContent, setTextContent] = useState('');
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
-  const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.DASHBOARD);
+  const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.HOME);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
@@ -184,268 +185,189 @@ function App() {
     setResult(null);
     setAppState(AppState.IDLE);
     setTextContent('');
-    setActiveTab(ActiveTab.DASHBOARD);
+    setActiveTab(ActiveTab.HOME);
     setRepoFiles([]);
     setRepoConfig({ url: '', branch: 'main', token: '' });
   };
 
+  const goToNewAnalysis = () => {
+      setAppState(AppState.IDLE);
+      setActiveTab(ActiveTab.DASHBOARD);
+  };
+
   return (
     <ErrorBoundary>
-    <div className="min-h-screen font-sans flex overflow-hidden text-slate-900">
+    <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-transparent">
       
-      {/* Sidebar - Glassy Dark Databricks Style */}
-      <aside className="w-64 flex-shrink-0 hidden md:flex flex-col h-screen bg-[#1B2631]/85 backdrop-blur-2xl shadow-2xl relative z-20 text-slate-300 border-r border-white/10">
-        <div className="h-16 flex items-center px-6 border-b border-white/10">
-          <div className="flex items-center gap-3 font-bold text-xl tracking-tight text-white">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg shadow-orange-500/20 flex items-center justify-center border border-orange-400/50">
-              <Activity className="w-5 h-5 text-white" />
-            </div>
-            <span className="drop-shadow-sm">BrickOptima</span>
-          </div>
-        </div>
+      {/* Top Navigation - Azure Databricks Style */}
+      <Header />
 
-        <div className="py-6 flex-1 space-y-1">
-          {appState === AppState.SUCCESS ? (
-            <>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-3">Workspace</div>
-              {[
-                { id: ActiveTab.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
-                { id: ActiveTab.LIVE, label: 'Live Monitor', icon: Radio, pulse: true },
-                { id: ActiveTab.COST, label: 'Cost Estimator', icon: DollarSign },
-                { id: ActiveTab.CHAT, label: 'AI Consultant', icon: MessageSquare },
-                { id: ActiveTab.REPO, label: 'Repo Trace', icon: GitBranch }
-              ].map(tab => (
-                <button 
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all relative group ${
-                    activeTab === tab.id 
-                    ? 'text-white bg-white/10 shadow-inner' 
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {/* RED BORDER INDICATOR - MATCHING DATABRICKS STYLE */}
-                  {activeTab === tab.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 shadow-[0_0_12px_rgba(220,38,38,0.6)]"></div>}
-                  
-                  <tab.icon className={`w-4 h-4 transition-transform group-hover:scale-110 ${
-                    tab.pulse && activeTab === tab.id 
-                      ? 'animate-pulse text-red-400' 
-                      : activeTab === tab.id ? 'text-red-400' : ''
-                  }`} /> 
-                  {tab.label}
-                </button>
-              ))}
-              
-              <div className="my-6 border-t border-white/10 mx-6"></div>
-              
-              <button 
-                onClick={resetApp}
-                className="w-full flex items-center gap-3 px-6 py-3 text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors group"
-              >
-                <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> New Analysis
-              </button>
-            </>
-          ) : (
-            <div className="px-6 space-y-6">
-              <div className="px-4 py-5 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 text-sm text-slate-300 leading-relaxed shadow-lg">
-                <p className="font-bold text-white mb-2">Optimization Workspace</p>
-                Upload a Spark Plan or Paste Logs to begin analysis.
-              </div>
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Sidebar */}
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} appState={appState} resetApp={resetApp} goToNewAnalysis={goToNewAnalysis} />
 
-              {/* Repo Connection Panel */}
-              <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 shadow-lg">
-                 <h4 className="text-[10px] font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <Github className="w-3 h-3" /> Connect Repo
-                 </h4>
-                 {repoFiles.length > 0 ? (
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-emerald-300 bg-emerald-500/20 px-3 py-2 rounded-lg border border-emerald-500/30">
-                          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-                          {repoFiles.length} files indexed
-                        </div>
-                        {repoConfig.url === 'DEMO_MODE_ACTIVE' && (
-                           <div className="text-[10px] text-slate-400 px-1">Using Demo Repository</div>
-                        )}
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-transparent">
+          <div className="max-w-[1600px] mx-auto p-8 h-full">
+            
+            {/* HOME TAB */}
+            {activeTab === ActiveTab.HOME && (
+              <div className="space-y-12 animate-fade-in">
+                 <div>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Get started</h1>
+                    <p className="text-slate-600">Welcome to BrickOptima. What would you like to do today?</p>
+                 </div>
+
+                 {/* Hero Cards Grid */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <GetStartedCard 
+                       icon={Plus} 
+                       title="Import and transform data" 
+                       desc="Upload local files or paste execution plans for immediate analysis." 
+                       actionText="Create analysis"
+                       onClick={goToNewAnalysis}
+                       color="blue"
+                    />
+                     <GetStartedCard 
+                       icon={FileText} 
+                       title="Repository Trace" 
+                       desc="Connect your GitHub repository to map execution plans to source code." 
+                       actionText="Connect repo"
+                       onClick={() => setActiveTab(ActiveTab.REPO)}
+                       color="orange"
+                    />
+                    <GetStartedCard 
+                       icon={Radio} 
+                       title="Live Monitor" 
+                       desc="Connect to a live Databricks cluster to visualize real-time telemetry." 
+                       actionText="Connect cluster"
+                       onClick={() => setActiveTab(ActiveTab.LIVE)}
+                       color="emerald"
+                    />
+                    <GetStartedCard 
+                       icon={DollarSign} 
+                       title="Cost Estimator" 
+                       desc="Calculate potential savings for your Spark workloads." 
+                       actionText="Estimate cost"
+                       onClick={() => setActiveTab(ActiveTab.COST)}
+                       color="purple"
+                    />
+                 </div>
+
+                 {/* Recents Section */}
+                 <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                       <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                          <FileClock className="w-5 h-5 text-slate-500" /> Recents
+                       </h2>
+                       <button className="text-sm text-blue-600 font-bold hover:underline">View all</button>
                     </div>
-                 ) : (
-                   <div className="space-y-3">
-                      <input 
-                        placeholder="https://github.com/..." 
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500/50 placeholder-slate-500 transition-colors"
-                        value={repoConfig.url}
-                        onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}
-                      />
-                       <input 
-                        placeholder="Token (Optional)" 
-                        type="password"
-                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500/50 placeholder-slate-500 transition-colors"
-                        value={repoConfig.token}
-                        onChange={e => setRepoConfig({...repoConfig, token: e.target.value})}
-                      />
-                      <div className="flex gap-2">
+
+                    <div className="bg-white/60 backdrop-blur-3xl rounded-xl border border-white/60 shadow-sm overflow-hidden ring-1 ring-white/40">
+                       <table className="w-full text-sm text-left">
+                          <thead className="bg-white/40 border-b border-white/50 text-slate-500 uppercase text-xs font-bold">
+                             <tr>
+                                <th className="px-6 py-4">Name</th>
+                                <th className="px-6 py-4">Type</th>
+                                <th className="px-6 py-4">Last Modified</th>
+                                <th className="px-6 py-4">Status</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/40">
+                             <RecentRow name="Revenue_Join_Optimization" type="Analysis" date="2 hours ago" status="Completed" />
+                             <RecentRow name="Nightly_ETL_Pipeline" type="Repository" date="Yesterday" status="Connected" />
+                             <RecentRow name="Customer360_View" type="Monitor" date="2 days ago" status="Critical" />
+                             <RecentRow name="Log_Ingestion_Stream" type="Analysis" date="3 days ago" status="Optimized" />
+                          </tbody>
+                       </table>
+                    </div>
+                 </div>
+              </div>
+            )}
+
+            {/* DASHBOARD INPUT STATE */}
+            {activeTab === ActiveTab.DASHBOARD && appState !== AppState.SUCCESS && (
+              <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
+                  <div className="w-full max-w-4xl bg-white/40 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden relative z-10 ring-1 ring-white/60">
+                    <div className="flex border-b border-white/30 bg-white/20">
+                      {['text', 'file'].map(mode => (
                         <button 
-                          onClick={handleFetchRepo}
-                          disabled={isFetchingRepo || !repoConfig.url}
-                          className="flex-1 bg-white/10 hover:bg-white/20 text-xs font-bold py-2 rounded-lg text-white transition-colors disabled:opacity-50 border border-white/5"
+                          key={mode}
+                          onClick={() => setInputMode(mode as any)}
+                          className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                            inputMode === mode 
+                            ? 'text-orange-700 bg-white/40 border-b-2 border-orange-500 shadow-sm' 
+                            : 'text-slate-600 hover:bg-white/30 hover:text-slate-800'
+                          }`}
                         >
-                          {isFetchingRepo ? 'Fetching...' : 'Link'}
+                          {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                          {mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="p-8 relative">
+                      {inputMode === 'text' ? (
+                        <div className="relative group">
+                          <textarea 
+                            value={textContent}
+                            onChange={(e) => setTextContent(e.target.value)}
+                            className="w-full h-72 p-6 bg-white/40 backdrop-blur-md text-slate-900 font-mono text-sm rounded-2xl border border-white/50 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white/60 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-500"
+                            placeholder="Paste your 'EXPLAIN EXTENDED' output here..."
+                          ></textarea>
+                          <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white/60 backdrop-blur text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-white/50 hover:bg-white/80 transition-all shadow-sm font-bold">
+                            Load Demo Plan
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="h-72 border-2 border-dashed border-slate-400/50 rounded-2xl flex flex-col items-center justify-center bg-white/20 hover:bg-white/30 transition-all relative group cursor-pointer backdrop-blur-sm">
+                          <div className="p-5 bg-white/60 rounded-full shadow-lg mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-white/50">
+                              <Upload className="w-8 h-8" />
+                          </div>
+                          <p className="text-slate-800 font-bold text-lg">Click to Upload</p>
+                          <input 
+                            type="file" 
+                            accept=".json,.txt,.log"
+                            onChange={handleFileUpload}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                        </div>
+                      )}
+
+                      <div className="mt-8 flex justify-center">
+                        <button 
+                          onClick={handleAnalyze}
+                          disabled={!textContent.trim() || appState === AppState.ANALYZING}
+                          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 border border-orange-400/50 backdrop-blur-sm"
+                        >
+                          {appState === AppState.ANALYZING ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="w-6 h-6" /> Start Optimization
+                            </>
+                          )}
                         </button>
                       </div>
-                      <button 
-                        onClick={loadDemoRepo}
-                        className="w-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-xs font-bold py-2 rounded-lg text-orange-300 transition-colors flex items-center justify-center gap-2 mt-2"
-                      >
-                        <Code2 className="w-3 h-3" /> Load Demo Repo
-                      </button>
-                   </div>
-                 )}
-              </div>
-            </div>
-          )}
-        </div>
 
-        <div className="p-6 border-t border-white/10 bg-black/10 backdrop-blur-sm">
-          <button onClick={() => setShowProdGuide(true)} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors mb-3">
-            <BookOpen className="w-3 h-3" /> Production Guide
-          </button>
-          <button onClick={() => setShowImplGuide(true)} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors">
-            <Layers className="w-3 h-3" /> Architecture
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content - Transparent Glass */}
-      <main className="flex-1 overflow-auto h-screen relative scroll-smooth bg-transparent">
-        
-        {/* Mobile Header */}
-        <header className="md:hidden h-16 bg-white/60 backdrop-blur-xl border-b border-white/20 flex items-center px-4 justify-between sticky top-0 z-50">
-           <div className="font-bold text-slate-900 flex items-center gap-2">
-             <Activity className="w-5 h-5 text-orange-600" /> BrickOptima
-           </div>
-           {appState === AppState.SUCCESS && (
-             <button onClick={resetApp} className="text-sm text-slate-500">New</button>
-           )}
-        </header>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 h-full">
-          
-          {/* Idle / Input State */}
-          {appState !== AppState.SUCCESS && (
-            <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh]">
-              <div className="mb-12 text-center max-w-3xl mx-auto relative z-10">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/40 border border-white/60 text-orange-700 text-xs font-bold mb-6 shadow-lg backdrop-blur-md">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                  </span>
-                  Next-Gen Spark Optimization
-                </div>
-                <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 tracking-tight leading-tight drop-shadow-sm">
-                  Optimize your <br/>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-500 filter drop-shadow-sm">Databricks Workflows</span>
-                </h1>
-                <p className="text-xl text-slate-700 font-medium leading-relaxed max-w-2xl mx-auto drop-shadow-sm">
-                  Visualize execution plans, pinpoint bottlenecks, and get AI-powered code fixes in seconds.
-                </p>
-              </div>
-
-              {/* Hyper-Glass Input Card */}
-              <div className="w-full max-w-4xl bg-white/40 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden relative z-10 ring-1 ring-white/60">
-                
-                <div className="flex border-b border-white/30 bg-white/20">
-                  {['text', 'file'].map(mode => (
-                    <button 
-                      key={mode}
-                      onClick={() => setInputMode(mode as any)}
-                      className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                        inputMode === mode 
-                        ? 'text-orange-700 bg-white/40 border-b-2 border-orange-500 shadow-sm' 
-                        : 'text-slate-600 hover:bg-white/30 hover:text-slate-800'
-                      }`}
-                    >
-                      {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                      {mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="p-8 relative">
-                  {inputMode === 'text' ? (
-                    <div className="relative group">
-                      <textarea 
-                        value={textContent}
-                        onChange={(e) => setTextContent(e.target.value)}
-                        className="w-full h-72 p-6 bg-white/40 backdrop-blur-md text-slate-900 font-mono text-sm rounded-2xl border border-white/50 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50 focus:bg-white/60 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-500"
-                        placeholder="Paste your 'EXPLAIN EXTENDED' output here..."
-                      ></textarea>
-                      <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white/60 backdrop-blur text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-white/50 hover:bg-white/80 transition-all shadow-sm font-bold">
-                        Load Demo Plan
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="h-72 border-2 border-dashed border-slate-400/50 rounded-2xl flex flex-col items-center justify-center bg-white/20 hover:bg-white/30 transition-all relative group cursor-pointer backdrop-blur-sm">
-                      <div className="p-5 bg-white/60 rounded-full shadow-lg mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-white/50">
-                          <Upload className="w-8 h-8" />
-                      </div>
-                      <p className="text-slate-800 font-bold text-lg">Click to Upload</p>
-                      <input 
-                        type="file" 
-                        accept=".json,.txt,.log"
-                        onChange={handleFileUpload}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
-                  )}
-
-                  <div className="mt-8 flex justify-center">
-                    <button 
-                      onClick={handleAnalyze}
-                      disabled={!textContent.trim() || appState === AppState.ANALYZING}
-                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 border border-orange-400/50 backdrop-blur-sm"
-                    >
-                      {appState === AppState.ANALYZING ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <PlayCircle className="w-6 h-6" /> Start Optimization
-                        </>
+                      {error && (
+                        <div className="mt-6 p-4 bg-red-50/80 backdrop-blur-md text-red-800 rounded-2xl border border-red-200/50 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm">
+                          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                          {error}
+                        </div>
                       )}
-                    </button>
-                  </div>
-
-                  {error && (
-                    <div className="mt-6 p-4 bg-red-50/80 backdrop-blur-md text-red-800 rounded-2xl border border-red-200/50 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      {error}
                     </div>
-                  )}
-                </div>
+                  </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Results State */}
-          {result && appState === AppState.SUCCESS && (
-            <div className="space-y-8 animate-fade-in pb-20 h-full flex flex-col">
-              
-              {/* Mobile Tab Nav */}
-              <div className="md:hidden flex gap-2 overflow-x-auto pb-2 no-scrollbar flex-shrink-0">
-                 {[
-                    { id: ActiveTab.DASHBOARD, label: 'Dashboard' },
-                    { id: ActiveTab.LIVE, label: 'Live' },
-                    { id: ActiveTab.COST, label: 'Cost' },
-                    { id: ActiveTab.CHAT, label: 'Consultant' }
-                 ].map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold border shadow-sm backdrop-blur-md ${activeTab === tab.id ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white/60 border-white/40 text-slate-700'}`}>{tab.label}</button>
-                 ))}
-              </div>
-
-              {/* Views */}
-              {activeTab === ActiveTab.DASHBOARD && (
-                <div className="space-y-8">
+            {/* ANALYSIS RESULTS DASHBOARD */}
+            {activeTab === ActiveTab.DASHBOARD && result && appState === AppState.SUCCESS && (
+               <div className="space-y-8 animate-fade-in pb-20">
                   <section className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-8 relative overflow-hidden ring-1 ring-white/40">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                     <div className="flex items-start gap-6 relative z-10">
@@ -461,89 +383,77 @@ function App() {
                       </div>
                     </div>
                   </section>
-                  {(result.query_complexity_score !== undefined || 
-                    result.optimization_impact_score !== undefined || 
-                    result.risk_assessment) && (
+                  
+                  {(result.query_complexity_score !== undefined || result.optimization_impact_score !== undefined) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Complexity Score */}
-                      {result.query_complexity_score !== undefined && (
-                        <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
+                      <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-bold text-slate-900 text-sm">Query Complexity</h4>
                             <div className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                              result.query_complexity_score <= 30 ? 'bg-emerald-100 text-emerald-700' :
-                              result.query_complexity_score <= 60 ? 'bg-amber-100 text-amber-700' :
+                              (result.query_complexity_score || 0) <= 30 ? 'bg-emerald-100 text-emerald-700' :
+                              (result.query_complexity_score || 0) <= 60 ? 'bg-amber-100 text-amber-700' :
                               'bg-red-100 text-red-700'
                             }`}>
-                              {result.query_complexity_score <= 30 ? 'Simple' : 
-                              result.query_complexity_score <= 60 ? 'Moderate' : 'Complex'}
+                              {(result.query_complexity_score || 0) <= 30 ? 'Simple' : 
+                              (result.query_complexity_score || 0) <= 60 ? 'Moderate' : 'Complex'}
                             </div>
                           </div>
                           <div className="relative pt-2">
                             <div className="flex items-center justify-center">
-                              <div className="text-5xl font-bold text-slate-900">{result.query_complexity_score}</div>
+                              <div className="text-5xl font-bold text-slate-900">{result.query_complexity_score || 50}</div>
                               <div className="text-2xl text-slate-500 ml-1">/100</div>
                             </div>
                             <div className="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full transition-all ${
-                                  result.query_complexity_score <= 30 ? 'bg-emerald-500' :
-                                  result.query_complexity_score <= 60 ? 'bg-amber-500' : 'bg-red-500'
-                                }`}
-                                style={{ width: `${result.query_complexity_score}%` }}
-                              ></div>
+                              <div className={`h-full transition-all bg-slate-900`} style={{ width: `${result.query_complexity_score || 50}%` }}></div>
                             </div>
+                          </div>
+                      </div>
+
+                      {/* Improvement Potential */}
+                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 backdrop-blur-3xl rounded-3xl shadow-lg border border-emerald-200/50 p-6 ring-1 ring-emerald-100/40">
+                        <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-bold text-slate-900 text-sm">Improvement Potential</h4>
+                            <Zap className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div className="relative pt-2">
+                            <div className="flex items-center justify-center">
+                            <div className="text-5xl font-bold text-emerald-700">{result.optimization_impact_score || 0}</div>
+                            <div className="text-2xl text-emerald-500 ml-1">%</div>
+                            </div>
+                            <div className="mt-4 text-center text-xs text-slate-600 font-semibold">
+                            Potential speedup if all fixes applied
+                            </div>
+                        </div>
+                      </div>
+
+                       {/* Risk Assessment */}
+                       {result.risk_assessment && (
+                        <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
+                          <h4 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600" />
+                            Risk Assessment
+                          </h4>
+                          <div className="space-y-3">
+                            {Object.entries(result.risk_assessment).map(([key, value]) => (
+                              <div key={key} className="flex justify-between items-center">
+                                <span className="text-xs text-slate-600 font-medium capitalize">
+                                  {key.replace(/_/g, ' ')}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  value === 'Low' ? 'bg-emerald-100 text-emerald-700' :
+                                  value === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {value}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
-
-                  {/* Improvement Potential */}
-                  {result.optimization_impact_score !== undefined && (
-                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 backdrop-blur-3xl rounded-3xl shadow-lg border border-emerald-200/50 p-6 ring-1 ring-emerald-100/40">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-bold text-slate-900 text-sm">Improvement Potential</h4>
-                        <Zap className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div className="relative pt-2">
-                        <div className="flex items-center justify-center">
-                          <div className="text-5xl font-bold text-emerald-700">{result.optimization_impact_score}</div>
-                          <div className="text-2xl text-emerald-500 ml-1">%</div>
-                        </div>
-                        <div className="mt-4 text-center text-xs text-slate-600 font-semibold">
-                          Potential speedup if all fixes applied
-                        </div>
-                      </div>
                     </div>
                   )}
-
-                  {/* Risk Assessment */}
-                  {result.risk_assessment && (
-                    <div className="bg-white/50 backdrop-blur-3xl rounded-3xl shadow-lg border border-white/60 p-6 ring-1 ring-white/40">
-                      <h4 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600" />
-                        Risk Assessment
-                      </h4>
-                      <div className="space-y-3">
-                        {Object.entries(result.risk_assessment).map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center">
-                            <span className="text-xs text-slate-600 font-medium capitalize">
-                              {key.replace(/_/g, ' ')}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              value === 'Low' ? 'bg-emerald-100 text-emerald-700' :
-                              value === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                              'bg-red-100 text-red-700'
-                            }`}>
-                              {value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
 
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     <DagVisualizer nodes={result.dagNodes} links={result.dagLinks} />
@@ -551,68 +461,185 @@ function App() {
                   </div>
 
                   <OptimizationList optimizations={result.optimizations} />
-                </div>
-              )}
+               </div>
+            )}
 
-              {activeTab === ActiveTab.LIVE && <div className="h-full max-w-[1600px] mx-auto w-full"><LiveMonitor /></div>}
-              {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result.estimatedDurationMin} /></div>}
-              {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface /></div>}
-              {activeTab === ActiveTab.REPO && <div className="max-w-4xl mx-auto h-full"><CodeMapper mappings={result.codeMappings} /></div>}
+            {/* OTHER TABS */}
+            {activeTab === ActiveTab.LIVE && <div className="h-full w-full"><LiveMonitor /></div>}
+            {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result?.estimatedDurationMin} /></div>}
+            {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface analysisResult={result} /></div>}
+            {activeTab === ActiveTab.REPO && (
+              <div className="space-y-6 max-w-5xl mx-auto">
+                 {/* Embed the repo connection panel here for better UX if no repo connected */}
+                 {repoFiles.length === 0 && (
+                    <div className="bg-white/50 backdrop-blur-3xl rounded-3xl border border-white/60 p-8 shadow-lg ring-1 ring-white/40 text-center">
+                       <GitBranch className="w-12 h-12 mx-auto text-slate-400 mb-4"/>
+                       <h3 className="text-xl font-bold text-slate-900 mb-2">Connect a Repository</h3>
+                       <p className="text-slate-600 mb-6">Link your GitHub repository to enable deep code traceability.</p>
+                       <div className="max-w-md mx-auto space-y-4">
+                           <input 
+                              placeholder="https://github.com/..." 
+                              className="w-full bg-white/60 border border-slate-300 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none"
+                              value={repoConfig.url}
+                              onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}
+                           />
+                           <button onClick={handleFetchRepo} className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition-colors">Link Repository</button>
+                           <button onClick={loadDemoRepo} className="w-full bg-orange-100 text-orange-700 font-bold py-3 rounded-lg hover:bg-orange-200 transition-colors border border-orange-200">Load Demo Repo</button>
+                       </div>
+                    </div>
+                 )}
+                 <CodeMapper mappings={result?.codeMappings} />
+              </div>
+            )}
 
-            </div>
-          )}
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
 
-      {/* Info Modals - Glass Style */}
+      {/* Info Modals */}
       {showProdGuide && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white/80 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative border border-white/50">
-             <div className="p-6 border-b border-slate-200/50 flex justify-between items-center bg-white/40">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><BookOpen className="w-5 h-5 text-orange-600" /> Production Guide</h3>
-              <button onClick={() => setShowProdGuide(false)} className="p-2 hover:bg-white/50 rounded-full text-slate-500 hover:text-slate-700 transition-colors"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] text-slate-800 font-medium">
-               <p>Use these methods to extract execution plans from restricted production environments:</p>
-               <div className="space-y-4">
-                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm"><h4 className="font-bold text-slate-900 text-sm mb-2">PySpark Notebook</h4><pre className="text-sm font-mono text-slate-700 bg-white/50 p-3 rounded-xl border border-white/60">df.explain(True)</pre></div>
-                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm"><h4 className="font-bold text-slate-900 text-sm mb-2">Spark UI</h4><p className="text-sm text-slate-700">SQL Tab &gt; Query Description &gt; "Physical Plan"</p></div>
-               </div>
-            </div>
+          <div className="bg-white/90 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50">
+             <button onClick={() => setShowProdGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
+             <h3 className="text-xl font-bold mb-4">Production Guide</h3>
+             <p className="text-slate-700">Use `df.explain(True)` in Databricks notebooks to get the physical plan.</p>
           </div>
         </div>
       )}
       
       {showImplGuide && (
          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-           <div className="bg-white/80 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl animate-fade-in overflow-hidden relative border border-white/50">
-             <div className="p-6 border-b border-slate-200/50 flex justify-between items-center bg-white/40">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Layers className="w-5 h-5 text-orange-600" /> Architecture</h3>
-                <button onClick={() => setShowImplGuide(false)} className="p-2 hover:bg-white/50 rounded-full text-slate-500 hover:text-slate-700 transition-colors"><X className="w-5 h-5" /></button>
-             </div>
-             <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] text-slate-800 font-medium">
-               <p>This platform uses a multi-layered approach to Spark optimization:</p>
-               <div className="space-y-4">
-                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm">
-                    <h4 className="font-bold text-slate-900 text-sm mb-2">1. Plan Analysis</h4>
-                    <p className="text-sm text-slate-700">The heuristic engine parses physical plans to build a DAG and identify structural anti-patterns (e.g., Cartesian products, missing filters).</p>
-                  </div>
-                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm">
-                    <h4 className="font-bold text-slate-900 text-sm mb-2">2. Code Traceability</h4>
-                    <p className="text-sm text-slate-700">The Code Analysis Engine indexes your repository to map DAG nodes back to specific lines of PySpark/Scala code.</p>
-                  </div>
-                  <div className="bg-white/60 p-5 rounded-2xl border border-white/60 shadow-sm">
-                    <h4 className="font-bold text-slate-900 text-sm mb-2">3. Gemini Intelligence</h4>
-                    <p className="text-sm text-slate-700">Gemini 2.5 Flash synthesizes findings to generate optimized code snippets and architectural recommendations.</p>
-                  </div>
-               </div>
-             </div>
-           </div>
+            <div className="bg-white/90 backdrop-blur-2xl rounded-3xl max-w-2xl w-full shadow-2xl p-8 relative border border-white/50">
+             <button onClick={() => setShowImplGuide(false)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
+             <h3 className="text-xl font-bold mb-4">Architecture</h3>
+             <p className="text-slate-700">Client-side React SPA powered by Gemini 2.0 Flash.</p>
+          </div>
          </div>
       )}
     </div>
     </ErrorBoundary>
   );
 }
+
+// --- SUB-COMPONENTS ---
+
+const Header = () => (
+  <header className="h-16 bg-[#1E1E1E] text-white flex items-center justify-between px-4 shadow-md z-30 flex-shrink-0">
+    <div className="flex items-center gap-4">
+       <div className="font-bold text-lg flex items-center gap-2">
+         <span className="bg-gradient-to-br from-orange-500 to-orange-600 p-1.5 rounded-lg shadow-orange-500/20 shadow-lg">
+            <Activity className="w-5 h-5" />
+         </span>
+         BrickOptima
+       </div>
+       <div className="h-6 w-px bg-white/20 mx-2"></div>
+       <div className="text-sm font-medium text-slate-300">Staging Workspace</div>
+    </div>
+    
+    <div className="flex items-center gap-4 text-slate-400">
+       <HelpCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+       <Settings className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+       <Bell className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+       <div className="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold text-xs border-2 border-[#1E1E1E] outline outline-1 outline-white/20">
+          JS
+       </div>
+    </div>
+  </header>
+);
+
+const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis }: any) => (
+  <aside className="w-[240px] bg-[#1E1E1E]/95 backdrop-blur-xl flex flex-col border-r border-white/5 z-20 shadow-2xl">
+     <div className="p-4">
+        <button 
+           onClick={goToNewAnalysis}
+           className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors shadow-sm mb-6"
+        >
+           <Plus className="w-5 h-5" /> New
+        </button>
+
+        <div className="space-y-1">
+           <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
+           <div className="h-px bg-white/10 my-2 mx-3"></div>
+           <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
+           <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={() => setActiveTab(ActiveTab.LIVE)} />
+           <SidebarItem icon={Code2} label="Repo Mapping" active={activeTab === ActiveTab.REPO} onClick={() => setActiveTab(ActiveTab.REPO)} />
+           <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
+           <SidebarItem icon={MessageSquare} label="Genie" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
+        </div>
+     </div>
+
+     <div className="mt-auto p-4 border-t border-white/5">
+         {appState === AppState.SUCCESS && (
+            <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors">
+               <LogOut className="w-4 h-4" /> Reset Context
+            </button>
+         )}
+         <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2">
+            <BookOpen className="w-3 h-3" /> v2.4.0-stable
+         </div>
+     </div>
+  </aside>
+);
+
+const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+      active 
+      ? 'bg-white/10 text-white shadow-sm border border-white/5' 
+      : 'text-slate-400 hover:text-white hover:bg-white/5'
+    }`}
+  >
+    <Icon className={`w-4 h-4 ${active ? 'text-orange-500' : ''}`} />
+    {label}
+  </button>
+);
+
+const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }: any) => {
+   const colorMap: any = {
+       blue: 'text-blue-600 bg-blue-50',
+       orange: 'text-orange-600 bg-orange-50',
+       emerald: 'text-emerald-600 bg-emerald-50',
+       purple: 'text-purple-600 bg-purple-50'
+   };
+   const theme = colorMap[color] || colorMap.blue;
+
+   return (
+     <div 
+       onClick={onClick}
+       className="bg-white/60 backdrop-blur-3xl p-6 rounded-2xl border border-white/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group ring-1 ring-white/40 flex flex-col"
+     >
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border border-white/50 shadow-sm`}>
+           <Icon className="w-6 h-6" />
+        </div>
+        <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
+        <p className="text-sm text-slate-600 mb-6 flex-1 leading-relaxed">{desc}</p>
+        <div className="text-xs font-bold text-slate-900 flex items-center gap-1 group-hover:gap-2 transition-all">
+           {actionText} <ChevronRight className="w-3 h-3 text-orange-600" />
+        </div>
+     </div>
+   );
+};
+
+const RecentRow = ({ name, type, date, status }: any) => (
+   <tr className="hover:bg-white/40 transition-colors border-b border-white/30 last:border-0 cursor-pointer group">
+      <td className="px-6 py-4 font-bold text-slate-700 group-hover:text-orange-700 flex items-center gap-2">
+         <FileClock className="w-4 h-4 text-slate-400" />
+         {name}
+      </td>
+      <td className="px-6 py-4 text-slate-600">{type}</td>
+      <td className="px-6 py-4 text-slate-500">{date}</td>
+      <td className="px-6 py-4">
+         <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+            status === 'Critical' ? 'bg-red-100 text-red-700' :
+            status === 'Optimized' ? 'bg-emerald-100 text-emerald-700' :
+            status === 'Completed' ? 'bg-blue-100 text-blue-700' :
+            'bg-slate-100 text-slate-700'
+         }`}>
+            {status}
+         </span>
+      </td>
+   </tr>
+);
 
 export default App;

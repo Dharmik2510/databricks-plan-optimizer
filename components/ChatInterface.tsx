@@ -1,11 +1,16 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, Lock, Activity } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChatMessage } from '../services/geminiService';
-import { ChatMessage } from '../types';
+import { ChatMessage, AnalysisResult } from '../types';
 
-export const ChatInterface: React.FC = () => {
+interface Props {
+  analysisResult: AnalysisResult | null;
+}
+
+export const ChatInterface: React.FC<Props> = ({ analysisResult }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'ai', content: 'I have analyzed your DAG.\n\n**Ask me anything about:**\n- Specific stages (e.g., "Why is Stage 2 spilling?")\n- Join strategies (e.g., "Should I use Broadcast Join?")\n- Code refactoring tips.', timestamp: Date.now() }
   ]);
@@ -18,7 +23,7 @@ export const ChatInterface: React.FC = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !analysisResult) return;
     
     const userMsg: ChatMessage = { role: 'user', content: input, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
@@ -36,16 +41,37 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
+  if (!analysisResult) {
+    return (
+        <div className="flex flex-col h-[650px] bg-white/50 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/60 overflow-hidden animate-fade-in relative ring-1 ring-white/40 justify-center items-center">
+             <div className="text-center p-8 max-w-md">
+                 <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-200">
+                     <Lock className="w-10 h-10 text-slate-400" />
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-900 mb-3">Consultant Unavailable</h3>
+                 <p className="text-slate-600 mb-6">Genie requires an active analysis context to answer questions. Please run an analysis in the Plan Analyzer first.</p>
+                 <div className="text-xs text-slate-500 font-mono bg-slate-100/50 p-3 rounded-lg border border-slate-200">
+                     Tip: Go to "Plan Analyzer" -> "New" -> Upload your execution plan.
+                 </div>
+             </div>
+        </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[650px] bg-white/50 backdrop-blur-3xl rounded-3xl shadow-2xl border border-white/60 overflow-hidden animate-fade-in relative ring-1 ring-white/40">
       
+      {/* Header */}
       <div className="p-5 border-b border-white/40 bg-white/30 flex justify-between items-center backdrop-blur-sm">
         <div>
           <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg drop-shadow-sm">
             <Bot className="w-6 h-6 text-orange-600" />
             AI Performance Consultant
           </h3>
-          <p className="text-xs text-slate-700 mt-1 font-medium">Interactive debugging session.</p>
+          <div className="flex items-center gap-2 mt-1">
+             <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+             <span className="text-xs text-emerald-700 font-bold uppercase tracking-wider">Context Active: Plan Analysis Linked</span>
+          </div>
         </div>
       </div>
 
