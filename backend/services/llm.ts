@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Chat } from "@google/genai";
-import { AnalysisResult, Severity, RepoFile, AnalysisOptions, RepositoryAnalysis } from "../../shared/types";
+import { AnalysisResult, Severity, RepoFile, AnalysisOptions, RepositoryAnalysis, ClusterContext } from "../../shared/types";
 import { CodeAnalysisEngine } from "./codeAnalysis";
 import { predictiveEngine } from "./analytics";
 
@@ -10,7 +10,8 @@ let chatSession: Chat | null = null;
 export const analyzeDagContentEnhanced = async (
   content: string,
   repoFiles: RepoFile[] = [],
-  options: AnalysisOptions = {}
+  options: AnalysisOptions = {},
+  clusterContext?: ClusterContext
 ): Promise<AnalysisResult> => {
   const { enableCodeMapping = true, enableDependencyAnalysis = true, confidenceThreshold = 50, maxMappingsPerNode = 3 } = options;
   let codeEngine: CodeAnalysisEngine | null = null;
@@ -31,8 +32,21 @@ export const analyzeDagContentEnhanced = async (
     2. **Architectural Advice**: Focus on long-term stability.
   `;
 
+  // Incorporate Cluster Context if available
+  const contextBlock = clusterContext ? `
+    --- RUNTIME CONTEXT ---
+    Cluster Type: ${clusterContext.clusterType}
+    DBR Version: ${clusterContext.dbrVersion}
+    Extra Configs: 
+    ${clusterContext.sparkConf || "None provided"}
+    -----------------------
+    NOTE: Tailor your recommendations (especially regarding Spark configs and DBR-specific features like Photon or Liquid Clustering) based on the above context.
+  ` : '';
+
   const prompt = `
     Analyze the following Databricks/Spark execution plan:
+    ${contextBlock}
+
     --- EXECUTION PLAN ---
     ${content}
     --- END PLAN ---

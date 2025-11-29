@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search } from 'lucide-react';
+import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -15,7 +15,7 @@ import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
 import { client } from './api';
-import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction } from '../shared/types';
+import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction, ClusterContext } from '../shared/types';
 
 const DEMO_REPO_FILES: RepoFile[] = [
   {
@@ -37,6 +37,13 @@ function App() {
   const [repoFiles, setRepoFiles] = useState<RepoFile[]>([]);
   const [isFetchingRepo, setIsFetchingRepo] = useState(false);
 
+  // Cluster Context State
+  const [clusterContext, setClusterContext] = useState<ClusterContext>({
+    clusterType: 'General Purpose (m5.xlarge)',
+    dbrVersion: '13.3 LTS',
+    sparkConf: ''
+  });
+
   const handleFetchRepo = async () => {
     if (!repoConfig.url) return;
     setIsFetchingRepo(true);
@@ -57,7 +64,13 @@ function App() {
     setError(null);
     setPrediction(null);
     try {
-      const data = await client.analyzeDag(textContent, repoFiles, { enableCodeMapping: true, enableDependencyAnalysis: true, confidenceThreshold: 50, maxMappingsPerNode: 3, deepAnalysis: true });
+      // Pass clusterContext as the 4th argument
+      const data = await client.analyzeDag(
+        textContent, 
+        repoFiles, 
+        { enableCodeMapping: true, enableDependencyAnalysis: true, confidenceThreshold: 50, maxMappingsPerNode: 3, deepAnalysis: true },
+        clusterContext
+      );
       setResult(data);
       try {
         const pred = client.predictAtScale(data, 100); 
@@ -127,23 +140,101 @@ function App() {
                 {appState === AppState.ANALYZING && <LoadingScreen />}
                 
                 {(appState === AppState.IDLE || appState === AppState.ERROR) && (
-                  <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
-                      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative z-10">
-                        <div className="flex border-b border-slate-200 bg-slate-50">
-                          {['text', 'file'].map(mode => (
-                            <button key={mode} onClick={() => setInputMode(mode as any)} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode ? 'text-orange-700 bg-white border-b-2 border-orange-500 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>{mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}{mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}</button>
-                          ))}
+                  <div className="flex flex-col min-h-[75vh] animate-fade-in gap-6">
+                      
+                      {/* Grid Layout for Input & Context */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+                        
+                        {/* LEFT: Execution Plan Input */}
+                        <div className="lg:col-span-2 w-full bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative z-10 flex flex-col">
+                          <div className="flex border-b border-slate-200 bg-slate-50">
+                            {['text', 'file'].map(mode => (
+                              <button key={mode} onClick={() => setInputMode(mode as any)} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode ? 'text-orange-700 bg-white border-b-2 border-orange-500 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>{mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}{mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}</button>
+                            ))}
+                          </div>
+                          <div className="p-8 relative flex-1 flex flex-col">
+                            {inputMode === 'text' ? (
+                              <div className="relative group flex-1">
+                                <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} className="w-full h-full min-h-[400px] p-6 bg-slate-50 text-slate-900 font-mono text-sm rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400" placeholder="Paste your 'EXPLAIN EXTENDED' output here..."></textarea>
+                                <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all shadow-sm font-bold">Load Demo Plan</button>
+                              </div>
+                            ) : (
+                              <div className="h-full min-h-[400px] border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all relative group cursor-pointer"><div className="p-5 bg-white rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-slate-200"><Upload className="w-8 h-8" /></div><p className="text-slate-800 font-bold text-lg">Click to Upload</p><input type="file" accept=".json,.txt,.log" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer"/></div>
+                            )}
+                          </div>
                         </div>
-                        <div className="p-8 relative">
-                          {inputMode === 'text' ? (
-                            <div className="relative group"><textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} className="w-full h-72 p-6 bg-slate-50 text-slate-900 font-mono text-sm rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400" placeholder="Paste your 'EXPLAIN EXTENDED' output here..."></textarea><button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all shadow-sm font-bold">Load Demo Plan</button></div>
-                          ) : (
-                            <div className="h-72 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all relative group cursor-pointer"><div className="p-5 bg-white rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-slate-200"><Upload className="w-8 h-8" /></div><p className="text-slate-800 font-bold text-lg">Click to Upload</p><input type="file" accept=".json,.txt,.log" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer"/></div>
-                          )}
-                          <div className="mt-8 flex justify-center"><button onClick={handleAnalyze} disabled={!textContent.trim()} className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"><PlayCircle className="w-6 h-6" /> Start Optimization</button></div>
-                          {error && <div className="mt-6 p-4 bg-red-50 text-red-800 rounded-2xl border border-red-200 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm"><div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>{error}</div>}
+
+                        {/* RIGHT: Runtime Environment Context */}
+                        <div className="w-full bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative z-10 flex flex-col h-full">
+                           <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center gap-3">
+                              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200">
+                                <Server className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold text-slate-900">Runtime Context</h3>
+                                <p className="text-xs text-slate-500 font-medium">Provide details for better AI accuracy.</p>
+                              </div>
+                           </div>
+                           <div className="p-6 space-y-6 flex-1 bg-white">
+                              <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cluster Type</label>
+                                <div className="relative">
+                                  <select 
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                    value={clusterContext.clusterType}
+                                    onChange={e => setClusterContext({...clusterContext, clusterType: e.target.value})}
+                                  >
+                                    <option>General Purpose (m5.xlarge)</option>
+                                    <option>Memory Optimized (r5.xlarge)</option>
+                                    <option>Compute Optimized (c5.xlarge)</option>
+                                    <option>Storage Optimized (i3.xlarge)</option>
+                                    <option>GPU Accelerated (g4dn.xlarge)</option>
+                                  </select>
+                                  <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
+                                    <Cpu className="w-4 h-4" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Databricks Runtime (DBR)</label>
+                                <div className="relative">
+                                  <select 
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                    value={clusterContext.dbrVersion}
+                                    onChange={e => setClusterContext({...clusterContext, dbrVersion: e.target.value})}
+                                  >
+                                    <option>15.2 (Latest)</option>
+                                    <option>14.3 LTS</option>
+                                    <option>13.3 LTS</option>
+                                    <option>12.2 LTS</option>
+                                    <option>11.3 LTS</option>
+                                  </select>
+                                  <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
+                                    <Activity className="w-4 h-4" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex-1 flex flex-col">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Extra Spark Properties</label>
+                                <textarea 
+                                  className="w-full flex-1 min-h-[150px] bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-mono text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none resize-none placeholder-slate-400"
+                                  placeholder="spark.sql.shuffle.partitions=200&#10;spark.executor.memory=8g..."
+                                  value={clusterContext.sparkConf}
+                                  onChange={e => setClusterContext({...clusterContext, sparkConf: e.target.value})}
+                                ></textarea>
+                              </div>
+                           </div>
+                           <div className="p-6 bg-slate-50 border-t border-slate-200">
+                              <button onClick={handleAnalyze} disabled={!textContent.trim()} className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
+                                  <PlayCircle className="w-6 h-6" /> Start Optimization
+                              </button>
+                           </div>
                         </div>
                       </div>
+
+                      {error && <div className="p-4 bg-red-50 text-red-800 rounded-2xl border border-red-200 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm"><div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>{error}</div>}
                   </div>
                 )}
 

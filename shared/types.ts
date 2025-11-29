@@ -267,12 +267,19 @@ export interface SparkOperation {
   estimatedCost?: 'low' | 'medium' | 'high'; // Operation cost
 }
 
+export interface ClusterContext {
+  clusterType: string;
+  dbrVersion: string;
+  sparkConf?: string;
+}
+
 export interface AnalysisOptions {
   enableCodeMapping?: boolean; // Enable code traceability (default: true)
   enableDependencyAnalysis?: boolean; // Analyze dependencies (default: true)
   confidenceThreshold?: number; // Min confidence for mappings (default: 50)
   maxMappingsPerNode?: number; // Max code mappings per DAG node (default: 3)
   deepAnalysis?: boolean; // Enable deep multi-pass analysis (default: true)
+  clusterContext?: ClusterContext; // Optional runtime context
 }
 
 // --- Streaming Types ---
