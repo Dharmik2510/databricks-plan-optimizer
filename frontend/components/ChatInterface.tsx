@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Lock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -42,7 +41,7 @@ export const ChatInterface: React.FC<Props> = ({ analysisResult }) => {
              <div className="text-center p-8 max-w-md">
                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-200"><Lock className="w-10 h-10 text-slate-400" /></div>
                  <h3 className="text-xl font-bold text-slate-900 mb-3">Consultant Unavailable</h3>
-                 <p className="text-slate-600 mb-6 font-medium">Genie requires an active analysis context to answer questions. Please run an analysis in the Plan Analyzer first.</p>
+                 <p className="text-slate-600 mb-6 font-medium">AI Consultant requires an active analysis context to answer questions. Please run an analysis in the Plan Analyzer first.</p>
                  <div className="text-xs text-slate-500 font-mono bg-slate-50 p-3 rounded-lg border border-slate-200">Tip: Go to "Plan Analyzer" -> "New" -> Upload your execution plan.</div>
              </div>
         </div>

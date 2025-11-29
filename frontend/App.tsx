@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, HelpCircle, Settings, Bell, Home } from 'lucide-react';
+import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -169,16 +170,37 @@ function App() {
           </div>
         </main>
       </div>
-      {/* Guides skipped for brevity */}
     </div>
     </ErrorBoundary>
   );
 }
 
 const Header = () => (
-  <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-4 shadow-sm z-30 flex-shrink-0">
-    <div className="flex items-center gap-4"><div className="font-bold text-lg flex items-center gap-2 text-white"><span className="bg-orange-600 p-1.5 rounded-lg shadow-sm"><Activity className="w-5 h-5 text-white" /></span><span className="tracking-tight">BrickOptima</span></div><div className="h-6 w-px bg-slate-700 mx-2"></div><div className="text-sm font-medium text-slate-400">Staging Workspace</div></div>
-    <div className="flex items-center gap-4 text-slate-400"><HelpCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" /><Settings className="w-5 h-5 hover:text-white cursor-pointer transition-colors" /><Bell className="w-5 h-5 hover:text-white cursor-pointer transition-colors" /><div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-xs border border-white/20 shadow-sm">JS</div></div>
+  <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-6 shadow-xl z-30 flex-shrink-0 relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+    <div className="flex items-center gap-8 relative z-10">
+       <div className="font-bold text-lg flex items-center gap-3 text-white group cursor-pointer select-none">
+         <div className="relative">
+            <div className="absolute inset-0 bg-orange-500 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
+            <span className="relative bg-gradient-to-br from-orange-500 to-red-600 p-2 rounded-xl shadow-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300 border border-white/10">
+                <Activity className="w-5 h-5 text-white" />
+            </span>
+         </div>
+         <div className="flex flex-col">
+            <span className="tracking-tight text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">BrickOptima</span>
+         </div>
+       </div>
+    </div>
+    <div className="flex items-center gap-5 relative z-10">
+       <div className="hidden lg:flex items-center gap-3 bg-slate-900/50 border border-slate-700 hover:border-slate-600 rounded-xl px-4 py-2 text-xs text-slate-400 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500/50 transition-all w-72 group shadow-inner">
+          <Search className="w-4 h-4 text-slate-500 group-hover:text-orange-500 transition-colors" />
+          <input type="text" placeholder="Search executions (CMD+K)..." className="bg-transparent outline-none w-full placeholder-slate-600 text-slate-200 font-medium" />
+       </div>
+       <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg shadow-sm backdrop-blur-sm">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="text-xs font-bold text-indigo-300">AI Engine Ready</span>
+       </div>
+    </div>
   </header>
 );
 
@@ -194,7 +216,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
            <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={() => setActiveTab(ActiveTab.LIVE)} />
            <SidebarItem icon={GitBranch} label="Repo Mapping" active={activeTab === ActiveTab.REPO} onClick={() => setActiveTab(ActiveTab.REPO)} />
            <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
-           <SidebarItem icon={MessageSquare} label="Genie" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
+           <SidebarItem icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
         </div>
      </div>
      <div className="mt-auto p-4 border-t border-slate-800">
