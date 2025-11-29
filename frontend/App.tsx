@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, HelpCircle, Settings, Bell, Home } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -13,6 +12,7 @@ import { PredictivePanel } from './components/PredictivePanel';
 import { TrendAnalysis } from './components/TrendAnalysis';
 import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
+import { LoadingScreen } from './components/LoadingScreen';
 import { client } from './api';
 import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction } from '../shared/types';
 
@@ -120,34 +120,43 @@ function App() {
                  </div>
               </div>
             )}
-            {activeTab === ActiveTab.DASHBOARD && appState !== AppState.SUCCESS && (
-              <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
-                  <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative z-10">
-                    <div className="flex border-b border-slate-200 bg-slate-50">
-                      {['text', 'file'].map(mode => (
-                        <button key={mode} onClick={() => setInputMode(mode as any)} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode ? 'text-orange-700 bg-white border-b-2 border-orange-500 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>{mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}{mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}</button>
-                      ))}
-                    </div>
-                    <div className="p-8 relative">
-                      {inputMode === 'text' ? (
-                        <div className="relative group"><textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} className="w-full h-72 p-6 bg-slate-50 text-slate-900 font-mono text-sm rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400" placeholder="Paste your 'EXPLAIN EXTENDED' output here..."></textarea><button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all shadow-sm font-bold">Load Demo Plan</button></div>
-                      ) : (
-                        <div className="h-72 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all relative group cursor-pointer"><div className="p-5 bg-white rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-slate-200"><Upload className="w-8 h-8" /></div><p className="text-slate-800 font-bold text-lg">Click to Upload</p><input type="file" accept=".json,.txt,.log" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer"/></div>
-                      )}
-                      <div className="mt-8 flex justify-center"><button onClick={handleAnalyze} disabled={!textContent.trim() || appState === AppState.ANALYZING} className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3">{appState === AppState.ANALYZING ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Processing...</> : <><PlayCircle className="w-6 h-6" /> Start Optimization</>}</button></div>
-                      {error && <div className="mt-6 p-4 bg-red-50 text-red-800 rounded-2xl border border-red-200 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm"><div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>{error}</div>}
-                    </div>
+            
+            {activeTab === ActiveTab.DASHBOARD && (
+              <>
+                {appState === AppState.ANALYZING && <LoadingScreen />}
+                
+                {(appState === AppState.IDLE || appState === AppState.ERROR) && (
+                  <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
+                      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative z-10">
+                        <div className="flex border-b border-slate-200 bg-slate-50">
+                          {['text', 'file'].map(mode => (
+                            <button key={mode} onClick={() => setInputMode(mode as any)} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode ? 'text-orange-700 bg-white border-b-2 border-orange-500 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}>{mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}{mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}</button>
+                          ))}
+                        </div>
+                        <div className="p-8 relative">
+                          {inputMode === 'text' ? (
+                            <div className="relative group"><textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} className="w-full h-72 p-6 bg-slate-50 text-slate-900 font-mono text-sm rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400" placeholder="Paste your 'EXPLAIN EXTENDED' output here..."></textarea><button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white text-slate-700 hover:text-orange-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all shadow-sm font-bold">Load Demo Plan</button></div>
+                          ) : (
+                            <div className="h-72 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-all relative group cursor-pointer"><div className="p-5 bg-white rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 border border-slate-200"><Upload className="w-8 h-8" /></div><p className="text-slate-800 font-bold text-lg">Click to Upload</p><input type="file" accept=".json,.txt,.log" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer"/></div>
+                          )}
+                          <div className="mt-8 flex justify-center"><button onClick={handleAnalyze} disabled={!textContent.trim()} className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"><PlayCircle className="w-6 h-6" /> Start Optimization</button></div>
+                          {error && <div className="mt-6 p-4 bg-red-50 text-red-800 rounded-2xl border border-red-200 text-sm flex items-center gap-3 animate-fade-in font-medium shadow-sm"><div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>{error}</div>}
+                        </div>
+                      </div>
                   </div>
-              </div>
+                )}
+
+                {result && appState === AppState.SUCCESS && (
+                  <div className="space-y-8 animate-fade-in pb-20">
+                      <section className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 relative overflow-hidden"><div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div><div className="flex items-start gap-6 relative z-10"><div className="p-4 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100 hidden sm:block shadow-sm"><Activity className="w-8 h-8" /></div><div className="flex-1"><div className="flex justify-between items-center mb-3"><h3 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Summary</h3><span className="px-3 py-1 bg-slate-100 border border-slate-200 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span></div><p className="text-slate-800 leading-relaxed text-lg font-medium">{result.summary}</p></div></div></section>
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8"><EnhancedDagVisualizer nodes={result.dagNodes} links={result.dagLinks} optimizations={result.optimizations} /><ResourceChart data={result.resourceMetrics} /></div>
+                      <OptimizationList optimizations={result.optimizations} />
+                      {prediction && <><PredictivePanel prediction={prediction} /><TrendAnalysis trend={prediction.historicalTrend} regression={prediction.regressionAlert} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
+                  </div>
+                )}
+              </>
             )}
-            {activeTab === ActiveTab.DASHBOARD && result && appState === AppState.SUCCESS && (
-               <div className="space-y-8 animate-fade-in pb-20">
-                  <section className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 relative overflow-hidden"><div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div><div className="flex items-start gap-6 relative z-10"><div className="p-4 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100 hidden sm:block shadow-sm"><Activity className="w-8 h-8" /></div><div className="flex-1"><div className="flex justify-between items-center mb-3"><h3 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Summary</h3><span className="px-3 py-1 bg-slate-100 border border-slate-200 text-orange-700 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span></div><p className="text-slate-800 leading-relaxed text-lg font-medium">{result.summary}</p></div></div></section>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8"><EnhancedDagVisualizer nodes={result.dagNodes} links={result.dagLinks} optimizations={result.optimizations} /><ResourceChart data={result.resourceMetrics} /></div>
-                  <OptimizationList optimizations={result.optimizations} />
-                  {prediction && <><PredictivePanel prediction={prediction} /><TrendAnalysis trend={prediction.historicalTrend} regression={prediction.regressionAlert} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
-               </div>
-            )}
+
             {activeTab === ActiveTab.INSIGHTS && (
                 <div className="max-w-5xl mx-auto pb-20">{result ? <AdvancedInsights clusterRec={result.clusterRecommendation} configRec={result.sparkConfigRecommendation} rewrites={result.queryRewrites} /> : <div className="text-center py-20 bg-white rounded-3xl border border-slate-200"><Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300" /><h3 className="text-xl font-bold text-slate-900 mb-2">No Insights Available</h3><p className="text-slate-600">Run an analysis first to generate advanced insights.</p><button onClick={goToNewAnalysis} className="mt-6 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold">Go to Analyzer</button></div>}</div>
             )}
