@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { DagNode, DagLink, OptimizationTip } from '../../shared/types';
@@ -155,7 +154,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("orient", "auto")
       .append("path")
       .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", "#475569");
+      .attr("fill", "#64748b"); // Slate 500 works for both
 
     defs.append("marker")
       .attr("id", "criticalArrow")
@@ -308,6 +307,11 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("font-size", "16px")
       .style("pointer-events", "none");
 
+    // Text rendering: We keep the fill dark (#0f172a) because the nodes are light-colored even in dark mode.
+    // However, the stroke (halo) should match the background if we want true transparency, 
+    // but here the node bubbles are always light, so white halo is correct.
+    
+    // 1. Halo (Stroke)
     node.append("text")
       .attr("x", 0)
       .attr("y", -45)
@@ -315,13 +319,14 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .text(d => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
       .attr("font-size", "13px")
-      .attr("stroke", "#ffffff")
+      .attr("stroke", "#ffffff") // Always white halo as node backgrounds are light
       .attr("stroke-width", 4)
       .attr("stroke-linejoin", "round")
       .attr("stroke-linecap", "round")
       .attr("fill", "none")
       .style("pointer-events", "none");
 
+    // 2. Foreground (Fill)
     node.append("text")
       .attr("x", 0)
       .attr("y", -45)
@@ -329,9 +334,10 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .text(d => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
       .attr("font-size", "13px")
-      .attr("fill", "#0f172a") 
+      .attr("fill", "#0f172a") // Always dark text as node backgrounds are light
       .style("pointer-events", "none");
 
+    // Metric Label - Halo
     node.append("text")
       .attr("x", 0)
       .attr("y", 50)
@@ -352,6 +358,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("fill", "none")
       .style("pointer-events", "none");
 
+    // Metric Label - Fill
     node.append("text")
       .attr("x", 0)
       .attr("y", 50)
@@ -429,39 +436,39 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[700px] relative group ring-1 ring-slate-100">
-      <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center flex-shrink-0">
+    <div ref={containerRef} className="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px] relative group ring-1 ring-slate-100 dark:ring-slate-800 transition-colors">
+      <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center flex-shrink-0">
         <div>
-          <h3 className="font-bold text-slate-900 text-lg drop-shadow-sm">Intelligent Execution Flow</h3>
-          <p className="text-xs text-slate-600 mt-1">
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg drop-shadow-sm">Intelligent Execution Flow</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             {nodes.filter(n => enhancedLayout.nodeMap.get(n.id)?.isBottleneck).length} bottlenecks detected
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex bg-white rounded-lg border border-slate-200 shadow-sm p-1">
-            <button onClick={() => setHighlightMode('bottlenecks')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'bottlenecks' ? 'bg-red-100 text-red-700' : 'text-slate-600'}`}><AlertCircle className="w-3 h-3 inline mr-1" />Issues</button>
-            <button onClick={() => setHighlightMode('cost')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'cost' ? 'bg-orange-100 text-orange-700' : 'text-slate-600'}`}><Zap className="w-3 h-3 inline mr-1" />Cost</button>
+          <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-1">
+            <button onClick={() => setHighlightMode('bottlenecks')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'bottlenecks' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}><AlertCircle className="w-3 h-3 inline mr-1" />Issues</button>
+            <button onClick={() => setHighlightMode('cost')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'cost' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400'}`}><Zap className="w-3 h-3 inline mr-1" />Cost</button>
           </div>
-          <button onClick={() => setShowMetrics(!showMetrics)} className="p-2 bg-white rounded-lg hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors">{showMetrics ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
-          <button onClick={exportDAG} className="p-2 bg-white rounded-lg hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors"><Download className="w-4 h-4" /></button>
-          <div className="flex bg-white rounded-lg border border-slate-200 shadow-sm">
-            <button onClick={() => {}} className="p-2 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors"><ZoomIn className="w-4 h-4" /></button>
-            <button onClick={() => {}} className="p-2 hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-l border-slate-200 transition-colors"><ZoomOut className="w-4 h-4" /></button>
+          <button onClick={() => setShowMetrics(!showMetrics)} className="p-2 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{showMetrics ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
+          <button onClick={exportDAG} className="p-2 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"><Download className="w-4 h-4" /></button>
+          <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+            <button onClick={() => {}} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"><ZoomIn className="w-4 h-4" /></button>
+            <button onClick={() => {}} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-l border-slate-200 dark:border-slate-700 transition-colors"><ZoomOut className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
-      <div className="flex-1 relative overflow-hidden bg-white">
-        <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', backgroundSize: '25px 25px' }}></div>
+      <div className="flex-1 relative overflow-hidden bg-white dark:bg-slate-950">
+        <div className="absolute inset-0 opacity-15 dark:opacity-5" style={{ backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', backgroundSize: '25px 25px' }}></div>
         <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>
         {selectedNode && (
-          <div className="absolute top-4 right-4 w-80 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 p-6 animate-fade-in z-20">
-            <button onClick={() => setSelectedNode(null)} className="absolute top-2 right-2 text-slate-400 hover:text-slate-700">×</button>
-            <h4 className="font-bold text-slate-900 mb-4">{selectedNode.name}</h4>
+          <div className="absolute top-4 right-4 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 animate-fade-in z-20">
+            <button onClick={() => setSelectedNode(null)} className="absolute top-2 right-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">×</button>
+            <h4 className="font-bold text-slate-900 dark:text-white mb-4">{selectedNode.name}</h4>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-600">Type:</span><span className="font-bold text-slate-900">{selectedNode.type}</span></div>
-              <div className="flex justify-between"><span className="text-slate-600">Level:</span><span className="font-bold text-slate-900">Stage {selectedNode.level}</span></div>
-              {selectedNode.rowsProcessed && <div className="flex justify-between"><span className="text-slate-600">Rows:</span><span className="font-bold text-slate-900">{(selectedNode.rowsProcessed / 1000000).toFixed(2)}M</span></div>}
-              {selectedNode.isBottleneck && <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200"><div className="flex items-center gap-2 text-red-700 font-bold text-xs mb-2"><AlertCircle className="w-4 h-4" />PERFORMANCE BOTTLENECK</div><p className="text-xs text-red-600">This operation is slowing down your pipeline. Check optimizations tab.</p></div>}
+              <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Type:</span><span className="font-bold text-slate-900 dark:text-white">{selectedNode.type}</span></div>
+              <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Level:</span><span className="font-bold text-slate-900 dark:text-white">Stage {selectedNode.level}</span></div>
+              {selectedNode.rowsProcessed && <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Rows:</span><span className="font-bold text-slate-900 dark:text-white">{(selectedNode.rowsProcessed / 1000000).toFixed(2)}M</span></div>}
+              {selectedNode.isBottleneck && <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"><div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-xs mb-2"><AlertCircle className="w-4 h-4" />PERFORMANCE BOTTLENECK</div><p className="text-xs text-red-600 dark:text-red-300">This operation is slowing down your pipeline. Check optimizations tab.</p></div>}
             </div>
           </div>
         )}
