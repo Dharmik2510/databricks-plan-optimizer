@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -14,7 +15,7 @@ import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
 import { client } from './api';
-import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction, ClusterContext } from '../shared/types';
+import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction, ClusterContext, CloudInstance } from '../shared/types';
 import { ThemeProvider, useTheme } from './ThemeContext';
 
 const DEMO_REPO_FILES: RepoFile[] = [
@@ -22,6 +23,13 @@ const DEMO_REPO_FILES: RepoFile[] = [
     path: "src/jobs/revenue_analysis.py",
     content: `from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum\n\ndef run_job():\n    spark = SparkSession.builder.appName("RevenueAnalytics").getOrCreate()\n    # 1. READ TRANSACTIONS\n    txns_df = spark.read.parquet("s3://bucket/data/transactions")\n    # Filter for 2023 onwards\n    recent_txns = txns_df.filter(col("transaction_date") >= "2023-01-01")\n    # 2. READ USERS\n    users_df = spark.read.format("csv").option("header", "true").load("s3://bucket/data/users")\n    active_users = users_df.filter(col("status") == "active")\n    # 3. THE JOIN (The Problem Area)\n    # BroadcastNestedLoopJoin BuildRight, Inner\n    raw_joined = recent_txns.join(active_users)\n    # 4. AGGREGATION\n    report = raw_joined.groupBy("user_id").agg(sum("amount").alias("total_spend")).orderBy("user_id")\n    report.explain(True)\n    report.collect()\n\nif __name__ == "__main__":\n    run_job()`
   }
+];
+
+const REGIONS = [
+  { id: 'us-east-1', name: 'US East (N. Virginia)' },
+  { id: 'us-west-2', name: 'US West (Oregon)' },
+  { id: 'eu-west-1', name: 'EU (Ireland)' },
+  { id: 'ap-southeast-1', name: 'Asia Pacific (Singapore)' },
 ];
 
 function AppContent() {
@@ -39,10 +47,34 @@ function AppContent() {
 
   // Cluster Context State
   const [clusterContext, setClusterContext] = useState<ClusterContext>({
-    clusterType: 'General Purpose (m5.xlarge)',
+    clusterType: 'm5.xlarge',
     dbrVersion: '13.3 LTS',
-    sparkConf: ''
+    sparkConf: '',
+    region: 'us-east-1'
   });
+
+  const [availableInstances, setAvailableInstances] = useState<CloudInstance[]>([]);
+  const [loadingInstances, setLoadingInstances] = useState(false);
+
+  // Fetch instances when region changes
+  useEffect(() => {
+    const loadInstances = async () => {
+      setLoadingInstances(true);
+      try {
+        const instances = await client.getCloudInstances(clusterContext.region || 'us-east-1');
+        setAvailableInstances(instances);
+        // Default to first if current selection is invalid
+        if (!instances.some(i => i.id === clusterContext.clusterType)) {
+           setClusterContext(prev => ({ ...prev, clusterType: instances[0]?.id || '' }));
+        }
+      } catch (e) {
+        console.error("Failed to load instances", e);
+      } finally {
+        setLoadingInstances(false);
+      }
+    };
+    loadInstances();
+  }, [clusterContext.region]);
 
   const handleFetchRepo = async () => {
     if (!repoConfig.url) return;
@@ -64,7 +96,6 @@ function AppContent() {
     setError(null);
     setPrediction(null);
     try {
-      // Pass clusterContext as the 4th argument
       const data = await client.analyzeDag(
         textContent, 
         repoFiles, 
@@ -94,7 +125,8 @@ function AppContent() {
   };
 
   const insertDemoData = () => {
-    const demo = `== Physical Plan ==\n  AdaptiveSparkPlan isFinalPlan=true\n  +- == Final Plan ==\n    ResultQueryStage 1 (est. rows: 2.5M, size: 180MB)\n    +- Project [user_id#12, sum(amount)#45 AS total_spend#99]\n        +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])\n          +- Sort [user_id#12 ASC NULLS FIRST], true, 0\n              +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]\n                +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])\n                    +- Sort [user_id#12 ASC NULLS FIRST], false, 0\n                      +- Project [user_id#12, amount#45]\n                          +- BroadcastNestedLoopJoin BuildRight, Inner (WARNING: Missing Join Condition - Cartesian Product)\n                            :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))\n                            :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] \n                            :     Batched: true, \n                            :     DataFilters: [isnotnull(transaction_date#40)], \n                            :     Format: Parquet, \n                            :     Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], \n                            :     PartitionFilters: [], \n                            :     PushedFilters: [IsNotNull(transaction_date)], \n                            :     ReadSchema: struct<user_id:string,transaction_date:date,amount:double>\n                            :     Statistics: rows=15000000, size=1.2GB\n                            +- BroadcastExchange IdentityBroadcastMode, [id=#98] (size: 45MB)\n                                +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))\n                                  +- FileScan csv db.users[user_id#10, status#20] \n                                      Batched: false, \n                                      Format: CSV, \n                                      Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], \n                                      PartitionFilters: [], \n                                      PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], \n                                      ReadSchema: struct<user_id:string,status:string>\n                                      Statistics: rows=500000, size=25MB`;
+    const demo = `== Physical Plan ==\n  AdaptiveSparkPlan isFinalPlan=true\n  +- == Final Plan ==\n    ResultQueryStage 1 (est. rows: 2.5M, size: 180MB)\n    +- Project [user_id#12, sum(amount)#45 AS total_spend#99]\n        +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])\n          +- Sort [user_id#12 ASC NULLS FIRST], true, 0\n              +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]\n                +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])\n                    +- Sort [user_id#12 ASC NULLS FIRST], false, 0\n                      +- Project [user_id#12, amount#45]\n                          +- BroadcastNestedLoopJoin BuildRight, Inner (WARNING: Missing Join Condition - Cartesian Product)\n                            :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))\n                            :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] \n                            :     Batched: true, \n                            :     DataFilters: [isnotnull(transaction_date#40)], \n                            :     Format: Parquet, \n                            :     Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], \n                            :     PartitionFilters: [], \n                            :     PushedFilters: [IsNotNull(transaction_date)], \n                            :     ReadSchema: struct<user_id:string,transaction_date:date,amount:double>\n                            :     Statistics: rows=15000000, size=1.2GB\n                            +- BroadcastExchange IdentityBroadcastMode, [id=#98] (size: 45MB)\n                                +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))\n                                  +- FileScan csv db.users[user_id#10, status#20] \n                                      Batched: false, 
+                                      Format: CSV, \n                                      Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], \n                                      PartitionFilters: [], \n                                      PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], \n                                      ReadSchema: struct<user_id:string,status:string>\n                                      Statistics: rows=500000, size=25MB`;
     setTextContent(demo);
   };
   const resetApp = () => { setResult(null); setPrediction(null); setAppState(AppState.IDLE); setTextContent(''); setActiveTab(ActiveTab.HOME); setRepoFiles([]); setRepoConfig({ url: '', branch: 'main', token: '' }); };
@@ -141,10 +173,8 @@ function AppContent() {
                 {(appState === AppState.IDLE || appState === AppState.ERROR) && (
                   <div className="flex flex-col min-h-[75vh] animate-fade-in gap-6">
                       
-                      {/* Grid Layout for Input & Context */}
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
                         
-                        {/* LEFT: Execution Plan Input */}
                         <div className="lg:col-span-2 w-full bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 flex flex-col transition-colors">
                           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                             {['text', 'file'].map(mode => (
@@ -175,19 +205,41 @@ function AppContent() {
                               </div>
                            </div>
                            <div className="p-6 space-y-6 flex-1 bg-white dark:bg-slate-900">
+                              
+                              <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Cloud Region</label>
+                                <div className="relative">
+                                  <select 
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                    value={clusterContext.region}
+                                    onChange={e => setClusterContext({...clusterContext, region: e.target.value})}
+                                  >
+                                    {REGIONS.map(r => (
+                                      <option key={r.id} value={r.id}>{r.name}</option>
+                                    ))}
+                                  </select>
+                                  <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
+                                    <Globe className="w-4 h-4" />
+                                  </div>
+                                </div>
+                              </div>
+
                               <div>
                                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Cluster Type</label>
                                 <div className="relative">
                                   <select 
-                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50"
                                     value={clusterContext.clusterType}
                                     onChange={e => setClusterContext({...clusterContext, clusterType: e.target.value})}
+                                    disabled={loadingInstances}
                                   >
-                                    <option>General Purpose (m5.xlarge)</option>
-                                    <option>Memory Optimized (r5.xlarge)</option>
-                                    <option>Compute Optimized (c5.xlarge)</option>
-                                    <option>Storage Optimized (i3.xlarge)</option>
-                                    <option>GPU Accelerated (g4dn.xlarge)</option>
+                                    {loadingInstances ? (
+                                      <option>Loading instance types...</option>
+                                    ) : (
+                                      availableInstances.map(inst => (
+                                        <option key={inst.id} value={inst.id}>{inst.displayName}</option>
+                                      ))
+                                    )}
                                   </select>
                                   <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
                                     <Cpu className="w-4 h-4" />
@@ -252,7 +304,7 @@ function AppContent() {
                 <div className="max-w-5xl mx-auto pb-20">{result ? <AdvancedInsights clusterRec={result.clusterRecommendation} configRec={result.sparkConfigRecommendation} rewrites={result.queryRewrites} /> : <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800"><Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" /><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Insights Available</h3><p className="text-slate-600 dark:text-slate-400">Run an analysis first to generate advanced insights.</p><button onClick={goToNewAnalysis} className="mt-6 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold">Go to Analyzer</button></div>}</div>
             )}
             {activeTab === ActiveTab.LIVE && <div className="h-full w-full"><LiveMonitor /></div>}
-            {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result?.estimatedDurationMin} /></div>}
+            {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result?.estimatedDurationMin} instances={availableInstances} region={clusterContext.region} /></div>}
             {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface analysisResult={result} /></div>}
             {activeTab === ActiveTab.REPO && (
               <div className="space-y-6 max-w-5xl mx-auto">{repoFiles.length === 0 && <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm text-center"><div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200 dark:border-slate-700"><GitBranch className="w-8 h-8 text-slate-400"/></div><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Connect a Repository</h3><p className="text-slate-600 dark:text-slate-400 mb-6">Link your GitHub repository to enable deep code traceability.</p><div className="max-w-md mx-auto space-y-4"><input placeholder="https://github.com/..." className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none text-slate-900 dark:text-slate-100" value={repoConfig.url} onChange={e => setRepoConfig({...repoConfig, url: e.target.value})}/><button onClick={handleFetchRepo} className="w-full bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Link Repository</button><button onClick={loadDemoRepo} className="w-full bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-bold py-3 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-800">Load Demo Repo</button></div></div>}<CodeMapper mappings={result?.codeMappings} /></div>

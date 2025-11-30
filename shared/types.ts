@@ -271,6 +271,18 @@ export interface ClusterContext {
   clusterType: string;
   dbrVersion: string;
   sparkConf?: string;
+  region?: string;
+}
+
+export interface CloudInstance {
+  id: string;
+  name: string; // e.g. m5.xlarge
+  displayName: string; // e.g. General Purpose (m5.xlarge)
+  category: 'General' | 'Memory' | 'Compute' | 'Storage' | 'GPU';
+  vCPUs: number;
+  memoryGB: number;
+  pricePerHour: number;
+  region: string;
 }
 
 export interface AnalysisOptions {

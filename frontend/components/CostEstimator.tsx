@@ -5,30 +5,13 @@ import {
   Zap, Calendar, BarChart3, PieChart, ArrowRight, 
   Sparkles, Info, ChevronDown
 } from 'lucide-react';
+import { CloudInstance } from '../../shared/types';
 
 interface Props {
   estimatedDurationMin?: number;
+  instances?: CloudInstance[];
+  region?: string;
 }
-
-interface InstanceType {
-  name: string;
-  displayName: string;
-  category: string;
-  dbus: number;
-  pricePerHour: number;
-  vcpus: number;
-  memory: number;
-}
-
-const INSTANCE_TYPES: InstanceType[] = [
-  { name: 'm5.xlarge', displayName: 'General Purpose (m5.xlarge)', category: 'General', dbus: 1.5, pricePerHour: 0.40, vcpus: 4, memory: 16 },
-  { name: 'm5.2xlarge', displayName: 'General Purpose (m5.2xlarge)', category: 'General', dbus: 3.0, pricePerHour: 0.80, vcpus: 8, memory: 32 },
-  { name: 'r5.xlarge', displayName: 'Memory Optimized (r5.xlarge)', category: 'Memory', dbus: 2.0, pricePerHour: 0.60, vcpus: 4, memory: 32 },
-  { name: 'r5.2xlarge', displayName: 'Memory Optimized (r5.2xlarge)', category: 'Memory', dbus: 4.0, pricePerHour: 1.20, vcpus: 8, memory: 64 },
-  { name: 'c5.xlarge', displayName: 'Compute Optimized (c5.xlarge)', category: 'Compute', dbus: 1.2, pricePerHour: 0.35, vcpus: 4, memory: 8 },
-  { name: 'c5.2xlarge', displayName: 'Compute Optimized (c5.2xlarge)', category: 'Compute', dbus: 2.4, pricePerHour: 0.70, vcpus: 8, memory: 16 },
-  { name: 'i3.xlarge', displayName: 'Storage Optimized (i3.xlarge)', category: 'Storage', dbus: 3.0, pricePerHour: 0.90, vcpus: 4, memory: 30 },
-];
 
 const FREQUENCIES = [
   { value: 'hourly', label: 'Hourly', multiplier: 365 * 24 },
@@ -37,15 +20,31 @@ const FREQUENCIES = [
   { value: 'monthly', label: 'Monthly', multiplier: 12 },
 ];
 
-export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) => {
+export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, instances = [], region = 'us-east-1' }) => {
   const [numNodes, setNumNodes] = useState(8);
-  const [instanceType, setInstanceType] = useState<InstanceType>(INSTANCE_TYPES[0]);
+  const [instanceType, setInstanceType] = useState<CloudInstance | null>(null);
   const [duration, setDuration] = useState(estimatedDurationMin);
   const [frequency, setFrequency] = useState('daily');
   const [optimizationFactor, setOptimizationFactor] = useState(0.4); // 40% savings
 
+  // Set initial instance type when instances load
+  useEffect(() => {
+    if (instances.length > 0 && !instanceType) {
+      setInstanceType(instances[0]);
+    } else if (instances.length > 0 && instanceType) {
+        // If reloaded with different region, try to find same type or default
+        const match = instances.find(i => i.name === instanceType.name);
+        setInstanceType(match || instances[0]);
+    }
+  }, [instances, instanceType]);
+
   // Calculate costs
   const costs = useMemo(() => {
+    if (!instanceType) return {
+        currentCostPerRun: 0, optimizedCostPerRun: 0, savingsPerRun: 0,
+        currentAnnualCost: 0, optimizedAnnualCost: 0, annualSavings: 0, savingsPercent: 0
+    };
+
     const durationHours = duration / 60;
     const currentCostPerRun = numNodes * instanceType.pricePerHour * durationHours;
     const optimizedCostPerRun = currentCostPerRun * (1 - optimizationFactor);
@@ -69,7 +68,6 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
     };
   }, [numNodes, instanceType, duration, frequency, optimizationFactor]);
 
-  // Update duration when prop changes
   useEffect(() => {
     if (estimatedDurationMin) {
       setDuration(estimatedDurationMin);
@@ -81,6 +79,14 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
     if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
     return `$${value.toFixed(2)}`;
   };
+
+  if (instances.length === 0) {
+      return (
+          <div className="p-8 text-center text-slate-500 animate-pulse">
+              Loading instance data for region {region}...
+          </div>
+      );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -96,7 +102,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
             </div>
             <div>
               <h2 className="text-xl font-bold">Cloud Cost Calculator</h2>
-              <p className="text-emerald-100 text-sm font-medium">Estimate your Databricks compute costs</p>
+              <p className="text-emerald-100 text-sm font-medium">Estimate your Databricks compute costs in {region}</p>
             </div>
           </div>
 
@@ -181,14 +187,14 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
                 <select 
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
                   onChange={(e) => {
-                    const selected = INSTANCE_TYPES.find(t => t.name === e.target.value);
+                    const selected = instances.find(t => t.id === e.target.value);
                     if (selected) setInstanceType(selected);
                   }}
-                  value={instanceType.name}
+                  value={instanceType?.id || ''}
                 >
-                  {INSTANCE_TYPES.map(t => (
-                    <option key={t.name} value={t.name} className="bg-white dark:bg-slate-800">
-                      {t.displayName}
+                  {instances.map(t => (
+                    <option key={t.id} value={t.id} className="bg-white dark:bg-slate-800">
+                      {t.displayName} (${t.pricePerHour}/hr)
                     </option>
                   ))}
                 </select>
@@ -220,30 +226,32 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15 }) =>
           </div>
 
           {/* Instance Details */}
-          <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-2 mb-3">
-              <Info className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Instance Details</span>
+          {instanceType && (
+            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2 mb-3">
+                <Info className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Instance Details ({region})</span>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                <div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Category</div>
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.category}</div>
+                </div>
+                <div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">vCPUs</div>
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.vCPUs} cores</div>
+                </div>
+                <div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Memory</div>
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.memoryGB} GB</div>
+                </div>
+                <div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Price</div>
+                    <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${instanceType.pricePerHour}/hr</div>
+                </div>
+                </div>
             </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">Category</div>
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.category}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">vCPUs</div>
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.vcpus} cores</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">Memory</div>
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.memory} GB</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">DBUs/hr</div>
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.dbus}</div>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Optimization Slider */}
           <div className="mt-6">
