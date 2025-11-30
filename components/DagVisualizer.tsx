@@ -1,8 +1,9 @@
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import * as d3 from 'd3';
+import * as d3Base from 'd3';
 import { DagNode, DagLink } from '../types';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+
+const d3: any = d3Base;
 
 interface DagVisualizerProps {
   nodes: DagNode[];
@@ -10,11 +11,14 @@ interface DagVisualizerProps {
 }
 
 // Extend D3 Simulation Node
-interface SimulationNode extends d3.SimulationNodeDatum, DagNode {
+interface SimulationNode extends DagNode {
   x?: number;
   y?: number;
   fx?: number | null;
   fy?: number | null;
+  vx?: number;
+  vy?: number;
+  index?: number;
 }
 
 export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) => {
@@ -102,9 +106,9 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
     const g = svg.append("g");
 
     // Initialize Zoom
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
+    const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
-      .on("zoom", (event) => {
+      .on("zoom", (event: any) => {
         g.attr("transform", event.transform);
         setZoomLevel(event.transform.k);
       });
@@ -122,7 +126,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
     const simLinks = links.map(l => ({ ...l }));
 
     // Configure Simulation
-    const simulation = d3.forceSimulation<SimulationNode>(simNodes)
+    const simulation = d3.forceSimulation(simNodes)
       .force("link", d3.forceLink(simLinks).id((d: any) => d.id).distance(180))
       .force("charge", d3.forceManyBody().strength(-1500)) 
       .force("collide", d3.forceCollide().radius(80)) 
@@ -145,7 +149,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .selectAll("g")
       .data(simNodes)
       .join("g")
-      .call(d3.drag<SVGGElement, SimulationNode>()
+      .call(d3.drag()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
@@ -153,7 +157,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
     // Node Background Circle
     node.append("circle")
       .attr("r", 28)
-      .attr("fill", (d) => {
+      .attr("fill", (d: any) => {
          const t = d.type.toLowerCase();
          if (t.includes('shuffle') || t.includes('exchange')) return '#fee2e2'; 
          if (t.includes('scan') || t.includes('read')) return '#dcfce7'; 
@@ -162,7 +166,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
          return '#ffffff'; 
       })
       .attr("stroke-width", 3)
-      .attr("stroke", (d) => {
+      .attr("stroke", (d: any) => {
         const t = d.type.toLowerCase();
         if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; 
         if (t.includes('scan') || t.includes('read')) return '#16a34a'; 
@@ -175,7 +179,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
     // Inner Node Dot
     node.append("circle")
       .attr("r", 6)
-      .attr("fill", (d) => {
+      .attr("fill", (d: any) => {
         const t = d.type.toLowerCase();
         if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444';
         if (t.includes('scan') || t.includes('read')) return '#16a34a';
@@ -190,7 +194,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("x", 0)
       .attr("y", -40)
       .attr("text-anchor", "middle")
-      .text((d) => d.name)
+      .text((d: any) => d.name)
       .attr("font-weight", "700")
       .attr("font-size", "12px")
       .attr("stroke", "#ffffff")
@@ -206,7 +210,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("x", 0)
       .attr("y", -40)
       .attr("text-anchor", "middle")
-      .text((d) => d.name)
+      .text((d: any) => d.name)
       .attr("font-weight", "700")
       .attr("font-size", "12px")
       .attr("fill", "#0f172a") // Deep Slate
@@ -219,7 +223,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("x", 0)
       .attr("y", 45)
       .attr("text-anchor", "middle")
-      .text((d) => d.metric || "")
+      .text((d: any) => d.metric || "")
       .attr("font-size", "11px")
       .attr("font-weight", "600")
       .attr("stroke", "#ffffff")
@@ -233,7 +237,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
       .attr("x", 0)
       .attr("y", 45)
       .attr("text-anchor", "middle")
-      .text((d) => d.metric || "")
+      .text((d: any) => d.metric || "")
       .attr("font-size", "11px")
       .attr("font-weight", "600")
       .attr("fill", "#475569")
@@ -261,7 +265,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
     // Tick Function
     simulation.on("tick", () => {
       link.attr("d", linkArc);
-      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
     // Drag Handlers
@@ -293,7 +297,7 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
   const handleZoom = (factor: number) => {
      if (!svgRef.current) return;
      const svg = d3.select(svgRef.current);
-     const zoom: any = d3.zoom().on("zoom", (event) => {
+     const zoom: any = d3.zoom().on("zoom", (event: any) => {
         d3.select(svgRef.current).select("g").attr("transform", event.transform);
         setZoomLevel(event.transform.k);
      });

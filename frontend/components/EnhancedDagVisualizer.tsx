@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import * as d3 from 'd3';
+import * as d3Base from 'd3';
 import { DagNode, DagLink, OptimizationTip } from '../../shared/types';
-import { ZoomIn, ZoomOut, Download, AlertCircle, Zap, Eye, EyeOff } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, AlertCircle, Zap, Eye, EyeOff, Maximize, Layers } from 'lucide-react';
+
+const d3: any = d3Base;
 
 interface Props {
   nodes: DagNode[];
@@ -9,16 +11,29 @@ interface Props {
   optimizations: OptimizationTip[];
 }
 
-interface EnhancedNode extends d3.SimulationNodeDatum, DagNode {
+interface EnhancedNode extends DagNode {
   x?: number;
   y?: number;
   fx?: number | null;
   fy?: number | null;
+  vx?: number;
+  vy?: number;
+  index?: number;
   level?: number;
+  indexInLevel?: number;
   isBottleneck?: boolean;
   bottleneckSeverity?: 'critical' | 'high' | 'medium' | 'low';
   estimatedCost?: number;
   rowsProcessed?: number;
+}
+
+interface StageGroup {
+  id: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
 }
 
 export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizations }) => {
@@ -28,6 +43,12 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
   const [selectedNode, setSelectedNode] = useState<EnhancedNode | null>(null);
   const [highlightMode, setHighlightMode] = useState<'bottlenecks' | 'cost' | 'none'>('bottlenecks');
   const [showMetrics, setShowMetrics] = useState(true);
+
+  // Constants for Grid Layout
+  const STAGE_WIDTH = 280;
+  const STAGE_GAP = 60;
+  const NODE_HEIGHT = 120;
+  const STAGE_PADDING = 60;
 
   // Helper methods
   const isBottleneckNode = (node: DagNode, opts: OptimizationTip[]): boolean => {
@@ -66,6 +87,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
     return parseFloat(match[1]) * multipliers[match[2]];
   };
 
+  // Enhanced topological sorting + Stage Grouping
   const enhancedLayout = useMemo(() => {
     const adjacency = new Map<string, string[]>();
     const inDegree = new Map<string, number>();
@@ -90,6 +112,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       inDegree.set(l.target, (inDegree.get(l.target) || 0) + 1);
     });
 
+    // BFS for Leveling (Stage Assignment)
     const levels = new Map<string, number>();
     const queue: string[] = [];
     
@@ -113,13 +136,36 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       });
     }
 
+    // Assign final levels and calculate grid positions
+    const nodesPerLevel = new Map<number, number>();
+    
     nodes.forEach(n => {
       if (!levels.has(n.id)) levels.set(n.id, 0);
+      const level = levels.get(n.id)!;
       const node = nodeMap.get(n.id)!;
-      node.level = levels.get(n.id);
+      
+      node.level = level;
+      node.indexInLevel = nodesPerLevel.get(level) || 0;
+      nodesPerLevel.set(level, (nodesPerLevel.get(level) || 0) + 1);
     });
 
-    return { levels, nodeMap, maxLevel: Math.max(...levels.values()) };
+    const maxLevel = Math.max(...levels.values());
+    const stages: StageGroup[] = [];
+
+    // Create Stage Groups metadata
+    for (let i = 0; i <= maxLevel; i++) {
+        const count = nodesPerLevel.get(i) || 0;
+        stages.push({
+            id: i,
+            x: i * (STAGE_WIDTH + STAGE_GAP),
+            y: 0,
+            width: STAGE_WIDTH,
+            height: Math.max(400, count * NODE_HEIGHT + STAGE_PADDING * 2), // Min height
+            label: `Stage ${i + 10}` // Simulation of Spark Stage IDs (starting at 10 for realism)
+        });
+    }
+
+    return { levels, nodeMap, maxLevel, stages };
   }, [nodes, links, optimizations]);
 
   useEffect(() => {
@@ -137,6 +183,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
 
     const defs = svg.append("defs");
     
+    // Critical Gradient
     const criticalGradient = defs.append("linearGradient")
       .attr("id", "criticalGradient")
       .attr("x1", "0%").attr("y1", "0%")
@@ -144,70 +191,97 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
     criticalGradient.append("stop").attr("offset", "0%").attr("stop-color", "#ef4444").attr("stop-opacity", 0.8);
     criticalGradient.append("stop").attr("offset", "100%").attr("stop-color", "#dc2626").attr("stop-opacity", 1);
 
-    defs.append("marker")
-      .attr("id", "arrowhead")
-      .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 35)
-      .attr("refY", 0)
-      .attr("markerWidth", 8)
-      .attr("markerHeight", 8)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", "#64748b"); // Slate 500 works for both
-
-    defs.append("marker")
-      .attr("id", "criticalArrow")
-      .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 35)
-      .attr("refY", 0)
-      .attr("markerWidth", 8)
-      .attr("markerHeight", 8)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", "#ef4444");
+    // Markers
+    const addMarker = (id: string, color: string) => {
+        defs.append("marker")
+        .attr("id", id)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 32) // Adjusted for new node size
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", color);
+    };
+    addMarker("arrowhead", "#94a3b8");
+    addMarker("criticalArrow", "#ef4444");
 
     const g = svg.append("g");
 
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
-      .on("zoom", (event) => {
+    // Zoom behavior
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 3])
+      .on("zoom", (event: any) => {
         g.attr("transform", event.transform);
         setZoomLevel(event.transform.k);
       });
 
     svg.call(zoom);
-    svg.call(zoom.transform, d3.zoomIdentity.translate(50, height / 2).scale(0.7));
+    // Initial transform to center the graph somewhat
+    svg.call(zoom.transform, d3.zoomIdentity.translate(50, 50).scale(0.65));
 
+    // --- DRAW STAGE BOXES (BACKGROUND) ---
+    const stageGroup = g.append("g").attr("class", "stages");
+    
+    stageGroup.selectAll("rect")
+        .data(enhancedLayout.stages)
+        .join("rect")
+        .attr("x", (d: any) => d.x)
+        .attr("y", -50) // Start a bit higher for label
+        .attr("width", (d: any) => d.width)
+        .attr("height", (d: any) => d.height + 100)
+        .attr("rx", 16)
+        .attr("fill", "transparent")
+        .attr("stroke", "#e2e8f0") // Slate 200
+        .attr("stroke-width", 2)
+        .attr("stroke-dasharray", "8,8"); // Dashed line like reference
+
+    // Stage Labels
+    stageGroup.selectAll("text")
+        .data(enhancedLayout.stages)
+        .join("text")
+        .attr("x", (d: any) => d.x + 20)
+        .attr("y", -20)
+        .text((d: any) => d.label)
+        .attr("font-family", "Inter, sans-serif")
+        .attr("font-weight", "bold")
+        .attr("font-size", "14px")
+        .attr("fill", "#64748b");
+
+    // --- SIMULATION SETUP ---
     const simNodes: EnhancedNode[] = Array.from(enhancedLayout.nodeMap.values()).map((n: EnhancedNode) => ({
       ...n,
-      x: (n.level || 0) * 240,
-      y: height / 2 + (Math.random() - 0.5) * 120
+      // Initial Position based on grid
+      x: n.level! * (STAGE_WIDTH + STAGE_GAP) + STAGE_WIDTH/2,
+      y: n.indexInLevel! * NODE_HEIGHT + 100
     }));
 
     const simLinks = links.map(l => ({ ...l }));
 
-    const simulation = d3.forceSimulation<EnhancedNode>(simNodes)
-      .force("link", d3.forceLink(simLinks).id((d: any) => d.id).distance(200))
-      .force("charge", d3.forceManyBody().strength(-2000))
-      .force("collide", d3.forceCollide().radius(90))
-      .force("x", d3.forceX((d: any) => (d.level || 0) * 250).strength(2))
-      .force("y", d3.forceY(height / 2).strength(0.1));
+    const simulation = d3.forceSimulation(simNodes)
+      .force("link", d3.forceLink(simLinks).id((d: any) => d.id).distance(100).strength(0.1)) // Weak link force to allow grid to dominate
+      .force("charge", d3.forceManyBody().strength(-500))
+      .force("collide", d3.forceCollide().radius(60).strength(1))
+      // Strong Grid Forces to keep layout structure
+      .force("x", d3.forceX((d: any) => d.level * (STAGE_WIDTH + STAGE_GAP) + STAGE_WIDTH/2).strength(0.8))
+      .force("y", d3.forceY((d: any) => d.indexInLevel * NODE_HEIGHT + 100).strength(0.8));
 
+    // --- DRAW LINKS ---
     const link = g.append("g")
       .selectAll("path")
       .data(simLinks)
       .join("path")
       .attr("stroke", (d: any) => {
         const targetNode = simNodes.find(n => n.id === d.target.id || n.id === d.target);
-        return targetNode?.isBottleneck ? "#ef4444" : "#94a3b8";
+        return targetNode?.isBottleneck ? "#ef4444" : "#cbd5e1";
       })
       .attr("stroke-width", (d: any) => {
         const targetNode = simNodes.find(n => n.id === d.target.id || n.id === d.target);
-        return targetNode?.isBottleneck ? 4 : 2;
+        return targetNode?.isBottleneck ? 3 : 2;
       })
-      .attr("stroke-opacity", 0.7)
+      .attr("stroke-opacity", 0.8)
       .attr("fill", "none")
       .attr("marker-end", (d: any) => {
         const targetNode = simNodes.find(n => n.id === d.target.id || n.id === d.target);
@@ -218,30 +292,34 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         return targetNode?.bottleneckSeverity === 'critical' ? "5,5" : "none";
       });
 
+    // Animate critical paths
     link.filter((d: any) => {
       const targetNode = simNodes.find(n => n.id === d.target.id || n.id === d.target);
       return targetNode?.bottleneckSeverity === 'critical';
     })
     .style("animation", "pulse 2s infinite");
 
+    // --- DRAW NODES ---
     const node = g.append("g")
       .selectAll("g")
       .data(simNodes)
       .join("g")
       .style("cursor", "pointer")
-      .on("click", function(event, d) {
+      .on("click", function(event: any, d: any) {
+        event.stopPropagation();
         setSelectedNode(d);
       })
-      .call(d3.drag<SVGGElement, EnhancedNode>()
+      .call(d3.drag()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
 
-    node.filter(d => d.isBottleneck!)
+    // Node outer ring (bottleneck indicator)
+    node.filter((d: any) => d.isBottleneck!)
       .append("circle")
-      .attr("r", 36)
+      .attr("r", 32)
       .attr("fill", "none")
-      .attr("stroke", d => {
+      .attr("stroke", (d: any) => {
         switch (d.bottleneckSeverity) {
           case 'critical': return '#ef4444';
           case 'high': return '#f97316';
@@ -253,9 +331,10 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("stroke-dasharray", "4,4")
       .style("animation", "rotate 3s linear infinite");
 
+    // Node background circle
     node.append("circle")
-      .attr("r", 30)
-      .attr("fill", d => {
+      .attr("r", 26)
+      .attr("fill", (d: any) => {
         if (d.isBottleneck) {
           switch (d.bottleneckSeverity) {
             case 'critical': return '#fee2e2';
@@ -264,13 +343,14 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
             default: return '#d1fae5';
           }
         }
+        
         const t = d.type.toLowerCase();
-        if (t.includes('shuffle') || t.includes('exchange')) return '#e0e7ff';
-        if (t.includes('scan')) return '#dcfce7';
-        if (t.includes('join')) return '#fef3c7';
+        if (t.includes('shuffle') || t.includes('exchange')) return '#e0e7ff'; // Indigo
+        if (t.includes('scan')) return '#dcfce7'; // Green
+        if (t.includes('join')) return '#fef3c7'; // Amber
         return '#ffffff';
       })
-      .attr("stroke", d => {
+      .attr("stroke", (d: any) => {
         if (d.isBottleneck) {
           switch (d.bottleneckSeverity) {
             case 'critical': return '#ef4444';
@@ -278,18 +358,20 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
             default: return '#eab308';
           }
         }
+        
         const t = d.type.toLowerCase();
         if (t.includes('shuffle')) return '#6366f1';
         if (t.includes('scan')) return '#16a34a';
         if (t.includes('join')) return '#d97706';
-        return '#64748b';
+        return '#64748b'; // Slate
       })
-      .attr("stroke-width", d => d.isBottleneck ? 4 : 3)
-      .style("filter", "drop-shadow(0px 4px 8px rgba(0,0,0,0.15))");
+      .attr("stroke-width", (d: any) => d.isBottleneck ? 4 : 3)
+      .style("filter", "drop-shadow(0px 4px 8px rgba(0,0,0,0.1))");
 
+    // Inner icon dot
     node.append("circle")
-      .attr("r", 8)
-      .attr("fill", d => {
+      .attr("r", 6)
+      .attr("fill", (d: any) => {
         if (d.isBottleneck) return '#ef4444';
         const t = d.type.toLowerCase();
         if (t.includes('shuffle')) return '#6366f1';
@@ -298,51 +380,48 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         return '#64748b';
       });
 
-    node.filter(d => d.isBottleneck!)
+    // Warning Icon for Bottlenecks
+    node.filter((d: any) => d.isBottleneck!)
       .append("text")
-      .attr("x", 20)
-      .attr("y", -20)
+      .attr("x", 18)
+      .attr("y", -18)
       .attr("text-anchor", "middle")
-      .text("⚠")
-      .attr("font-size", "16px")
+      .text("⚠️")
+      .attr("font-size", "14px")
       .style("pointer-events", "none");
 
-    // Text rendering: We keep the fill dark (#0f172a) because the nodes are light-colored even in dark mode.
-    // However, the stroke (halo) should match the background if we want true transparency, 
-    // but here the node bubbles are always light, so white halo is correct.
-    
-    // 1. Halo (Stroke)
+    // --- TEXT RENDERING ---
+    // 1. Halo
     node.append("text")
       .attr("x", 0)
-      .attr("y", -45)
+      .attr("y", -40)
       .attr("text-anchor", "middle")
-      .text(d => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
+      .text((d: any) => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
-      .attr("font-size", "13px")
-      .attr("stroke", "#ffffff") // Always white halo as node backgrounds are light
+      .attr("font-size", "12px")
+      .attr("stroke", "#ffffff")
       .attr("stroke-width", 4)
       .attr("stroke-linejoin", "round")
-      .attr("stroke-linecap", "round")
       .attr("fill", "none")
       .style("pointer-events", "none");
 
-    // 2. Foreground (Fill)
+    // 2. Foreground
     node.append("text")
       .attr("x", 0)
-      .attr("y", -45)
+      .attr("y", -40)
       .attr("text-anchor", "middle")
-      .text(d => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
+      .text((d: any) => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
-      .attr("font-size", "13px")
-      .attr("fill", "#0f172a") // Always dark text as node backgrounds are light
+      .attr("font-size", "12px")
+      .attr("fill", "#0f172a")
       .style("pointer-events", "none");
 
-    // Metric Label - Halo
+    // Metric Label
     node.append("text")
       .attr("x", 0)
-      .attr("y", 50)
+      .attr("y", 45)
       .attr("text-anchor", "middle")
-      .text(d => {
+      .text((d: any) => {
         if (showMetrics && d.rowsProcessed) {
           return d.rowsProcessed > 1000000 
             ? `${(d.rowsProcessed / 1000000).toFixed(1)}M rows`
@@ -350,56 +429,43 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         }
         return d.metric || "";
       })
-      .attr("font-size", "11px")
+      .attr("font-size", "10px")
       .attr("font-weight", "600")
-      .attr("stroke", "#ffffff")
-      .attr("stroke-width", 3)
-      .attr("stroke-linejoin", "round")
-      .attr("fill", "none")
-      .style("pointer-events", "none");
+      .attr("fill", (d: any) => d.isBottleneck ? "#ef4444" : "#475569")
+      .style("pointer-events", "none")
+      .style("text-shadow", "0 1px 2px rgba(255,255,255,0.8)");
 
-    // Metric Label - Fill
-    node.append("text")
-      .attr("x", 0)
-      .attr("y", 50)
-      .attr("text-anchor", "middle")
-      .text(d => {
-        if (showMetrics && d.rowsProcessed) {
-          return d.rowsProcessed > 1000000 
-            ? `${(d.rowsProcessed / 1000000).toFixed(1)}M rows`
-            : `${(d.rowsProcessed / 1000).toFixed(0)}K rows`;
-        }
-        return d.metric || "";
-      })
-      .attr("font-size", "11px")
-      .attr("font-weight", "600")
-      .attr("fill", d => d.isBottleneck ? "#ef4444" : "#475569")
-      .style("pointer-events", "none");
-
-    node.filter(d => (d.estimatedCost || 0) > 40)
+    // Cost Badge
+    node.filter((d: any) => (d.estimatedCost || 0) > 40)
       .append("text")
       .attr("x", 0)
-      .attr("y", 65)
+      .attr("y", 58)
       .attr("text-anchor", "middle")
-      .text(d => `$${((d.estimatedCost || 0) / 10).toFixed(1)}`)
+      .text((d: any) => `$${((d.estimatedCost || 0) / 10).toFixed(1)}`)
       .attr("font-size", "9px")
       .attr("font-weight", "700")
       .attr("fill", "#dc2626")
       .style("pointer-events", "none");
 
+    // Bezier Curve Link Function
     function linkArc(d: any) {
-      const dx = d.target.x - d.source.x;
-      const dy = d.target.y - d.source.y;
-      if (Math.abs(dy) < 25) {
-        return `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`;
-      }
-      const dr = Math.sqrt(dx * dx + dy * dy);
-      return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+      const sourceX = d.source.x;
+      const sourceY = d.source.y;
+      const targetX = d.target.x;
+      const targetY = d.target.y;
+
+      // Cubic Bezier for smooth flow between columns
+      const curvature = 0.5;
+      const xi = d3.interpolateNumber(sourceX, targetX);
+      const x2 = xi(curvature);
+      const x3 = xi(1 - curvature);
+
+      return `M${sourceX},${sourceY} C${x2},${sourceY} ${x3},${targetY} ${targetX},${targetY}`;
     }
 
     simulation.on("tick", () => {
       link.attr("d", linkArc);
-      node.attr("transform", d => `translate(${d.x},${d.y})`);
+      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
     function dragstarted(event: any) {
@@ -436,44 +502,132 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[700px] relative group ring-1 ring-slate-100 dark:ring-slate-800 transition-colors">
+    <div ref={containerRef} className="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[750px] relative group ring-1 ring-slate-100 dark:ring-slate-800 transition-colors">
+      
+      {/* Header */}
       <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center flex-shrink-0">
         <div>
-          <h3 className="font-bold text-slate-900 dark:text-white text-lg drop-shadow-sm">Intelligent Execution Flow</h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-            {nodes.filter(n => enhancedLayout.nodeMap.get(n.id)?.isBottleneck).length} bottlenecks detected
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg drop-shadow-sm flex items-center gap-2">
+            <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            Intelligent Execution Flow
+          </h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 pl-7">
+            {nodes.filter(n => enhancedLayout.nodeMap.get(n.id)?.isBottleneck).length} bottlenecks detected • {enhancedLayout.stages.length} stages identified
           </p>
         </div>
+        
         <div className="flex items-center gap-3">
+          {/* Highlight mode selector */}
           <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-1">
-            <button onClick={() => setHighlightMode('bottlenecks')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'bottlenecks' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}><AlertCircle className="w-3 h-3 inline mr-1" />Issues</button>
-            <button onClick={() => setHighlightMode('cost')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'cost' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400'}`}><Zap className="w-3 h-3 inline mr-1" />Cost</button>
+            <button 
+              onClick={() => setHighlightMode('bottlenecks')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'bottlenecks' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}
+            >
+              <AlertCircle className="w-3 h-3 inline mr-1" />
+              Issues
+            </button>
+            <button 
+              onClick={() => setHighlightMode('cost')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${highlightMode === 'cost' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400'}`}
+            >
+              <Zap className="w-3 h-3 inline mr-1" />
+              Cost
+            </button>
           </div>
-          <button onClick={() => setShowMetrics(!showMetrics)} className="p-2 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">{showMetrics ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
-          <button onClick={exportDAG} className="p-2 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"><Download className="w-4 h-4" /></button>
+
+          <button 
+            onClick={() => setShowMetrics(!showMetrics)}
+            className="p-2 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            title="Toggle Metrics"
+          >
+            {showMetrics ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
+
+          <button 
+            onClick={exportDAG}
+            className="p-2 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            title="Export SVG"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          
           <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-            <button onClick={() => {}} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"><ZoomIn className="w-4 h-4" /></button>
-            <button onClick={() => {}} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-l border-slate-200 dark:border-slate-700 transition-colors"><ZoomOut className="w-4 h-4" /></button>
+            <button 
+              onClick={() => {/* zoom in via d3 handles this */}} 
+              className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => {/* zoom out via d3 handles this */}} 
+              className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-l border-slate-200 dark:border-slate-700 transition-colors"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
-      <div className="flex-1 relative overflow-hidden bg-white dark:bg-slate-950">
-        <div className="absolute inset-0 opacity-15 dark:opacity-5" style={{ backgroundImage: 'radial-gradient(#64748b 1.5px, transparent 1.5px)', backgroundSize: '25px 25px' }}></div>
+
+      <div className="flex-1 relative overflow-hidden bg-slate-50/50 dark:bg-slate-950">
+        <div className="absolute inset-0 opacity-10 dark:opacity-5" style={{ 
+          backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', 
+          backgroundSize: '20px 20px' 
+        }}></div>
         <svg ref={svgRef} className="w-full h-full block relative z-10"></svg>
+        
+        {/* Node detail panel */}
         {selectedNode && (
           <div className="absolute top-4 right-4 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 animate-fade-in z-20">
-            <button onClick={() => setSelectedNode(null)} className="absolute top-2 right-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">×</button>
-            <h4 className="font-bold text-slate-900 dark:text-white mb-4">{selectedNode.name}</h4>
+            <button 
+              onClick={() => setSelectedNode(null)}
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            >
+              ×
+            </button>
+            <h4 className="font-bold text-slate-900 dark:text-white mb-4 pr-6 break-words">{selectedNode.name}</h4>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Type:</span><span className="font-bold text-slate-900 dark:text-white">{selectedNode.type}</span></div>
-              <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Level:</span><span className="font-bold text-slate-900 dark:text-white">Stage {selectedNode.level}</span></div>
-              {selectedNode.rowsProcessed && <div className="flex justify-between"><span className="text-slate-600 dark:text-slate-400">Rows:</span><span className="font-bold text-slate-900 dark:text-white">{(selectedNode.rowsProcessed / 1000000).toFixed(2)}M</span></div>}
-              {selectedNode.isBottleneck && <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"><div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-xs mb-2"><AlertCircle className="w-4 h-4" />PERFORMANCE BOTTLENECK</div><p className="text-xs text-red-600 dark:text-red-300">This operation is slowing down your pipeline. Check optimizations tab.</p></div>}
+              <div className="flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Type:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{selectedNode.type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Stage:</span>
+                <span className="font-bold text-slate-900 dark:text-white">Stage {selectedNode.level! + 10}</span>
+              </div>
+              {selectedNode.rowsProcessed && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600 dark:text-slate-400">Rows:</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {(selectedNode.rowsProcessed / 1000000).toFixed(2)}M
+                  </span>
+                </div>
+              )}
+              {selectedNode.isBottleneck && (
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-xs mb-2">
+                    <AlertCircle className="w-4 h-4" />
+                    PERFORMANCE BOTTLENECK
+                  </div>
+                  <p className="text-xs text-red-600 dark:text-red-300">
+                    This operation is slowing down your pipeline. Check optimizations tab.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
-      <style>{`@keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } } @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

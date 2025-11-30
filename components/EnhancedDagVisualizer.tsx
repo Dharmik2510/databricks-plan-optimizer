@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import * as d3 from 'd3';
+import * as d3Base from 'd3';
 import { DagNode, DagLink, OptimizationTip } from '../types';
 import { ZoomIn, ZoomOut, Download, AlertCircle, Zap, Eye, EyeOff } from 'lucide-react';
+
+const d3: any = d3Base;
 
 interface Props {
   nodes: DagNode[];
@@ -9,11 +11,14 @@ interface Props {
   optimizations: OptimizationTip[];
 }
 
-interface EnhancedNode extends d3.SimulationNodeDatum, DagNode {
+interface EnhancedNode extends DagNode {
   x?: number;
   y?: number;
   fx?: number | null;
   fy?: number | null;
+  vx?: number;
+  vy?: number;
+  index?: number;
   level?: number;
   isBottleneck?: boolean;
   bottleneckSeverity?: 'critical' | 'high' | 'medium' | 'low';
@@ -185,9 +190,9 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
     const g = svg.append("g");
 
     // Zoom behavior
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
+    const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
-      .on("zoom", (event) => {
+      .on("zoom", (event: any) => {
         g.attr("transform", event.transform);
         setZoomLevel(event.transform.k);
       });
@@ -205,7 +210,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
     const simLinks = links.map(l => ({ ...l }));
 
     // Force simulation with intelligent spacing
-    const simulation = d3.forceSimulation<EnhancedNode>(simNodes)
+    const simulation = d3.forceSimulation(simNodes)
       .force("link", d3.forceLink(simLinks).id((d: any) => d.id).distance(200))
       .force("charge", d3.forceManyBody().strength(-2000))
       .force("collide", d3.forceCollide().radius(90))
@@ -249,20 +254,20 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .data(simNodes)
       .join("g")
       .style("cursor", "pointer")
-      .on("click", function(event, d) {
+      .on("click", function(event: any, d: any) {
         setSelectedNode(d);
       })
-      .call(d3.drag<SVGGElement, EnhancedNode>()
+      .call(d3.drag()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
 
     // Node outer ring (bottleneck indicator)
-    node.filter(d => d.isBottleneck!)
+    node.filter((d: any) => d.isBottleneck!)
       .append("circle")
       .attr("r", 36)
       .attr("fill", "none")
-      .attr("stroke", d => {
+      .attr("stroke", (d: any) => {
         switch (d.bottleneckSeverity) {
           case 'critical': return '#ef4444';
           case 'high': return '#f97316';
@@ -277,7 +282,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
     // Node background circle with smart coloring
     node.append("circle")
       .attr("r", 30)
-      .attr("fill", d => {
+      .attr("fill", (d: any) => {
         if (d.isBottleneck) {
           switch (d.bottleneckSeverity) {
             case 'critical': return '#fee2e2';
@@ -293,7 +298,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         if (t.includes('join')) return '#fef3c7';
         return '#ffffff';
       })
-      .attr("stroke", d => {
+      .attr("stroke", (d: any) => {
         if (d.isBottleneck) {
           switch (d.bottleneckSeverity) {
             case 'critical': return '#ef4444';
@@ -308,13 +313,13 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         if (t.includes('join')) return '#d97706';
         return '#64748b';
       })
-      .attr("stroke-width", d => d.isBottleneck ? 4 : 3)
+      .attr("stroke-width", (d: any) => d.isBottleneck ? 4 : 3)
       .style("filter", "drop-shadow(0px 4px 8px rgba(0,0,0,0.15))");
 
     // Inner icon dot
     node.append("circle")
       .attr("r", 8)
-      .attr("fill", d => {
+      .attr("fill", (d: any) => {
         if (d.isBottleneck) return '#ef4444';
         
         const t = d.type.toLowerCase();
@@ -325,7 +330,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       });
 
     // Bottleneck warning icon
-    node.filter(d => d.isBottleneck!)
+    node.filter((d: any) => d.isBottleneck!)
       .append("text")
       .attr("x", 20)
       .attr("y", -20)
@@ -343,7 +348,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("x", 0)
       .attr("y", -45)
       .attr("text-anchor", "middle")
-      .text(d => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
+      .text((d: any) => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
       .attr("font-size", "13px")
       .attr("stroke", "#ffffff")
@@ -358,7 +363,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("x", 0)
       .attr("y", -45)
       .attr("text-anchor", "middle")
-      .text(d => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
+      .text((d: any) => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
       .attr("font-size", "13px")
       .attr("fill", "#0f172a") // Deep Slate
@@ -370,7 +375,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("x", 0)
       .attr("y", 50)
       .attr("text-anchor", "middle")
-      .text(d => {
+      .text((d: any) => {
         if (showMetrics && d.rowsProcessed) {
           return d.rowsProcessed > 1000000 
             ? `${(d.rowsProcessed / 1000000).toFixed(1)}M rows`
@@ -391,7 +396,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .attr("x", 0)
       .attr("y", 50)
       .attr("text-anchor", "middle")
-      .text(d => {
+      .text((d: any) => {
         if (showMetrics && d.rowsProcessed) {
           return d.rowsProcessed > 1000000 
             ? `${(d.rowsProcessed / 1000000).toFixed(1)}M rows`
@@ -401,16 +406,16 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       })
       .attr("font-size", "11px")
       .attr("font-weight", "600")
-      .attr("fill", d => d.isBottleneck ? "#ef4444" : "#475569")
+      .attr("fill", (d: any) => d.isBottleneck ? "#ef4444" : "#475569")
       .style("pointer-events", "none");
 
     // Cost badge
-    node.filter(d => (d.estimatedCost || 0) > 40)
+    node.filter((d: any) => (d.estimatedCost || 0) > 40)
       .append("text")
       .attr("x", 0)
       .attr("y", 65)
       .attr("text-anchor", "middle")
-      .text(d => `$${((d.estimatedCost || 0) / 10).toFixed(1)}`)
+      .text((d: any) => `$${((d.estimatedCost || 0) / 10).toFixed(1)}`)
       .attr("font-size", "9px")
       .attr("font-weight", "700")
       .attr("fill", "#dc2626")
@@ -429,7 +434,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
 
     simulation.on("tick", () => {
       link.attr("d", linkArc);
-      node.attr("transform", d => `translate(${d.x},${d.y})`);
+      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
     function dragstarted(event: any) {

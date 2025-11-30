@@ -1,19 +1,23 @@
-
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import * as d3 from 'd3';
+import * as d3Base from 'd3';
 import { DagNode, DagLink } from '../../shared/types';
 import { ZoomIn, ZoomOut } from 'lucide-react';
+
+const d3: any = d3Base;
 
 interface DagVisualizerProps {
   nodes: DagNode[];
   links: DagLink[];
 }
 
-interface SimulationNode extends d3.SimulationNodeDatum, DagNode {
+interface SimulationNode extends DagNode {
   x?: number;
   y?: number;
   fx?: number | null;
   fy?: number | null;
+  vx?: number;
+  vy?: number;
+  index?: number;
 }
 
 export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) => {
@@ -71,30 +75,30 @@ export const DagVisualizer: React.FC<DagVisualizerProps> = ({ nodes, links }) =>
     const defs = svg.append("defs");
     defs.append("marker").attr("id", "arrowhead").attr("viewBox", "0 -5 10 10").attr("refX", 32).attr("refY", 0).attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto").append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#475569"); 
     const g = svg.append("g");
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.1, 4]).on("zoom", (event) => { g.attr("transform", event.transform); setZoomLevel(event.transform.k); });
+    const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (event: any) => { g.attr("transform", event.transform); setZoomLevel(event.transform.k); });
     svg.call(zoom);
     svg.call(zoom.transform, d3.zoomIdentity.translate(50, height / 2).scale(0.8));
     const simNodes: SimulationNode[] = nodes.map(n => ({ ...n, x: (levels.get(n.id) || 0) * 200, y: height / 2 + (Math.random() - 0.5) * 100 }));
     const simLinks = links.map(l => ({ ...l }));
-    const simulation = d3.forceSimulation<SimulationNode>(simNodes).force("link", d3.forceLink(simLinks).id((d: any) => d.id).distance(180)).force("charge", d3.forceManyBody().strength(-1500)).force("collide", d3.forceCollide().radius(80)).force("x", d3.forceX((d: any) => (levels.get(d.id) || 0) * 220).strength(1.5)).force("y", d3.forceY(height / 2).strength(0.15)); 
+    const simulation = d3.forceSimulation(simNodes).force("link", d3.forceLink(simLinks).id((d: any) => d.id).distance(180)).force("charge", d3.forceManyBody().strength(-1500)).force("collide", d3.forceCollide().radius(80)).force("x", d3.forceX((d: any) => (levels.get(d.id) || 0) * 220).strength(1.5)).force("y", d3.forceY(height / 2).strength(0.15)); 
     const link = g.append("g").attr("stroke", "#94a3b8").attr("stroke-opacity", 0.8).selectAll("path").data(simLinks).join("path").attr("stroke-width", 2).attr("fill", "none").attr("marker-end", "url(#arrowhead)");
-    const node = g.append("g").selectAll("g").data(simNodes).join("g").call(d3.drag<SVGGElement, SimulationNode>().on("start", dragstarted).on("drag", dragged).on("end", dragended));
-    node.append("circle").attr("r", 28).attr("fill", (d) => { const t = d.type.toLowerCase(); if (t.includes('shuffle') || t.includes('exchange')) return '#fee2e2'; if (t.includes('scan') || t.includes('read')) return '#dcfce7'; if (t.includes('join')) return '#fef3c7'; if (t.includes('filter') || t.includes('project')) return '#cffafe'; return '#ffffff'; }).attr("stroke-width", 3).attr("stroke", (d) => { const t = d.type.toLowerCase(); if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; if (t.includes('scan') || t.includes('read')) return '#16a34a'; if (t.includes('join')) return '#d97706'; if (t.includes('filter') || t.includes('project')) return '#0891b2'; return '#64748b'; }).style("filter", "drop-shadow(0px 4px 6px rgba(0,0,0,0.1))");
-    node.append("circle").attr("r", 6).attr("fill", (d) => { const t = d.type.toLowerCase(); if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; if (t.includes('scan') || t.includes('read')) return '#16a34a'; if (t.includes('join')) return '#d97706'; if (t.includes('filter') || t.includes('project')) return '#0891b2'; return '#64748b'; });
-    node.append("text").attr("x", 0).attr("y", -40).attr("text-anchor", "middle").text((d) => d.name).attr("font-weight", "700").attr("font-size", "12px").attr("stroke", "#ffffff").attr("stroke-width", 4).attr("stroke-linejoin", "round").attr("stroke-linecap", "round").attr("fill", "none").style("pointer-events", "none").call(getWrapText);
-    node.append("text").attr("x", 0).attr("y", -40).attr("text-anchor", "middle").text((d) => d.name).attr("font-weight", "700").attr("font-size", "12px").attr("fill", "#0f172a").style("pointer-events", "none").call(getWrapText);
-    node.append("text").attr("x", 0).attr("y", 45).attr("text-anchor", "middle").text((d) => d.metric || "").attr("font-size", "11px").attr("font-weight", "600").attr("stroke", "#ffffff").attr("stroke-width", 3).attr("stroke-linejoin", "round").attr("fill", "none").style("pointer-events", "none");
-    node.append("text").attr("x", 0).attr("y", 45).attr("text-anchor", "middle").text((d) => d.metric || "").attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#475569").style("pointer-events", "none");
+    const node = g.append("g").selectAll("g").data(simNodes).join("g").call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+    node.append("circle").attr("r", 28).attr("fill", (d: any) => { const t = d.type.toLowerCase(); if (t.includes('shuffle') || t.includes('exchange')) return '#fee2e2'; if (t.includes('scan') || t.includes('read')) return '#dcfce7'; if (t.includes('join')) return '#fef3c7'; if (t.includes('filter') || t.includes('project')) return '#cffafe'; return '#ffffff'; }).attr("stroke-width", 3).attr("stroke", (d: any) => { const t = d.type.toLowerCase(); if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; if (t.includes('scan') || t.includes('read')) return '#16a34a'; if (t.includes('join')) return '#d97706'; if (t.includes('filter') || t.includes('project')) return '#0891b2'; return '#64748b'; }).style("filter", "drop-shadow(0px 4px 6px rgba(0,0,0,0.1))");
+    node.append("circle").attr("r", 6).attr("fill", (d: any) => { const t = d.type.toLowerCase(); if (t.includes('shuffle') || t.includes('exchange')) return '#ef4444'; if (t.includes('scan') || t.includes('read')) return '#16a34a'; if (t.includes('join')) return '#d97706'; if (t.includes('filter') || t.includes('project')) return '#0891b2'; return '#64748b'; });
+    node.append("text").attr("x", 0).attr("y", -40).attr("text-anchor", "middle").text((d: any) => d.name).attr("font-weight", "700").attr("font-size", "12px").attr("stroke", "#ffffff").attr("stroke-width", 4).attr("stroke-linejoin", "round").attr("stroke-linecap", "round").attr("fill", "none").style("pointer-events", "none").call(getWrapText);
+    node.append("text").attr("x", 0).attr("y", -40).attr("text-anchor", "middle").text((d: any) => d.name).attr("font-weight", "700").attr("font-size", "12px").attr("fill", "#0f172a").style("pointer-events", "none").call(getWrapText);
+    node.append("text").attr("x", 0).attr("y", 45).attr("text-anchor", "middle").text((d: any) => d.metric || "").attr("font-size", "11px").attr("font-weight", "600").attr("stroke", "#ffffff").attr("stroke-width", 3).attr("stroke-linejoin", "round").attr("fill", "none").style("pointer-events", "none");
+    node.append("text").attr("x", 0).attr("y", 45).attr("text-anchor", "middle").text((d: any) => d.metric || "").attr("font-size", "11px").attr("font-weight", "600").attr("fill", "#475569").style("pointer-events", "none");
     function linkArc(d: any) { const dx = d.target.x - d.source.x; const dy = d.target.y - d.source.y; if (Math.abs(dy) < 20) { return `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`; } return `M${d.source.x},${d.source.y}C${d.source.x + dx/2},${d.source.y} ${d.source.x + dx/2},${d.target.y} ${d.target.x},${d.target.y}`; }
     function getWrapText(selection: any) { selection.each(function(this: any, d: any) { if (d.name.length > 18) { d3.select(this).text(d.name.substring(0, 16) + "..."); } }); }
-    simulation.on("tick", () => { link.attr("d", linkArc); node.attr("transform", (d) => `translate(${d.x},${d.y})`); });
+    simulation.on("tick", () => { link.attr("d", linkArc); node.attr("transform", (d: any) => `translate(${d.x},${d.y})`); });
     function dragstarted(event: any) { if (!event.active) simulation.alphaTarget(0.3).restart(); event.subject.fx = event.subject.x; event.subject.fy = event.subject.y; svg.style("cursor", "grabbing"); }
     function dragged(event: any) { event.subject.fx = event.x; event.subject.fy = event.y; }
     function dragended(event: any) { if (!event.active) simulation.alphaTarget(0); event.subject.fx = null; event.subject.fy = null; svg.style("cursor", "grab"); }
     return () => { simulation.stop(); };
   }, [nodes, links, levels]);
 
-  const handleZoom = (factor: number) => { if (!svgRef.current) return; const svg = d3.select(svgRef.current); const zoom: any = d3.zoom().on("zoom", (event) => { d3.select(svgRef.current).select("g").attr("transform", event.transform); setZoomLevel(event.transform.k); }); svg.transition().duration(500).call(zoom.scaleBy, factor); };
+  const handleZoom = (factor: number) => { if (!svgRef.current) return; const svg = d3.select(svgRef.current); const zoom: any = d3.zoom().on("zoom", (event: any) => { d3.select(svgRef.current).select("g").attr("transform", event.transform); setZoomLevel(event.transform.k); }); svg.transition().duration(500).call(zoom.scaleBy, factor); };
 
   return (
     <div ref={containerRef} className="w-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px] relative group">
