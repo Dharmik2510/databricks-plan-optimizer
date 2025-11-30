@@ -1,7 +1,9 @@
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3Base from 'd3';
 import { DagNode, DagLink, OptimizationTip } from '../../shared/types';
 import { ZoomIn, ZoomOut, Download, AlertCircle, Zap, Eye, EyeOff, Maximize, Layers } from 'lucide-react';
+import { useTheme } from '../ThemeContext';
 
 const d3: any = d3Base;
 
@@ -43,12 +45,23 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
   const [selectedNode, setSelectedNode] = useState<EnhancedNode | null>(null);
   const [highlightMode, setHighlightMode] = useState<'bottlenecks' | 'cost' | 'none'>('bottlenecks');
   const [showMetrics, setShowMetrics] = useState(true);
+  const { theme } = useTheme();
 
   // Constants for Grid Layout
   const STAGE_WIDTH = 280;
   const STAGE_GAP = 60;
   const NODE_HEIGHT = 120;
   const STAGE_PADDING = 60;
+
+  // Colors based on theme
+  const colors = useMemo(() => ({
+    stageBorder: theme === 'dark' ? '#334155' : '#e2e8f0', // slate-700 : slate-200
+    stageText: theme === 'dark' ? '#94a3b8' : '#64748b',   // slate-400 : slate-500
+    linkStroke: theme === 'dark' ? '#475569' : '#cbd5e1',  // slate-600 : slate-300
+    nodeHalo: theme === 'dark' ? '#0f172a' : '#ffffff',    // slate-900 : white
+    nodeText: theme === 'dark' ? '#f8fafc' : '#0f172a',    // slate-50 : slate-900
+    metricFill: theme === 'dark' ? '#94a3b8' : '#475569',  // slate-400 : slate-600
+  }), [theme]);
 
   // Helper methods
   const isBottleneckNode = (node: DagNode, opts: OptimizationTip[]): boolean => {
@@ -205,7 +218,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         .attr("d", "M0,-5L10,0L0,5")
         .attr("fill", color);
     };
-    addMarker("arrowhead", "#94a3b8");
+    addMarker("arrowhead", colors.linkStroke);
     addMarker("criticalArrow", "#ef4444");
 
     const g = svg.append("g");
@@ -234,9 +247,9 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         .attr("height", (d: any) => d.height + 100)
         .attr("rx", 16)
         .attr("fill", "transparent")
-        .attr("stroke", "#e2e8f0") // Slate 200
+        .attr("stroke", colors.stageBorder) // Dynamic
         .attr("stroke-width", 2)
-        .attr("stroke-dasharray", "8,8"); // Dashed line like reference
+        .attr("stroke-dasharray", "8,8"); 
 
     // Stage Labels
     stageGroup.selectAll("text")
@@ -248,7 +261,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
         .attr("font-family", "Inter, sans-serif")
         .attr("font-weight", "bold")
         .attr("font-size", "14px")
-        .attr("fill", "#64748b");
+        .attr("fill", colors.stageText); // Dynamic
 
     // --- SIMULATION SETUP ---
     const simNodes: EnhancedNode[] = Array.from(enhancedLayout.nodeMap.values()).map((n: EnhancedNode) => ({
@@ -275,7 +288,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .join("path")
       .attr("stroke", (d: any) => {
         const targetNode = simNodes.find(n => n.id === d.target.id || n.id === d.target);
-        return targetNode?.isBottleneck ? "#ef4444" : "#cbd5e1";
+        return targetNode?.isBottleneck ? "#ef4444" : colors.linkStroke; // Dynamic
       })
       .attr("stroke-width", (d: any) => {
         const targetNode = simNodes.find(n => n.id === d.target.id || n.id === d.target);
@@ -399,7 +412,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .text((d: any) => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
       .attr("font-size", "12px")
-      .attr("stroke", "#ffffff")
+      .attr("stroke", colors.nodeHalo) // Dynamic
       .attr("stroke-width", 4)
       .attr("stroke-linejoin", "round")
       .attr("fill", "none")
@@ -413,7 +426,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       .text((d: any) => d.name.length > 20 ? d.name.substring(0, 18) + "..." : d.name)
       .attr("font-weight", "700")
       .attr("font-size", "12px")
-      .attr("fill", "#0f172a")
+      .attr("fill", colors.nodeText) // Dynamic
       .style("pointer-events", "none");
 
     // Metric Label
@@ -431,9 +444,9 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
       })
       .attr("font-size", "10px")
       .attr("font-weight", "600")
-      .attr("fill", (d: any) => d.isBottleneck ? "#ef4444" : "#475569")
+      .attr("fill", (d: any) => d.isBottleneck ? "#ef4444" : colors.metricFill) // Dynamic
       .style("pointer-events", "none")
-      .style("text-shadow", "0 1px 2px rgba(255,255,255,0.8)");
+      .style("text-shadow", theme === 'dark' ? "0 1px 2px rgba(0,0,0,0.8)" : "0 1px 2px rgba(255,255,255,0.8)");
 
     // Cost Badge
     node.filter((d: any) => (d.estimatedCost || 0) > 40)
@@ -488,7 +501,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({ nodes, links, optimizat
     }
 
     return () => simulation.stop();
-  }, [nodes, links, enhancedLayout, showMetrics, highlightMode]);
+  }, [nodes, links, enhancedLayout, showMetrics, highlightMode, colors]); // Add colors to dependency array
 
   const exportDAG = () => {
     if (!svgRef.current) return;

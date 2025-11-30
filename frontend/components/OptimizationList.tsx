@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { OptimizationTip, Severity } from '../../shared/types';
 import { AlertTriangle, CheckCircle, Zap, Copy, Code } from 'lucide-react';
@@ -17,7 +18,7 @@ export const OptimizationList: React.FC<Props> = ({ optimizations }) => {
     <div className="space-y-6 animate-fade-in">
       <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3 mb-8"><div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-xl border border-orange-200 dark:border-orange-800 shadow-sm"><Zap className="w-6 h-6 text-orange-600 dark:text-orange-400" /></div>Performance Recommendations</h3>
       {(totalTimeSaved > 0 || totalCostSaved > 0) && (
-        <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 rounded-3xl shadow-sm border border-orange-200 dark:border-orange-800 p-6 mb-8">
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/40 rounded-3xl shadow-sm border border-orange-200 dark:border-orange-800 p-6 mb-8">
           <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm"><Zap className="w-5 h-5 text-orange-600 dark:text-orange-400" /></div><h4 className="font-bold text-slate-900 dark:text-white text-lg">Total Optimization Potential</h4></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-orange-100 dark:border-slate-700 shadow-sm"><div className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Time Reduction</div><div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{totalTimeSaved < 60 ? `${totalTimeSaved.toFixed(0)}s` : totalTimeSaved < 3600 ? `${(totalTimeSaved / 60).toFixed(1)}m` : `${(totalTimeSaved / 3600).toFixed(1)}h`}</div><div className="text-xs text-slate-600 dark:text-slate-400 mt-1">per execution</div></div>
