@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USER - Simple authentication, no organizations
+// ═══════════════════════════════════════════════════════════════
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  avatar        String?
+  
+  // User preferences as flexible JSON
+  settings      Json      @default("{}")
+  // Example: { "theme": "dark", "emailNotifications": true }
+  
+  // Usage tracking (for rate limiting / quotas)
+  analysisCount Int       @default(0)
+  lastAnalysisAt DateTime?
+  
+  // Relations
+  analyses      Analysis[]
+  chatSessions  ChatSession[]
+  refreshTokens RefreshToken[]
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  @@index([email])
+  @@map("users")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYSIS - Core feature for DAG analysis
+// ═══════════════════════════════════════════════════════════════
+
+model Analysis {
+  id            String         @id @default(cuid())
+  userId        String
+  
+  // Input
+  title         String?        // Optional, auto-generated if empty
+  inputType     InputType      @default(SPARK_PLAN)
+  inputContent  String         @db.Text
+  inputHash     String         // SHA-256 for caching/deduplication
+  
+  // Status
+  status        AnalysisStatus @default(PENDING)
+  errorMessage  String?
+  
+  // Results stored as JSONB (flexible & queryable)
+  result        Json?
+  // Structure: {
+  //   summary: string,
+  //   dagNodes: DagNode[],
+  //   dagLinks: DagLink[],
+  //   resourceMetrics: ResourceMetric[],
+  //   optimizations: OptimizationTip[],
+  //   codeMappings?: CodeSnippet[],
+  //   estimatedDurationMin?: number
+  // }
+  
+  // Extracted fields for filtering (denormalized from result)
+  severity          Severity?
+  optimizationCount Int?
+  dagNodeCount      Int?
+  
+  // Processing metadata
+  processingMs      Int?
+  aiModel           String?
+  
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatSessions  ChatSession[]
+  
+  // Timestamps
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([inputHash])
+  @@index([status])
+  @@map("analyses")
+}
+
+enum InputType {
+  SPARK_PLAN
+  SQL_EXPLAIN
+  LOG_FILE
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHAT - AI Consultant sessions
+// ═══════════════════════════════════════════════════════════════
+
+model ChatSession {
+  id            String    @id @default(cuid())
+  userId        String
+  analysisId    String?   // Can be linked to an analysis or standalone
+  
+  title         String?   // Auto-generated from first message
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis      Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  messages      ChatMessage[]
+  
+  // Usage tracking
+  messageCount  Int       @default(0)
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([analysisId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id            String      @id @default(cuid())
+  sessionId     String
+  
+  role          MessageRole
+  content       String      @db.Text
+  
+  // AI metadata
+  tokensUsed    Int?
+  
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime    @default(now())
+  
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REFRESH TOKENS - For JWT refresh token rotation
+// ═══════════════════════════════════════════════════════════════
+
+model RefreshToken {
+  id            String    @id @default(cuid())
+  userId        String
+  token         String    @unique
+  expiresAt     DateTime
+  
+  // Device info (optional, for "active sessions" feature)
+  userAgent     String?
+  ipAddress     String?
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}

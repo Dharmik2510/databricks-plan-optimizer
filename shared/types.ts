@@ -61,12 +61,12 @@ export interface OptimizationTip {
   confidence_score?: number; // 0-100
   implementation_complexity?: 'Low' | 'Medium' | 'High';
   affected_stages?: string[];
-  
+
   // Enhanced Code Mapping
   relatedCodeSnippets?: EnhancedCodeSnippet[]; // Multiple code locations
   rootCauseFile?: string; // Primary file causing the issue
   propagationPath?: string[]; // How the issue propagates through files
-  
+
   // Playground Support
   enabledInPlayground?: boolean; // UI state for sandbox
 }
@@ -158,17 +158,18 @@ export interface AIAgentStatus {
 }
 
 export interface AnalysisResult {
+  id?: string;
   summary: string;
   dagNodes: DagNode[];
   dagLinks: DagLink[];
   resourceMetrics: ResourceMetric[];
   optimizations: OptimizationTip[];
   estimatedDurationMin?: number;
-  
+
   // Enhanced Code Mappings
   codeMappings?: EnhancedCodeSnippet[]; // All code mappings
   repositoryAnalysis?: RepositoryAnalysis; // Repo structure analysis
-  
+
   query_complexity_score?: number; // 0-100
   optimization_impact_score?: number; // 0-100  
   risk_assessment?: {
@@ -305,7 +306,7 @@ export interface StreamMetric {
   executorMemory: number; // %
   swapUsed?: number; // %
   cpuLoad?: number; // %
-  
+
   // Extended Metrics
   shuffleReadBytes: number;
   shuffleWriteBytes: number;
@@ -371,7 +372,7 @@ export interface PerformancePrediction {
   };
   bottleneckProgression: BottleneckTimeline[];
   whatIfScenarios: WhatIfScenario[];
-  
+
   // New
   historicalTrend: HistoricalTrend;
   regressionAlert?: RegressionAlert;

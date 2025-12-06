@@ -1,62 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BrickOptima</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              slate: {
-                850: '#1e293b', // Custom dark shade between 800 and 900
-                950: '#020617',
-              }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrickOptima</title>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#1e293b', // Custom dark shade between 800 and 900
+              950: '#020617',
             }
           }
         }
       }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f8fafc; /* Slate 50 */
-        min-height: 100vh;
-        color: #0f172a;
-        transition: background-color 0.3s, color 0.3s;
-      }
-      
-      html.dark body {
-        background-color: #0f172a; /* Slate 900 */
-        color: #f8fafc; /* Slate 50 */
-      }
-      
-      /* Custom Scrollbar - Clean */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: #f1f5f9;
-      }
-      html.dark .custom-scrollbar::-webkit-scrollbar-track {
-        background: #1e293b;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-      }
-      html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #475569;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
-    </style>
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      /* Slate 50 */
+      min-height: 100vh;
+      color: #0f172a;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    html.dark body {
+      background-color: #0f172a;
+      /* Slate 900 */
+      color: #f8fafc;
+      /* Slate 50 */
+    }
+
+    /* Custom Scrollbar - Clean */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    html.dark .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -73,7 +82,11 @@
 }
 </script>
 </head>
-  <body class="text-slate-900 antialiased selection:bg-orange-200 selection:text-orange-900 dark:selection:bg-orange-900 dark:selection:text-orange-100">
-    <div id="root"></div>
-  </body>
+
+<body
+  class="text-slate-900 antialiased selection:bg-orange-200 selection:text-orange-900 dark:selection:bg-orange-900 dark:selection:text-orange-100">
+  <div id="root"></div>
+  <script type="module" src="/frontend/index.tsx"></script>
+</body>
+
 </html>

@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: brickoptima-db
+    environment:
+      POSTGRES_USER: brickoptima
+      POSTGRES_PASSWORD: localdev123
+      POSTGRES_DB: brickoptima
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brickoptima"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brickoptima-network
+
+  # Redis (for caching and sessions - optional for now)
+  redis:
+    image: redis:7-alpine
+    container_name: brickoptima-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brickoptima-network
+
+  # pgAdmin (optional - for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: brickoptima-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@brickoptima.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - brickoptima-network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  brickoptima-network:
+    driver: bridge
