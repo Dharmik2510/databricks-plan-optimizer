@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build argument for API URL
+ARG VITE_API_URL=http://localhost:3001
+
 # Copy package files from root
 COPY package*.json ./
 COPY frontend ./frontend/
@@ -14,6 +17,9 @@ COPY types.ts ./
 
 # Install dependencies
 RUN npm ci
+
+# Set environment variable for build
+ENV VITE_API_URL=$VITE_API_URL
 
 # Build the application
 RUN npm run build
