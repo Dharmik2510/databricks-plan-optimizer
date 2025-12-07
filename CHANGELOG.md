@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.2.0...v1.3.0) (2025-12-07)
+
+
+### Features
+
+* Add health check endpoint, enhance Prisma connection error handling, and update Dockerfile for improved build and health monitoring. ([e9bdc34](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/e9bdc34605f3b61bf2d21904b8df2a7b1246625b))
+
 # [1.2.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.1.0...v1.2.0) (2025-12-07)
 
 
