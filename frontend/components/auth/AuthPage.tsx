@@ -20,6 +20,7 @@ import {
   Chrome
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
+import { ThreeBackground } from '../ThreeBackground';
 
 interface AuthPageProps {
   onAuthSuccess?: () => void;
@@ -114,61 +115,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background */}
-      <div className="fixed inset-0 -z-10">
-        {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-100 via-slate-50 to-orange-50" />
-
-        {/* Animated orbs */}
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-orange-200/40 to-orange-300/20 blur-3xl animate-blob" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-blue-200/30 to-indigo-300/20 blur-3xl animate-blob animation-delay-2000" />
-        <div className="absolute top-[40%] right-[20%] w-[30%] h-[30%] rounded-full bg-gradient-to-br from-orange-100/40 to-amber-200/20 blur-3xl animate-blob animation-delay-4000" />
-
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.015]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px'
-          }}
-        />
-
-        {/* Floating particles */}
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-orange-400/30 rounded-full animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${3 + Math.random() * 4}s`
-            }}
-          />
-        ))}
-      </div>
+      {/* 3D Animated Background */}
+      <ThreeBackground showGrids={true} />
 
       {/* Main Container */}
-      <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/10">
+      <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl shadow-black/50 z-10">
 
         {/* Left Panel - Branding */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-12 flex-col justify-between relative overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
-          </div>
-
-          {/* Grid pattern */}
-          <div
-            className="absolute inset-0 opacity-5"
-            style={{
-              backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
-              backgroundSize: '30px 30px'
-            }}
-          />
+        <div className="hidden lg:flex lg:w-1/2 bg-slate-900/90 backdrop-blur-xl p-12 flex-col justify-between relative overflow-hidden border-r border-white/10">
 
           {/* Content */}
           <div className="relative z-10">
@@ -227,22 +181,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         </div>
 
         {/* Right Panel - Auth Form */}
-        <div className="w-full lg:w-1/2 bg-white/80 backdrop-blur-xl p-8 lg:p-12 relative">
+        <div className="w-full lg:w-1/2 bg-slate-900/80 backdrop-blur-xl p-8 lg:p-12 relative border-l border-white/5">
 
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
               <Activity className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900">BrickOptima</span>
+            <span className="text-xl font-bold text-white">BrickOptima</span>
           </div>
 
           {/* Form Header */}
           <div className={`transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">
+            <h2 className="text-3xl font-bold text-white mb-2">
               {isLogin ? 'Welcome back' : 'Create account'}
             </h2>
-            <p className="text-slate-600 mb-8">
+            <p className="text-slate-400 mb-8">
               {isLogin
                 ? 'Enter your credentials to access your dashboard'
                 : 'Start optimizing your Spark workloads today'}
@@ -251,9 +205,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
           {/* Error Message */}
           {displayError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 animate-shake">
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-shake">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <span className="text-red-700 text-sm font-medium">{displayError}</span>
+              <span className="text-red-400 text-sm font-medium">{displayError}</span>
             </div>
           )}
 
@@ -263,17 +217,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             {/* Name field (register only) */}
             {!isLogin && (
               <div className="space-y-2 animate-fade-in">
-                <label className="block text-sm font-semibold text-slate-700">
+                <label className="block text-sm font-medium text-slate-300">
                   Full Name
                 </label>
                 <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="John Doe"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
                   />
                 </div>
               </div>
@@ -281,28 +235,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
             {/* Email field */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">
+              <label className="block text-sm font-medium text-slate-300">
                 Email Address
               </label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
                 />
               </div>
             </div>
 
             {/* Password field */}
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">
+              <label className="block text-sm font-medium text-slate-300">
                 Password
               </label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -310,12 +264,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                   onFocus={() => setPasswordFocus(true)}
                   onBlur={() => setPasswordFocus(false)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                  className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -323,14 +277,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
               {/* Password requirements (register only) */}
               {!isLogin && (passwordFocus || password.length > 0) && (
-                <div className="mt-3 p-3 bg-slate-50 rounded-xl space-y-2 animate-fade-in">
+                <div className="mt-3 p-3 bg-slate-800/50 rounded-xl space-y-2 animate-fade-in border border-slate-700/50">
                   {passwordRequirements.map((req, idx) => (
                     <div
                       key={idx}
-                      className={`flex items-center gap-2 text-sm transition-colors ${req.met ? 'text-emerald-600' : 'text-slate-500'
+                      className={`flex items-center gap-2 text-sm transition-colors ${req.met ? 'text-emerald-400' : 'text-slate-500'
                         }`}
                     >
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${req.met ? 'bg-emerald-100' : 'bg-slate-200'
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${req.met ? 'bg-emerald-500/20' : 'bg-slate-700'
                         }`}>
                         {req.met && <Check className="w-3 h-3" />}
                       </div>
@@ -346,7 +300,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors"
+                  className="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -357,7 +311,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group"
+              className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group border border-orange-400/20"
             >
               {isSubmitting ? (
                 <>
@@ -375,10 +329,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             {/* Divider */}
             <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
+                <div className="w-full border-t border-slate-700" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-slate-500 font-medium">Or continue with</span>
+                <span className="px-4 bg-slate-900/80 text-slate-500 font-medium">Or continue with</span>
               </div>
             </div>
 
@@ -386,14 +340,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-medium transition-all hover:shadow-md"
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
               >
                 <Github className="w-5 h-5" />
                 <span>GitHub</span>
               </button>
               <button
                 type="button"
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-medium transition-all hover:shadow-md"
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
               >
                 <Chrome className="w-5 h-5" />
                 <span>Google</span>
@@ -402,12 +356,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           </form>
 
           {/* Toggle auth mode */}
-          <p className="mt-8 text-center text-slate-600">
+          <p className="mt-8 text-center text-slate-400">
             {isLogin ? "Don't have an account?" : 'Already have an account?'}
             <button
               type="button"
               onClick={handleToggleMode}
-              className="ml-2 text-orange-600 hover:text-orange-700 font-semibold transition-colors"
+              className="ml-2 text-orange-400 hover:text-orange-300 font-semibold transition-colors"
             >
               {isLogin ? 'Sign up' : 'Sign in'}
             </button>
@@ -417,18 +371,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
 
       {/* Custom styles */}
       <style>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(20px, -30px) scale(1.05); }
-          50% { transform: translate(-20px, 20px) scale(0.95); }
-          75% { transform: translate(30px, 10px) scale(1.02); }
-        }
-        
-        @keyframes float {
-          0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.3; }
-          50% { transform: translateY(-20px) rotate(180deg); opacity: 0.8; }
-        }
-        
         @keyframes fade-in-up {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
@@ -445,22 +387,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           20%, 40%, 60%, 80% { transform: translateX(4px); }
         }
         
-        .animate-blob {
-          animation: blob 15s ease-in-out infinite;
-        }
-        
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        
-        .animate-float {
-          animation: float 4s ease-in-out infinite;
-        }
-        
         .animate-fade-in-up {
           animation: fade-in-up 0.6s ease-out forwards;
         }
@@ -473,8 +399,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           animation: shake 0.5s ease-in-out;
         }
       `}</style>
-    </div>
-  );
+    </div>);
 };
 
 export default AuthPage;

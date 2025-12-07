@@ -1,5 +1,5 @@
 
-import { AnalysisResult, DagNode, PerformancePrediction, ScaleImpact, BottleneckTimeline, WhatIfScenario, HistoricalTrend, RegressionAlert, AIAgentStatus, ResourceMetric, ClusterRecommendation, SparkConfigRecommendation } from '../../shared/types';
+import { AnalysisResult, DagNode, PerformancePrediction, ScaleImpact, BottleneckTimeline, WhatIfScenario, AIAgentStatus, ResourceMetric, ClusterRecommendation, SparkConfigRecommendation } from '../../shared/types';
 
 export class PredictivePerformanceEngine {
     /**
@@ -67,12 +67,6 @@ export class PredictivePerformanceEngine {
             });
         }
 
-        // Dynamic History Generation
-        const history = this.generateHistoricalTrend(baselineTime, result.optimizations.length > 0);
-
-        // Regression Detection
-        const regressionAlert = this.detectRegression(history, baselineTime);
-
         return {
             baselineExecutionTime: baselineTime,
             predictedExecutionTime: baselineTime * 0.4,
@@ -84,8 +78,6 @@ export class PredictivePerformanceEngine {
             },
             bottleneckProgression,
             whatIfScenarios: this.generateWhatIfScenarios(result),
-            historicalTrend: history,
-            regressionAlert,
             aiAgentStatus: this.generateAgentStatus(result)
         };
     }
@@ -200,56 +192,7 @@ export class PredictivePerformanceEngine {
         };
     }
 
-    private generateHistoricalTrend(currentDuration: number, hasIssues: boolean): HistoricalTrend {
-        // Generate 30 days of history
-        const dates = Array.from({ length: 10 }, (_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() - (9 - i));
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        });
 
-        // Simulate trend based on whether we have issues now
-        // If hasIssues: trend likely degrading (increasing time)
-        // If !hasIssues: trend likely stable or improved
-        const executionTimes = dates.map((_, i) => {
-            let noise = (Math.random() - 0.5) * (currentDuration * 0.1);
-            if (hasIssues) {
-                // Gradual degradation leading to current high time
-                // e.g., Day 0 = 50% of current, Day 9 = 100% of current
-                const factor = 0.5 + (0.5 * (i / 9));
-                if (i === 9) return currentDuration; // Match current
-                return (currentDuration * factor) + noise;
-            } else {
-                // Stable
-                return currentDuration + noise;
-            }
-        });
-
-        return {
-            dates,
-            executionTimes,
-            costs: executionTimes.map(t => (t / 60) * 0.40 * 8), // Rough cost calc
-            optimizationsApplied: hasIssues ? [] : ['2 days ago'],
-            roi: hasIssues ? -15 : 125
-        };
-    }
-
-    private detectRegression(history: HistoricalTrend, currentDuration: number): RegressionAlert | undefined {
-        const prev = history.executionTimes[history.executionTimes.length - 2];
-        const diff = currentDuration - prev;
-        const percent = (diff / prev) * 100;
-
-        if (percent > 10) { // 10% degradation threshold
-            return {
-                previousRunTime: prev,
-                currentRunTime: currentDuration,
-                regressionPercent: percent,
-                suspectedCause: "Data volume surge or unoptimized join introduced",
-                autoFix: "Enable Adaptive Query Execution (AQE)"
-            };
-        }
-        return undefined;
-    }
 
     private generateWhatIfScenarios(result: AnalysisResult): WhatIfScenario[] {
         const scenarios: WhatIfScenario[] = [];

@@ -112,14 +112,6 @@ export interface CodeSmell {
 
 // --- New Advanced Features Types ---
 
-export interface RegressionAlert {
-  previousRunTime: number;
-  currentRunTime: number;
-  regressionPercent: number;
-  suspectedCause: string;
-  autoFix?: string;
-}
-
 export interface ClusterRecommendation {
   current: { nodes: number; type: string; costPerHour: number };
   recommended: { nodes: number; type: string; costPerHour: number };
@@ -127,13 +119,7 @@ export interface ClusterRecommendation {
   expectedImprovement: string;
 }
 
-export interface HistoricalTrend {
-  dates: string[];
-  executionTimes: number[];
-  costs: number[];
-  optimizationsApplied: string[]; // Markers for graph
-  roi: number; // Return on investment %
-}
+
 
 export interface QueryRewrite {
   original: string;
@@ -372,9 +358,5 @@ export interface PerformancePrediction {
   };
   bottleneckProgression: BottleneckTimeline[];
   whatIfScenarios: WhatIfScenario[];
-
-  // New
-  historicalTrend: HistoricalTrend;
-  regressionAlert?: RegressionAlert;
   aiAgentStatus: AIAgentStatus;
 }

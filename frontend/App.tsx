@@ -10,7 +10,7 @@ import { CostEstimator } from './components/CostEstimator';
 import { CodeMapper } from './components/CodeMapper';
 import { LiveMonitor } from './components/LiveMonitor';
 import { PredictivePanel } from './components/PredictivePanel';
-import { TrendAnalysis } from './components/TrendAnalysis';
+
 import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -303,7 +303,7 @@ function AppContent() {
                     <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 relative overflow-hidden transition-colors"><div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div><div className="flex items-start gap-6 relative z-10"><div className="p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl border border-orange-100 dark:border-orange-800 hidden sm:block shadow-sm"><Activity className="w-8 h-8" /></div><div className="flex-1"><div className="flex justify-between items-center mb-3"><h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Summary</h3><span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span></div><p className="text-slate-800 dark:text-slate-300 leading-relaxed text-lg font-medium">{result.summary}</p></div></div></section>
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8"><EnhancedDagVisualizer nodes={result.dagNodes} links={result.dagLinks} optimizations={result.optimizations} /><ResourceChart data={result.resourceMetrics} /></div>
                     <OptimizationList optimizations={result.optimizations} />
-                    {prediction && <><PredictivePanel prediction={prediction} /><TrendAnalysis trend={prediction.historicalTrend} regression={prediction.regressionAlert} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
+                    {prediction && <><PredictivePanel prediction={prediction} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
                   </div>
                 )}
               </>
@@ -338,7 +338,7 @@ const Header = () => {
 
   return (
     <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-6 shadow-xl z-30 flex-shrink-0 relative">
-      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-gradient-x bg-[length:200%_auto]"></div>
       <div className="flex items-center gap-8 relative z-10">
         <div className="font-bold text-lg flex items-center gap-3 text-white group cursor-pointer select-none">
           <div className="relative">

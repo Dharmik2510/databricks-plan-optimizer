@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Expanded Interface matching shared/types.ts structure
 export interface AnalysisResult {
   summary: string;
   dagNodes: Array<{
@@ -25,6 +26,12 @@ export interface AnalysisResult {
     description: string;
     codeSuggestion?: string;
     originalPattern?: string;
+    estimated_time_saved_seconds?: number;
+    estimated_cost_saved_usd?: number;
+    confidence_score?: number;
+    implementation_complexity?: 'Low' | 'Medium' | 'High';
+    affected_stages?: string[];
+    enabledInPlayground?: boolean;
   }>;
   codeMappings?: Array<{
     filePath: string;
@@ -33,6 +40,48 @@ export interface AnalysisResult {
     relevanceExplanation: string;
   }>;
   estimatedDurationMin?: number;
+
+  // --- Advanced Features ---
+  clusterRecommendation?: {
+    current: { nodes: number; type: string; costPerHour: number };
+    recommended: { nodes: number; type: string; costPerHour: number };
+    reasoning: string;
+    expectedImprovement: string;
+  };
+
+  whatIfScenarios?: Array<{
+    scenario: string;
+    timeReduction: string;
+    costSavings: string;
+    complexity: string;
+    implementation: string;
+  }>;
+
+  performancePrediction?: {
+    baselineExecutionTime: number;
+    predictedExecutionTime: number;
+    dataScaleImpact: Array<{
+      dataSize: string;
+      currentTime: number;
+      optimizedTime: number;
+      breakingPoint?: string;
+    }>;
+    bottleneckProgression: Array<{
+      stage: string;
+      currentImpact: number;
+      at10xScale: number;
+      at100xScale: number;
+      recommendation: string;
+    }>;
+  };
+
+  historicalTrend?: {
+    dates: string[];
+    executionTimes: number[];
+    costs: number[];
+    optimizationsApplied: string[];
+    roi: number;
+  };
 }
 
 @Injectable()
@@ -43,13 +92,15 @@ export class GeminiService {
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    
+
     if (!apiKey) {
       this.logger.warn('GEMINI_API_KEY not configured - AI features disabled');
       return;
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
+    // Use the experimental flash model for speed and larger context window if needed, 
+    // or fallback to 'gemini-pro' if stability is preferred.
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     this.logger.log('Gemini AI initialized');
   }
@@ -60,30 +111,104 @@ export class GeminiService {
     }
 
     const systemPrompt = `You are a Principal Data Engineer and Databricks Performance Architect.
-Analyze Spark Physical Plans to find performance issues.
+Analyze the provided Spark Physical Plan or SQL Explain output to find performance issues and specific optimization opportunities.
 
-Focus on:
-1. Cartesian Products (BroadcastNestedLoopJoin without conditions)
+Your analysis MUST be returned as a **VALID JSON OBJECT**. Do not include markdown code blocks (like \`\`\`json).
+
+The JSON structure must match this TypeScript interface exactly:
+
+\`\`\`typescript
+interface AnalysisResult {
+  summary: string; // Executive summary (2-3 sentences)
+  
+  // DAG Visualization Data
+  dagNodes: { id: string; name: string; type: string; metric?: string }[];
+  dagLinks: { source: string; target: string }[];
+  
+  // Resource Estimations
+  resourceMetrics: { stageId: string; cpuPercentage: number; memoryMb: number }[];
+  
+  // Optimization Tips
+  optimizations: {
+    title: string;
+    severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+    description: string;
+    codeSuggestion?: string;
+    originalPattern?: string;
+    estimated_time_saved_seconds?: number;
+    estimated_cost_saved_usd?: number;
+    confidence_score?: number; // 0-100
+    implementation_complexity?: 'Low' | 'Medium' | 'High';
+    affected_stages?: string[]; // IDs of dagNodes
+    enabledInPlayground?: boolean; // Set true if this is suitable for logical "what-if" testing
+  }[];
+  
+  estimatedDurationMin?: number;
+
+  // Cluster Sizing Recommendations
+  clusterRecommendation?: {
+    current: { nodes: number; type: string; costPerHour: number }; // Infer current if possible, otherwise guess standard
+    recommended: { nodes: number; type: string; costPerHour: number };
+    reasoning: string;
+    expectedImprovement: string;
+  };
+
+  // What-If Analysis Scenarios
+  whatIfScenarios?: {
+    scenario: string; // e.g., "Switch to Broadcast Join" or "Scale up Cluster"
+    timeReduction: string; // e.g. "40%"
+    costSavings: string; // e.g. "$15/run"
+    complexity: string; // e.g. "Low"
+    implementation: string; // Short description
+  }[];
+
+  // Predictive Scalability Analysis
+  performancePrediction?: {
+    baselineExecutionTime: number; // Seconds
+    predictedExecutionTime: number; // Seconds (after optimizations)
+    
+    // Impact of data growing
+    dataScaleImpact: {
+      dataSize: "1x" | "10x" | "100x";
+      currentTime: number; // Predicted seconds at this scale (unoptimized)
+      optimizedTime: number; // Predicted seconds at this scale (optimized)
+      breakingPoint?: string; // e.g. "OOM expected at 50x"
+    }[];
+    
+    // Bottleneck evolution
+    bottleneckProgression: {
+      stage: string;
+      currentImpact: number; // % of total time
+      at10xScale: number; // % of total time
+      at100xScale: number; // % of total time
+      recommendation: string;
+    }[];
+  };
+
+  // Historical Trends (SIMULATED based on typical patterns for similar workloads)
+  historicalTrend?: {
+    dates: string[]; // Last 5-7 executions, e.g. "2023-10-01"
+    executionTimes: number[];
+    costs: number[];
+    optimizationsApplied: string[];
+    roi: number; // %
+  };
+}
+\`\`\`
+
+**Focus on:**
+1. Cartesian Products (BroadcastNestedLoopJoin)
 2. Shuffle Storms (Exchange hashpartitioning)
-3. Spill to Disk
+3. Spill to Disk / Memory Pressure
 4. Scan Inefficiency (missing filters, Z-Ordering)
-5. Data Skew
+5. Skew (partition data imbalance)
 
-Return ONLY a valid JSON object (no markdown, no code blocks):
-{
-  "summary": "Executive summary (2-3 sentences)",
-  "dagNodes": [{ "id": "1", "name": "...", "type": "Scan|Filter|Join|Shuffle|Project|Aggregate", "metric": "..." }],
-  "dagLinks": [{ "source": "1", "target": "2" }],
-  "resourceMetrics": [{ "stageId": "Stage 1", "cpuPercentage": 75, "memoryMb": 2048 }],
-  "optimizations": [{
-    "title": "Issue Title",
-    "severity": "HIGH|MEDIUM|LOW",
-    "description": "Detailed description",
-    "codeSuggestion": "Optimized code",
-    "originalPattern": "Problematic pattern"
-  }],
-  "estimatedDurationMin": 15
-}`;
+**IMPORTANT:**
+- **Ensure the DAG is FULLY CONNECTED.** Source nodes (Scan, FileScan, etc.) MUST be linked to their subsequent operation. Do not leave any orphaned nodes.
+- If you cannot determine exact numbers, provide reasonable **estimates** based on typical Spark behavior for the observed plan structure.
+- For "historicalTrend", since this is a stateless analysis, **SIMULATE** a plausible history for a job with these characteristics (e.g. slowly degrading performance over time due to data growth).
+- Populate "performancePrediction" by extrapolating the current bottlenecks.
+`;
 
     const prompt = `Analyze this Spark execution plan:\n\n${content}`;
 
@@ -91,7 +216,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
       const result = await this.model.generateContent({
         contents: [
           { role: 'user', parts: [{ text: systemPrompt }] },
-          { role: 'model', parts: [{ text: 'Understood. I will analyze and return JSON.' }] },
+          { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and return the explicit JSON structure requested, including predictive and advanced metrics.' }] },
           { role: 'user', parts: [{ text: prompt }] },
         ],
         generationConfig: {
@@ -112,12 +237,18 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 
       const parsed = JSON.parse(cleaned) as AnalysisResult;
 
-      if (!parsed.summary || !parsed.dagNodes || !parsed.dagLinks || !parsed.optimizations) {
-        throw new Error('Invalid response structure');
+      // Basic validation
+      if (!parsed.summary || !parsed.dagNodes || !parsed.optimizations) {
+        throw new Error('Invalid response structure: Missing core fields');
       }
 
-      this.logger.log(`Analysis: ${parsed.dagNodes.length} nodes, ${parsed.optimizations.length} optimizations`);
-      return parsed;
+      this.logger.log(`Analysis completed: ${parsed.dagNodes.length} nodes, ${parsed.optimizations.length} optimizations`);
+
+      // EXPERIMENTAL: Deterministic Repair for Orphan Scans
+      // Sometimes the LLM fails to link the source scan to the next stage. We fix this locally.
+      const repaired = this.repairDagConnectivity(parsed);
+
+      return repaired;
     } catch (error) {
       this.logger.error('Gemini analysis failed:', error);
       throw error;
@@ -177,6 +308,80 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
     } catch (error) {
       this.logger.error('Gemini chat failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Post-processing heuristic to connect orphan nodes.
+   * Specifically targets "Scan" nodes that have no outgoing links and connects them
+   * to the most likely next node (a root node of another component).
+   */
+  private repairDagConnectivity(result: AnalysisResult): AnalysisResult {
+    try {
+      const { dagNodes, dagLinks } = result;
+      if (!dagNodes || !dagLinks) return result;
+
+      const sources = new Set(dagLinks.map(l => l.source));
+      const targets = new Set(dagLinks.map(l => l.target));
+
+      // 1. Identify "Orphan Scans" - Nodes that should be sources but go nowhere
+      // Look for type "Scan", "Source", "Read", or "HiveTableRelation"
+      const orphanScans = dagNodes.filter(n => {
+        const type = n.type ? n.type.toLowerCase() : '';
+        const name = n.name ? n.name.toLowerCase() : '';
+        const isScan = type.includes('scan') || type.includes('read') || type.includes('source') || name.includes('scan');
+        const hasNoOutgoing = !sources.has(n.id);
+        return isScan && hasNoOutgoing;
+      });
+
+      if (orphanScans.length === 0) return result;
+
+      this.logger.log(`Found ${orphanScans.length} orphan scan nodes. Attempting repair...`);
+
+      // 2. Identify "Potential Targets" - Nodes that have NO incoming links (Roots of other trees)
+      // Exclude the orphans themselves
+      const potentialTargets = dagNodes.filter(n =>
+        !targets.has(n.id) &&
+        !orphanScans.find(o => o.id === n.id)
+      );
+
+      orphanScans.forEach(scan => {
+        // Heuristic: Connect to the first available potential target that isn't itself a scan
+        // (Assuming a Scan feeds into a Filter, Project, or Exchange)
+        let target = potentialTargets.find(t => {
+          const tType = t.type.toLowerCase();
+          return !tType.includes('scan') && !tType.includes('read');
+        });
+
+        // Fallback: If no non-scan targets (weird), just take the first other root
+        if (!target && potentialTargets.length > 0) {
+          target = potentialTargets[0];
+        }
+
+        // Deep Fallback: If no roots found (maybe a cycle?), try the immediate next node in the array
+        if (!target) {
+          const idx = dagNodes.findIndex(n => n.id === scan.id);
+          if (idx !== -1 && idx + 1 < dagNodes.length) {
+            target = dagNodes[idx + 1];
+          }
+        }
+
+        if (target && target.id !== scan.id) {
+          this.logger.log(`Repairing DAG: Forcing link ${scan.id} -> ${target.id}`);
+          dagLinks.push({ source: scan.id, target: target.id });
+
+          // Add to targets set to avoid multi-linking if we want 1-to-1 (optional, but safer)
+          targets.add(target.id);
+        }
+      });
+
+      return {
+        ...result,
+        dagLinks
+      };
+    } catch (e) {
+      this.logger.error('Error in DAG repair:', e);
+      return result; // Fail safe, return original
     }
   }
 }

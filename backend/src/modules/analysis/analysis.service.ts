@@ -9,39 +9,7 @@ import { GeminiService } from '../../integrations/gemini/gemini.service';
 import { CreateAnalysisDto, AnalysisQueryDto } from './dto';
 import { createHash } from 'crypto';
 import { AnalysisStatus, Severity, Prisma } from '@prisma/client';
-
-export interface AnalysisResult {
-  summary: string;
-  dagNodes: Array<{
-    id: string;
-    name: string;
-    type: string;
-    metric?: string;
-  }>;
-  dagLinks: Array<{
-    source: string;
-    target: string;
-  }>;
-  resourceMetrics: Array<{
-    stageId: string;
-    cpuPercentage: number;
-    memoryMb: number;
-  }>;
-  optimizations: Array<{
-    title: string;
-    severity: string;
-    description: string;
-    codeSuggestion?: string;
-    originalPattern?: string;
-  }>;
-  codeMappings?: Array<{
-    filePath: string;
-    lineNumber: number;
-    code: string;
-    relevanceExplanation: string;
-  }>;
-  estimatedDurationMin?: number;
-}
+import { AnalysisResult } from '../../integrations/gemini/gemini.service';
 
 @Injectable()
 export class AnalysisService {
@@ -50,7 +18,7 @@ export class AnalysisService {
   constructor(
     private prisma: PrismaService,
     private gemini: GeminiService,
-  ) {}
+  ) { }
 
   async create(userId: string, dto: CreateAnalysisDto) {
     // Generate hash for caching/deduplication
