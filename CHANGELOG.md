@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.0.0...v1.1.0) (2025-12-07)
+
+
+### Features
+
+* Configure frontend API URL at build time, remove Nginx proxy, and update deployment workflow. ([fe0f206](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/fe0f206c6178122f3eb64e559ffb1ffc7c63a726))
+
 # 1.0.0 (2025-12-07)
 
 
