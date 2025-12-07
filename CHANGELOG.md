@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.1.0...v1.2.0) (2025-12-07)
+
+
+### Features
+
+* Configure Cloud Run deployment with timeout and environment variables, and update backend to listen on all network interfaces. ([fb7e4c0](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/fb7e4c01287f6f0f21e50d0580da9b031ad1672c))
+
 # [1.1.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.0.0...v1.1.0) (2025-12-07)
 
 
