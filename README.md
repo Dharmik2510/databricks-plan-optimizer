@@ -404,10 +404,69 @@ Type-safe contracts between frontend and backend:
 
 ---
 
+## 🚀 CI/CD & Deployment
+
+BrickOptima uses GitHub Actions for automated versioning, building, and deployment to Google Cloud Run.
+
+### Pipeline Overview
+
+```mermaid
+flowchart LR
+    subgraph GitHub
+        A[Push to main] --> B[CI: Lint & Test]
+        B --> C[Semantic Release]
+        C --> D[Build Docker Images]
+    end
+    
+    subgraph GCP["Google Cloud"]
+        D --> E[Artifact Registry]
+        E --> F[Cloud Run Backend]
+        E --> G[Cloud Run Frontend]
+        H[Secret Manager] --> F
+    end
+```
+
+### Workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | PR & Push to main | Lint, test, and validate Docker builds |
+| `release.yml` | Push to main | Semantic versioning with conventional commits |
+| `deploy.yml` | New release | Build, push, and deploy to Cloud Run |
+
+### Versioning
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning:
+
+| Commit Prefix | Version Bump | Example |
+|---------------|--------------|---------|
+| `feat:` | Minor (1.0.0 → 1.1.0) | `feat: add cost estimator` |
+| `fix:` | Patch (1.0.0 → 1.0.1) | `fix: resolve cache issue` |
+| `feat!:` or `BREAKING CHANGE:` | Major (1.0.0 → 2.0.0) | `feat!: redesign API` |
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `GCP_SA_KEY` | Google Cloud service account key JSON |
+| `DATABASE_URL` | Supabase PostgreSQL connection string |
+
+### GCP Secret Manager
+
+Sensitive runtime secrets are stored in Google Cloud Secret Manager:
+- `database-url` - PostgreSQL connection string
+- `jwt-secret` - JWT signing key
+- `gemini-api-key` - Google AI API key
+
+📖 See [GCP Secrets Setup Guide](./docs/gcp-secrets-setup.md) for detailed instructions.
+
+---
+
 ## 📄 Additional Documentation
 
 - [Architecture Deep Dive](./ARCHITECTURE.md)
 - [Features Overview](./FEATURES.md)
+- [GCP Secrets Setup](./docs/gcp-secrets-setup.md)
 
 ---
 

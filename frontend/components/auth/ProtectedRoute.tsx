@@ -34,7 +34,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
           {/* Loading text */}
           <div className="text-center">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">BrickOptima</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-2c">BrickOptima</h2>
             <div className="flex items-center gap-2 text-slate-600">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm font-medium">Loading your workspace...</span>
