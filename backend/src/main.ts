@@ -46,9 +46,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   const port = configService.get<number>('PORT', 3001);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  logger.log(`🚀 BrickOptima API running on http://localhost:${port}`);
+  logger.log(`🚀 BrickOptima API running on http://0.0.0.0:${port}`);
   logger.log(`📚 API Prefix: /api/v1`);
   logger.log(`🔗 CORS Origin: ${corsOrigin}`);
 }
