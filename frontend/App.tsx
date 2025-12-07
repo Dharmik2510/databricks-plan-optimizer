@@ -143,7 +143,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
-      <Header />
+      <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} appState={appState} resetApp={resetApp} goToNewAnalysis={goToNewAnalysis} />
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
@@ -333,14 +333,14 @@ const App = () => (
   </ErrorBoundary>
 );
 
-const Header = () => {
+const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
   const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-6 shadow-xl z-30 flex-shrink-0 relative">
       <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-gradient-x bg-[length:200%_auto]"></div>
       <div className="flex items-center gap-8 relative z-10">
-        <div className="font-bold text-lg flex items-center gap-3 text-white group cursor-pointer select-none">
+        <button onClick={onLogoClick} className="font-bold text-lg flex items-center gap-3 text-white group cursor-pointer select-none bg-transparent border-none outline-none">
           <div className="relative">
             <div className="absolute inset-0 bg-orange-500 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
             <span className="relative bg-gradient-to-br from-orange-500 to-red-600 p-2 rounded-xl shadow-lg flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300 border border-white/10">
@@ -350,7 +350,7 @@ const Header = () => {
           <div className="flex flex-col">
             <span className="tracking-tight text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">BrickOptima</span>
           </div>
-        </div>
+        </button>
       </div>
       <div className="flex items-center gap-5 relative z-10">
         <div className="hidden lg:flex items-center gap-3 bg-slate-900/50 border border-slate-700 hover:border-slate-600 rounded-xl px-4 py-2 text-xs text-slate-400 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500/50 transition-all w-72 group shadow-inner">
