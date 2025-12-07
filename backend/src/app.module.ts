@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AnalysisModule } from './modules/analysis/analysis.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { GeminiModule } from './integrations/gemini/gemini.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { GeminiModule } from './integrations/gemini/gemini.module';
 
     // Core modules
     PrismaModule,
+    HealthModule,
 
     // Feature modules
     AuthModule,
@@ -50,4 +52,4 @@ import { GeminiModule } from './integrations/gemini/gemini.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

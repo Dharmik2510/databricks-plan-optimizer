@@ -17,8 +17,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
-    this.logger.log('✅ Database connected');
+    try {
+      await this.$connect();
+      this.logger.log('✅ Database connected');
+    } catch (error) {
+      this.logger.error(`❌ Database connection failed: ${error.message}`);
+      this.logger.error('DATABASE_URL is set:', !!process.env.DATABASE_URL);
+      // Don't throw - let the app start and fail on first DB operation
+      // This allows health checks to work and provides better error messages
+    }
   }
 
   async onModuleDestroy() {
