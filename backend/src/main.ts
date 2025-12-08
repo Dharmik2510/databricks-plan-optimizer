@@ -23,8 +23,26 @@ async function bootstrap() {
 
   // CORS configuration
   const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000');
+  const allowedOrigins = corsOrigin.split(',').map(origin => origin.trim()).filter(Boolean);
+
+  logger.log(`🔐 CORS allowed origins: ${allowedOrigins.join(', ')}`);
+
   app.enableCors({
-    origin: corsOrigin.split(',').map(origin => origin.trim()),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, server-to-server)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+
+      // Log rejected origins for debugging
+      logger.warn(`🚫 CORS rejected origin: ${origin}`);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

@@ -183,9 +183,41 @@ jobs:
             --max-instances 5
 
       - name: Get frontend URL
+        id: frontend-url
         run: |
           URL=$(gcloud run services describe ${{ env.FRONTEND_SERVICE_NAME }} --region ${{ env.GCP_REGION }} --format 'value(status.url)')
+          echo "FRONTEND_URL=$URL" >> $GITHUB_OUTPUT
           echo "Frontend deployed to: $URL"
+
+    outputs:
+      frontend_url: ${{ steps.frontend-url.outputs.FRONTEND_URL }}
+
+  # Update backend CORS with actual frontend URL (required for mobile browsers)
+  update-backend-cors:
+    name: Update Backend CORS
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Update backend with frontend CORS origin
+        run: |
+          FRONTEND_URL="${{ needs.deploy-frontend.outputs.frontend_url }}"
+          CORS_ORIGINS="${FRONTEND_URL},http://localhost:3000,http://localhost:5173"
+          echo "Updating backend CORS_ORIGIN to: ${CORS_ORIGINS}"
+          gcloud run services update ${{ env.BACKEND_SERVICE_NAME }} \
+            --region ${{ env.GCP_REGION }} \
+            --update-env-vars "CORS_ORIGIN=${CORS_ORIGINS}"
+          echo "✅ Backend CORS updated for mobile browser compatibility"
 
   # Note: This step may fail if Supabase blocks GitHub Actions IPs
   # Run migrations manually: cd backend && DATABASE_URL="..." npx prisma migrate deploy
