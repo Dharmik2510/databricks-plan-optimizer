@@ -214,9 +214,10 @@ jobs:
           FRONTEND_URL="${{ needs.deploy-frontend.outputs.frontend_url }}"
           CORS_ORIGINS="${FRONTEND_URL},http://localhost:3000,http://localhost:5173"
           echo "Updating backend CORS_ORIGIN to: ${CORS_ORIGINS}"
+          # Use ^^ as separator to avoid issues with colons in URLs
           gcloud run services update ${{ env.BACKEND_SERVICE_NAME }} \
             --region ${{ env.GCP_REGION }} \
-            --update-env-vars "CORS_ORIGIN=${CORS_ORIGINS}"
+            --set-env-vars "^@@^CORS_ORIGIN=${CORS_ORIGINS}@@NODE_ENV=production"
           echo "✅ Backend CORS updated for mobile browser compatibility"
 
   # Note: This step may fail if Supabase blocks GitHub Actions IPs
