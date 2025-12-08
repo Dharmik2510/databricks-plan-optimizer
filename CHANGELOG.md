@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.4.0...v1.5.0) (2025-12-08)
+
+
+### Features
+
+* Set `NODE_ENV=production` for backend service and update `gcloud run` env var syntax to use `^@@^` separator. ([ae598b6](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/ae598b6f09b34cc870a8dfe82f548867a46a5bb7))
+
 # [1.4.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.3.0...v1.4.0) (2025-12-08)
 
 
