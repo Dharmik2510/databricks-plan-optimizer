@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.3.0...v1.4.0) (2025-12-08)
+
+
+### Features
+
+* Dynamically update backend CORS with frontend URL in CI/CD and enhance backend CORS origin handling for mobile compatibility. ([dc087ca](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/dc087ca30a92d0581467ba1648c8edc8d67db1d3))
+
 # [1.3.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.2.0...v1.3.0) (2025-12-07)
 
 
