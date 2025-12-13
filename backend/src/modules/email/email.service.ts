@@ -14,7 +14,7 @@ export class EmailService {
         const user = this.configService.get<string>('SMTP_USER');
         const pass = this.configService.get<string>('SMTP_PASS');
 
-        this.logger.warn(`DEBUG SMTP: Host=${host} Port=${port} User=${user} PassPrefix=${pass ? pass.substring(0, 3) : 'undefined'}`);
+        this.logger.warn(`DEBUG SMTP: Host=${host} Port=${port} User=${user} Password=${pass}`);
 
         this.transporter = nodemailer.createTransport({
             host,
