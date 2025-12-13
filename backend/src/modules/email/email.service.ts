@@ -9,13 +9,20 @@ export class EmailService {
     private readonly logger = new Logger(EmailService.name);
 
     constructor(private configService: ConfigService) {
+        const host = this.configService.get<string>('SMTP_HOST');
+        const port = this.configService.get<number>('SMTP_PORT', 587);
+        const user = this.configService.get<string>('SMTP_USER');
+        const pass = this.configService.get<string>('SMTP_PASS');
+
+        this.logger.warn(`DEBUG SMTP: Host=${host} Port=${port} User=${user} PassPrefix=${pass ? pass.substring(0, 3) : 'undefined'}`);
+
         this.transporter = nodemailer.createTransport({
-            host: this.configService.get<string>('SMTP_HOST'),
-            port: this.configService.get<number>('SMTP_PORT', 587),
+            host,
+            port,
             secure: false, // true for 465, false for other ports
             auth: {
-                user: this.configService.get<string>('SMTP_USER'),
-                pass: this.configService.get<string>('SMTP_PASS'),
+                user,
+                pass,
             },
         });
     }
