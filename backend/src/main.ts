@@ -39,6 +39,12 @@ async function bootstrap() {
         return callback(null, true);
       }
 
+      // Allow generated Cloud Run frontend URLs securely
+      // Matches https://brickoptima-frontend-[hash].[region].run.app
+      if (origin.match(/^https:\/\/brickoptima-frontend-.*\.run\.app$/)) {
+        return callback(null, true);
+      }
+
       // Log rejected origins for debugging
       logger.warn(`🚫 CORS rejected origin: ${origin}`);
       callback(new Error(`Origin ${origin} not allowed by CORS`));
