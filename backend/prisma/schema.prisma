@@ -21,6 +21,10 @@ model User {
   name          String
   avatar        String?
   
+  // Password Reset
+  resetToken          String?   @unique
+  resetTokenExpiry    DateTime?
+  
   // User preferences as flexible JSON
   settings      Json      @default("{}")
   // Example: { "theme": "dark", "emailNotifications": true }

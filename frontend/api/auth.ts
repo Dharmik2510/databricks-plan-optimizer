@@ -34,27 +34,27 @@ export interface LoginData {
 export const authApi = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/register', data);
-    
+
     // Store tokens
     apiClient.setAccessToken(response.accessToken);
     localStorage.setItem('refreshToken', response.refreshToken);
-    
+
     return response;
   },
 
   login: async (data: LoginData): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>('/auth/login', data);
-    
+
     // Store tokens
     apiClient.setAccessToken(response.accessToken);
     localStorage.setItem('refreshToken', response.refreshToken);
-    
+
     return response;
   },
 
   logout: async (): Promise<void> => {
     const refreshToken = localStorage.getItem('refreshToken');
-    
+
     try {
       if (refreshToken) {
         await apiClient.post('/auth/logout', { refreshToken });
@@ -78,6 +78,14 @@ export const authApi = {
 
   getActiveSessions: async () => {
     return apiClient.get('/auth/sessions');
+  },
+
+  forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post('/auth/forgot-password', { email });
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post('/auth/reset-password', { token, newPassword });
   },
 };
 

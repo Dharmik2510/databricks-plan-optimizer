@@ -385,10 +385,7 @@ const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
         </button>
       </div>
       <div className="flex items-center gap-5 relative z-10">
-        <div className="hidden lg:flex items-center gap-3 bg-slate-900/50 border border-slate-700 hover:border-slate-600 rounded-xl px-4 py-2 text-xs text-slate-400 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500/50 transition-all w-72 group shadow-inner">
-          <Search className="w-4 h-4 text-slate-500 group-hover:text-orange-500 transition-colors" />
-          <input type="text" placeholder="Search executions (CMD+K)..." className="bg-transparent outline-none w-full placeholder-slate-600 text-slate-200 font-medium" />
-        </div>
+
 
         <button
           onClick={toggleTheme}

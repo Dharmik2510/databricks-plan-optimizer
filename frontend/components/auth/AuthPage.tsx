@@ -17,17 +17,19 @@ import {
   AlertCircle,
   Loader2,
   Github,
-  Chrome
+  Chrome,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
 import { ThreeBackground } from '../ThreeBackground';
+import { authApi } from '../../api';
 
 interface AuthPageProps {
   onAuthSuccess?: () => void;
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD' | 'RESET_PASSWORD'>('LOGIN');
   const [showPassword, setShowPassword] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -35,12 +37,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Password validation state
   const [passwordFocus, setPasswordFocus] = useState(false);
 
   const { login, register, isLoading, error, clearError } = useAuth();
+
+  // Check for reset token in URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      setResetToken(token);
+      setMode('RESET_PASSWORD');
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Password requirements
   const passwordRequirements = [
@@ -56,12 +72,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   useEffect(() => {
     clearError();
     setLocalError(null);
-  }, [isLogin, clearError]);
+    setSuccessMessage(null);
+  }, [mode, clearError]);
 
-  const handleToggleMode = () => {
+  const switchMode = (newMode: 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD') => {
     setIsAnimating(true);
     setTimeout(() => {
-      setIsLogin(!isLogin);
+      setMode(newMode);
       setIsAnimating(false);
       // Reset form
       setEmail('');
@@ -75,46 +92,42 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    setSuccessMessage(null);
     setIsSubmitting(true);
 
-    // Validation
-    if (!email || !password) {
-      setLocalError('Please fill in all required fields');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!isLogin && !name) {
-      setLocalError('Please enter your name');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!isLogin && !allRequirementsMet) {
-      setLocalError('Please meet all password requirements');
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      if (isLogin) {
+      if (mode === 'LOGIN') {
+        if (!email || !password) throw new Error('Please fill in all fields');
         await login({ email, password });
-      } else {
+        onAuthSuccess?.();
+      } else if (mode === 'REGISTER') {
+        if (!email || !password || !name) throw new Error('Please fill in all fields');
+        if (!allRequirementsMet) throw new Error('Please meet all password requirements');
         await register({ email, password, name });
+        onAuthSuccess?.();
+      } else if (mode === 'FORGOT_PASSWORD') {
+        if (!email) throw new Error('Please enter your email');
+        const res = await authApi.forgotPassword(email);
+        setSuccessMessage(res.message);
+      } else if (mode === 'RESET_PASSWORD') {
+        if (!password) throw new Error('Please enter a new password');
+        if (!allRequirementsMet) throw new Error('Please meet all password requirements');
+        if (!resetToken) throw new Error('Invalid reset token');
+        const res = await authApi.resetPassword(resetToken, password);
+        setSuccessMessage(res.message);
+        setTimeout(() => switchMode('LOGIN'), 3000);
       }
-      onAuthSuccess?.();
-    } catch (err) {
-      // Error is handled by the auth context
+    } catch (err: any) {
+      setLocalError(err.message || 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const displayError = localError || error;
+  const displayError = localError || (mode !== 'FORGOT_PASSWORD' && mode !== 'RESET_PASSWORD' ? error : null);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated Background */}
       {/* 3D Animated Background */}
       <ThreeBackground showGrids={true} />
 
@@ -180,7 +193,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
 
-        {/* Right Panel - Auth Form */}
+        {/* Right Panel - Form */}
         <div className="w-full lg:w-1/2 bg-slate-900/80 backdrop-blur-xl p-8 lg:p-12 relative border-l border-white/5">
 
           {/* Mobile logo */}
@@ -194,12 +207,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
           {/* Form Header */}
           <div className={`transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
             <h2 className="text-3xl font-bold text-white mb-2">
-              {isLogin ? 'Welcome back' : 'Create account'}
+              {mode === 'LOGIN' ? 'Welcome back' : mode === 'REGISTER' ? 'Create account' : mode === 'FORGOT_PASSWORD' ? 'Reset Password' : 'New Password'}
             </h2>
             <p className="text-slate-400 mb-8">
-              {isLogin
+              {mode === 'LOGIN'
                 ? 'Enter your credentials to access your dashboard'
-                : 'Start optimizing your Spark workloads today'}
+                : mode === 'REGISTER'
+                  ? 'Start optimizing your Spark workloads today'
+                  : mode === 'FORGOT_PASSWORD'
+                    ? 'Enter your email to receive a reset link'
+                    : 'Enter your new password below'}
             </p>
           </div>
 
@@ -211,11 +228,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             </div>
           )}
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3 animate-fade-in">
+              <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+              <span className="text-emerald-400 text-sm font-medium">{successMessage}</span>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className={`space-y-5 transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
 
             {/* Name field (register only) */}
-            {!isLogin && (
+            {mode === 'REGISTER' && (
               <div className="space-y-2 animate-fade-in">
                 <label className="block text-sm font-medium text-slate-300">
                   Full Name
@@ -234,72 +259,77 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             )}
 
             {/* Email field */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-300">
-                Email Address
-              </label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
-                />
+            {mode !== 'RESET_PASSWORD' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">
+                  Email Address
+                </label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Password field */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-300">
-                Password
-              </label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPasswordFocus(true)}
-                  onBlur={() => setPasswordFocus(false)}
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-
-              {/* Password requirements (register only) */}
-              {!isLogin && (passwordFocus || password.length > 0) && (
-                <div className="mt-3 p-3 bg-slate-800/50 rounded-xl space-y-2 animate-fade-in border border-slate-700/50">
-                  {passwordRequirements.map((req, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex items-center gap-2 text-sm transition-colors ${req.met ? 'text-emerald-400' : 'text-slate-500'
-                        }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${req.met ? 'bg-emerald-500/20' : 'bg-slate-700'
-                        }`}>
-                        {req.met && <Check className="w-3 h-3" />}
-                      </div>
-                      <span className="font-medium">{req.label}</span>
-                    </div>
-                  ))}
+            {mode !== 'FORGOT_PASSWORD' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-300">
+                  {mode === 'RESET_PASSWORD' ? 'New Password' : 'Password'}
+                </label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setPasswordFocus(true)}
+                    onBlur={() => setPasswordFocus(false)}
+                    placeholder="••••••••"
+                    className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {/* Forgot password (login only) */}
-            {isLogin && (
+                {/* Password requirements (register/reset only) */}
+                {(mode === 'REGISTER' || mode === 'RESET_PASSWORD') && (passwordFocus || password.length > 0) && (
+                  <div className="mt-3 p-3 bg-slate-800/50 rounded-xl space-y-2 animate-fade-in border border-slate-700/50">
+                    {passwordRequirements.map((req, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex items-center gap-2 text-sm transition-colors ${req.met ? 'text-emerald-400' : 'text-slate-500'
+                          }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${req.met ? 'bg-emerald-500/20' : 'bg-slate-700'
+                          }`}>
+                          {req.met && <Check className="w-3 h-3" />}
+                        </div>
+                        <span className="font-medium">{req.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Forgot password link */}
+            {mode === 'LOGIN' && (
               <div className="flex justify-end">
                 <button
                   type="button"
+                  onClick={() => switchMode('FORGOT_PASSWORD')}
                   className="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors"
                 >
                   Forgot password?
@@ -307,65 +337,85 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               </div>
             )}
 
+            {/* Actions for Forgot Password mode */}
+            {mode === 'FORGOT_PASSWORD' && (
+              <button
+                type="button"
+                onClick={() => switchMode('LOGIN')}
+                className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors mb-2"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to Login
+              </button>
+            )}
+
             {/* Submit button */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (successMessage !== null && mode === 'FORGOT_PASSWORD')}
               className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group border border-orange-400/20"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>{isLogin ? 'Signing in...' : 'Creating account...'}</span>
+                  <span>Processing...</span>
                 </>
               ) : (
                 <>
-                  <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                  <span>
+                    {mode === 'LOGIN' ? 'Sign In' :
+                      mode === 'REGISTER' ? 'Create Account' :
+                        mode === 'FORGOT_PASSWORD' ? 'Send Reset Link' : 'Reset Password'}
+                  </span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
 
             {/* Divider */}
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-700" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-slate-900/80 text-slate-500 font-medium">Or continue with</span>
-              </div>
-            </div>
+            {mode !== 'FORGOT_PASSWORD' && mode !== 'RESET_PASSWORD' && (
+              <>
+                <div className="relative my-8">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-700" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-slate-900/80 text-slate-500 font-medium">Or continue with</span>
+                  </div>
+                </div>
 
-            {/* Social login buttons */}
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
-              >
-                <Github className="w-5 h-5" />
-                <span>GitHub</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
-              >
-                <Chrome className="w-5 h-5" />
-                <span>Google</span>
-              </button>
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
+                  >
+                    <Github className="w-5 h-5" />
+                    <span>GitHub</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
+                  >
+                    <Chrome className="w-5 h-5" />
+                    <span>Google</span>
+                  </button>
+                </div>
+              </>
+            )}
           </form>
 
           {/* Toggle auth mode */}
-          <p className="mt-8 text-center text-slate-400">
-            {isLogin ? "Don't have an account?" : 'Already have an account?'}
-            <button
-              type="button"
-              onClick={handleToggleMode}
-              className="ml-2 text-orange-400 hover:text-orange-300 font-semibold transition-colors"
-            >
-              {isLogin ? 'Sign up' : 'Sign in'}
-            </button>
-          </p>
+          {(mode === 'LOGIN' || mode === 'REGISTER') && (
+            <p className="mt-8 text-center text-slate-400">
+              {mode === 'LOGIN' ? "Don't have an account?" : 'Already have an account?'}
+              <button
+                type="button"
+                onClick={() => switchMode(mode === 'LOGIN' ? 'REGISTER' : 'LOGIN')}
+                className="ml-2 text-orange-400 hover:text-orange-300 font-semibold transition-colors"
+              >
+                {mode === 'LOGIN' ? 'Sign up' : 'Sign in'}
+              </button>
+            </p>
+          )}
         </div>
       </div>
 
