@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.5.0...v1.6.0) (2025-12-13)
+
+
+### Features
+
+* add recent analyses display, history page, and analysis update API ([452907c](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/452907c9873c72128c2c403ab84275fb8347724e))
+
 # [1.5.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.4.0...v1.5.0) (2025-12-08)
 
 
