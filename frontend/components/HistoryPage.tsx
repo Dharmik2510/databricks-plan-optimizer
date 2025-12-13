@@ -242,7 +242,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNe
                                                         <div className="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-2">
                                                             {item.title || 'Untitled Analysis'}
                                                         </div>
-                                                        <div className="text-xs text-slate-500 font-mono mt-0.5 opacity-60">{item.id.substring(0, 8)}</div>
+
                                                     </div>
                                                 )}
                                             </td>

@@ -428,7 +428,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
     </div>
     <div className="mt-auto p-4 border-t border-slate-800">
       {appState === AppState.SUCCESS && <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><LogOut className="w-4 h-4" /> Reset Context</button>}
-      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><BookOpen className="w-3 h-3" /> v2.5.0-beta</div>
+      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><BookOpen className="w-3 h-3" /> v{__APP_VERSION__}</div>
     </div>
   </aside>
 );
