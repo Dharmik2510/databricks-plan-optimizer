@@ -100,7 +100,7 @@ jobs:
             --max-instances 10 \
             --timeout 300 \
             --set-env-vars "NODE_ENV=production,CORS_ORIGIN=*,SMTP_HOST=smtp.gmail.com,SMTP_PORT=587" \
-            --set-secrets "DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest,GEMINI_API_KEY=gemini-api-key:latest,SMTP_PASS=smtp-pass:latest,SMTP_USER=smtp-user:latest,FRONTEND_URL=frontend-url:latest"
+            --set-secrets "DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest,GEMINI_API_KEY=gemini-api-key:latest,SMTP_PASS=SMTP_PASS:latest,SMTP_USER=smtp-user:latest,FRONTEND_URL=frontend-url:latest"
 
       - name: Get backend URL
         id: backend-url
