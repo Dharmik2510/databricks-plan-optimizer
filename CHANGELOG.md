@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.7.1...v1.8.0) (2025-12-13)
+
+
+### Features
+
+* Streamline SMTP configuration and enhance URL cleaning to prevent double slashes in frontend and backend. ([5dbbc58](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/5dbbc582ddb8900f03ac05f377dfd1e689fa0521))
+
 ## [1.7.1](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.7.0...v1.7.1) (2025-12-13)
 
 
