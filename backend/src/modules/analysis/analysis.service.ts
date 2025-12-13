@@ -163,14 +163,43 @@ export class AnalysisService {
     return null;
   }
 
+  async getRecent(userId: string) {
+    return this.prisma.analysis.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        title: true,
+        inputType: true,
+        status: true,
+        severity: true,
+        processingMs: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
   async findAll(userId: string, query: AnalysisQueryDto) {
-    const { page = 1, limit = 10, status, severity } = query;
+    const { page = 1, limit = 10, status, severity, search, startDate, endDate } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.AnalysisWhereInput = {
       userId,
       ...(status && { status }),
       ...(severity && { severity }),
+      ...(search && {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+      ...((startDate || endDate) && {
+        createdAt: {
+          ...(startDate && { gte: new Date(startDate) }),
+          ...(endDate && { lte: new Date(endDate) }),
+        },
+      }),
     };
 
     const [analyses, total] = await Promise.all([
@@ -242,6 +271,23 @@ export class AnalysisService {
     }
 
     return analysis;
+  }
+
+  async update(userId: string, analysisId: string, dto: { title?: string }) {
+    const analysis = await this.prisma.analysis.findFirst({
+      where: { id: analysisId, userId },
+    });
+
+    if (!analysis) {
+      throw new NotFoundException('Analysis not found');
+    }
+
+    return this.prisma.analysis.update({
+      where: { id: analysisId },
+      data: {
+        ...(dto.title && { title: dto.title }),
+      },
+    });
   }
 
   async delete(userId: string, analysisId: string) {

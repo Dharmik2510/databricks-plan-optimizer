@@ -123,8 +123,11 @@ class ApiClient {
       throw new Error(message);
     }
 
-    // Handle wrapped response
-    return (data as ApiResponse<T>).data ?? data;
+    // Handle wrapped response - only unwrap if it matches ApiResponse structure
+    if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
+      return (data as ApiResponse<T>).data;
+    }
+    return data;
   }
 
   async get<T>(endpoint: string): Promise<T> {
@@ -147,6 +150,29 @@ class ApiClient {
 
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  // Analysis Endpoints
+  async getRecentAnalyses() {
+    return this.get<any[]>('/analyses/recent');
+  }
+
+  async getAnalysisHistory(params?: any) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        const value = params[key];
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return this.get<any>(`/analyses${queryString}`);
+  }
+
+  async updateAnalysis(id: string, data: { title?: string }) {
+    return this.patch<any>(`/analyses/${id}`, data);
   }
 }
 

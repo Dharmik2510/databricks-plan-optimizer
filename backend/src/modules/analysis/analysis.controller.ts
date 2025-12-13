@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -11,14 +12,14 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
-import { CreateAnalysisDto, AnalysisQueryDto } from './dto';
+import { CreateAnalysisDto, AnalysisQueryDto, UpdateAnalysisDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards';
 import { CurrentUser, CurrentUserData } from '../../common/decorators';
 
 @Controller('analyses')
 @UseGuards(JwtAuthGuard)
 export class AnalysisController {
-  constructor(private readonly analysisService: AnalysisService) {}
+  constructor(private readonly analysisService: AnalysisService) { }
 
   /**
    * Create a new analysis
@@ -30,6 +31,15 @@ export class AnalysisController {
     @Body() dto: CreateAnalysisDto,
   ) {
     return this.analysisService.create(user.id, dto);
+  }
+
+  /**
+   * Get recent analyses (top 5) - Optimized for dashboard
+   * GET /api/v1/analyses/recent
+   */
+  @Get('recent')
+  async getRecent(@CurrentUser() user: CurrentUserData) {
+    return this.analysisService.getRecent(user.id);
   }
 
   /**
@@ -79,6 +89,20 @@ export class AnalysisController {
     @Param('id') id: string,
   ) {
     return this.analysisService.retry(user.id, id);
+  }
+
+  /**
+   * Update an analysis
+   * PATCH /api/v1/analyses/:id
+   */
+  @HttpCode(HttpStatus.OK)
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+    @Body() dto: UpdateAnalysisDto,
+  ) {
+    return this.analysisService.update(user.id, id, dto);
   }
 
   /**

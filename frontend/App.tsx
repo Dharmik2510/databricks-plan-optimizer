@@ -20,6 +20,8 @@ import { ThemeProvider, useTheme } from './ThemeContext';
 import { useAuth } from './store/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
 import { UserMenu } from './components/auth/UserMenu';
+import { RecentAnalyses } from './components/RecentAnalyses';
+import { HistoryPage } from './components/HistoryPage';
 
 const DEMO_REPO_FILES: RepoFile[] = [
   {
@@ -45,6 +47,7 @@ function AppContent() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [prediction, setPrediction] = useState<PerformancePrediction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysisTitle, setAnalysisTitle] = useState('');
 
   const [repoConfig, setRepoConfig] = useState<RepoConfig>({ url: '', branch: 'main', token: '' });
   const [repoFiles, setRepoFiles] = useState<RepoFile[]>([]);
@@ -104,7 +107,7 @@ function AppContent() {
       const data = await client.analyzeDag(
         textContent,
         repoFiles,
-        { enableCodeMapping: true, enableDependencyAnalysis: true, confidenceThreshold: 50, maxMappingsPerNode: 3, deepAnalysis: true },
+        { enableCodeMapping: true, enableDependencyAnalysis: true, confidenceThreshold: 50, maxMappingsPerNode: 3, deepAnalysis: true, title: analysisTitle },
         clusterContext
       );
       setResult(data);
@@ -167,9 +170,18 @@ function AppContent() {
                   <GetStartedCard icon={Sparkles} title="Advanced Insights" desc="Explore cluster right-sizing, config generation, and query rewrites." actionText="Explore insights" onClick={() => setActiveTab(ActiveTab.INSIGHTS)} color="purple" />
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between"><h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><FileClock className="w-5 h-5 text-slate-500" /> Recents</h2><button className="text-sm text-blue-600 dark:text-blue-400 font-bold hover:underline">View all</button></div>
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-                    <table className="w-full text-sm text-left"><thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 uppercase text-xs font-bold"><tr><th className="px-6 py-4">Name</th><th className="px-6 py-4">Type</th><th className="px-6 py-4">Last Modified</th><th className="px-6 py-4">Status</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800"><RecentRow name="Revenue_Join_Optimization" type="Analysis" date="2 hours ago" status="Completed" /><RecentRow name="Nightly_ETL_Pipeline" type="Repository" date="Yesterday" status="Connected" /><RecentRow name="Customer360_View" type="Monitor" date="2 days ago" status="Critical" /><RecentRow name="Log_Ingestion_Stream" type="Analysis" date="3 days ago" status="Optimized" /></tbody></table>
+                  <div className="space-y-4">
+                    <RecentAnalyses
+                      onViewAll={() => setActiveTab(ActiveTab.HISTORY)}
+                      onSelectAnalysis={(id) => {
+                        // Fetch and set result, then go to dashboard
+                        // For now, simpler to just go to history or we need a helper to load analysis
+                        // Let's reuse the load logic from HistoryPage or similar
+                        setActiveTab(ActiveTab.HISTORY);
+                        // Ideally we open it directly, but we need to fetch it first.
+                        // Let's switching to History tab is fine for "View All" or clicking items.
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -209,11 +221,21 @@ function AppContent() {
                             <Server className="w-5 h-5" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Runtime Context</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Provide details for better AI accuracy.</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Analysis Settings</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Configure runtime and metadata.</p>
                           </div>
                         </div>
                         <div className="p-6 space-y-6 flex-1 bg-white dark:bg-slate-900">
+
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Analysis Title</label>
+                            <input
+                              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                              placeholder="e.g. Q4 Revenue Query Optimization"
+                              value={analysisTitle}
+                              onChange={e => setAnalysisTitle(e.target.value)}
+                            />
+                          </div>
 
                           <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Cloud Region</label>
@@ -314,6 +336,16 @@ function AppContent() {
             )}
             {activeTab === ActiveTab.LIVE && <div className="h-full w-full"><LiveMonitor /></div>}
             {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result?.estimatedDurationMin} instances={availableInstances} region={clusterContext.region} /></div>}
+            {activeTab === ActiveTab.HISTORY && (
+              <HistoryPage
+                onNewAnalysis={goToNewAnalysis}
+                onSelectAnalysis={(id, data) => {
+                  setResult(data);
+                  setAppState(AppState.SUCCESS);
+                  setActiveTab(ActiveTab.DASHBOARD);
+                }}
+              />
+            )}
             {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface analysisResult={result} /></div>}
             {activeTab === ActiveTab.REPO && (
               <div className="space-y-6 max-w-5xl mx-auto">{repoFiles.length === 0 && <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm text-center"><div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200 dark:border-slate-700"><GitBranch className="w-8 h-8 text-slate-400" /></div><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Connect a Repository</h3><p className="text-slate-600 dark:text-slate-400 mb-6">Link your GitHub repository to enable deep code traceability.</p><div className="max-w-md mx-auto space-y-4"><input placeholder="https://github.com/..." className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none text-slate-900 dark:text-slate-100" value={repoConfig.url} onChange={e => setRepoConfig({ ...repoConfig, url: e.target.value })} /><button onClick={handleFetchRepo} className="w-full bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Link Repository</button><button onClick={loadDemoRepo} className="w-full bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-bold py-3 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-800">Load Demo Repo</button></div></div>}<CodeMapper mappings={result?.codeMappings} /></div>
@@ -384,6 +416,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
       <button onClick={goToNewAnalysis} className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors shadow-sm mb-6"><Plus className="w-5 h-5" /> New</button>
       <div className="space-y-1">
         <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
+        <SidebarItem icon={FileClock} label="History" active={activeTab === ActiveTab.HISTORY} onClick={() => setActiveTab(ActiveTab.HISTORY)} />
         <div className="h-px bg-slate-800 my-2 mx-3"></div>
         <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
         <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />

@@ -33,6 +33,11 @@ export type {
 export const client = {
   get: apiClient.get.bind(apiClient),
   post: apiClient.post.bind(apiClient),
+  patch: apiClient.patch.bind(apiClient),
+  delete: apiClient.delete.bind(apiClient),
+  updateAnalysis: apiClient.updateAnalysis.bind(apiClient),
+  getRecentAnalyses: apiClient.getRecentAnalyses.bind(apiClient),
+  getAnalysisHistory: apiClient.getAnalysisHistory.bind(apiClient),
 
   getCloudInstances: async (region: string): Promise<CloudInstance[]> => {
     // Mock Data - in real app, fetch from backend or static config
@@ -54,7 +59,7 @@ export const client = {
     let analysis = await analysisApi.create({
       content,
       inputType: 'SPARK_PLAN',
-      title: `Analysis ${new Date().toLocaleString()}`
+      title: options?.title || `Analysis ${new Date().toLocaleString()}`
     });
 
     const MAX_RETRIES = 30; // 60 seconds max

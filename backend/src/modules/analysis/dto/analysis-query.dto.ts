@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max, IsEnum } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsEnum, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AnalysisStatus, Severity } from '@prisma/client';
 
@@ -23,4 +23,16 @@ export class AnalysisQueryDto {
   @IsOptional()
   @IsEnum(Severity)
   severity?: Severity;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
 }

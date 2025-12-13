@@ -192,6 +192,7 @@ export enum ActiveTab {
   COST = 'COST',
   REPO = 'REPO',
   LIVE = 'LIVE',
+  HISTORY = 'HISTORY',
 }
 
 export interface RepoConfig {
