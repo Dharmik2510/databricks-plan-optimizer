@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.7.0...v1.7.1) (2025-12-13)
+
+
+### Bug Fixes
+
+* Corrected `SMTP_PASS` secret name casing in deploy workflow. ([4405099](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/4405099c0d1320ae553bd3a43f73a78d5194b4d6))
+
 # [1.7.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.6.0...v1.7.0) (2025-12-13)
 
 
