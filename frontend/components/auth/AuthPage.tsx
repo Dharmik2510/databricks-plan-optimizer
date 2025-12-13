@@ -53,8 +53,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     if (token) {
       setResetToken(token);
       setMode('RESET_PASSWORD');
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clean URL - handle potential double slashes that cause security errors
+      const safePath = window.location.pathname.replace(/^\/+/, '/');
+      window.history.replaceState({}, document.title, safePath);
     }
   }, []);
 

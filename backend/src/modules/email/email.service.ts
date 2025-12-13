@@ -9,26 +9,19 @@ export class EmailService {
     private readonly logger = new Logger(EmailService.name);
 
     constructor(private configService: ConfigService) {
-        const host = this.configService.get<string>('SMTP_HOST');
-        const port = this.configService.get<number>('SMTP_PORT', 587);
-        const user = this.configService.get<string>('SMTP_USER');
-        const pass = this.configService.get<string>('SMTP_PASS');
-
-        this.logger.warn(`DEBUG SMTP: Host=${host} Port=${port} User=${user} Password=${pass}`);
-
         this.transporter = nodemailer.createTransport({
-            host,
-            port,
+            host: this.configService.get<string>('SMTP_HOST'),
+            port: this.configService.get<number>('SMTP_PORT', 587),
             secure: false, // true for 465, false for other ports
             auth: {
-                user,
-                pass,
+                user: this.configService.get<string>('SMTP_USER'),
+                pass: this.configService.get<string>('SMTP_PASS'),
             },
         });
     }
 
     async sendPasswordResetEmail(email: string, token: string) {
-        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000').replace(/\/$/, '');
         const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
         const mailOptions = {
