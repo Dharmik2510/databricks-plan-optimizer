@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.6.0...v1.7.0) (2025-12-13)
+
+
+### Features
+
+* Implement forgot and reset password functionality with backend API, database schema, email service, and frontend UI. ([fe7d2a5](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/fe7d2a5a900f4aafb0e39183fc0a90b34ce730b1))
+
 # [1.6.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.5.0...v1.6.0) (2025-12-13)
 
 
