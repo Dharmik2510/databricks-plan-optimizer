@@ -4,7 +4,7 @@ import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDa
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
-import { OptimizationList } from './components/OptimizationList';
+import { OptimizationPanel } from './components/optimizations/OptimizationPanel';
 import { ChatInterface } from './components/ChatInterface';
 import { CostEstimator } from './components/CostEstimator';
 import { CodeMapper } from './components/CodeMapper';
@@ -14,6 +14,9 @@ import { PredictivePanel } from './components/PredictivePanel';
 import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
+import { ExportButton } from './components/export/ExportButton';
+import { RepositoryPanel } from './components/repository/RepositoryPanel';
+import { RepoConnectForm } from './components/repository/RepoConnectForm';
 import { client } from './api';
 import { AnalysisResult, AppState, ActiveTab, RepoConfig, RepoFile, PerformancePrediction, ClusterContext, CloudInstance } from '../shared/types';
 import { ThemeProvider, useTheme } from './ThemeContext';
@@ -28,13 +31,6 @@ const DEMO_REPO_FILES: RepoFile[] = [
     path: "src/jobs/revenue_analysis.py",
     content: `from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum\n\ndef run_job():\n    spark = SparkSession.builder.appName("RevenueAnalytics").getOrCreate()\n    # 1. READ TRANSACTIONS\n    txns_df = spark.read.parquet("s3://bucket/data/transactions")\n    # Filter for 2023 onwards\n    recent_txns = txns_df.filter(col("transaction_date") >= "2023-01-01")\n    # 2. READ USERS\n    users_df = spark.read.format("csv").option("header", "true").load("s3://bucket/data/users")\n    active_users = users_df.filter(col("status") == "active")\n    # 3. THE JOIN (The Problem Area)\n    # BroadcastNestedLoopJoin BuildRight, Inner\n    raw_joined = recent_txns.join(active_users)\n    # 4. AGGREGATION\n    report = raw_joined.groupBy("user_id").agg(sum("amount").alias("total_spend")).orderBy("user_id")\n    report.explain(True)\n    report.collect()\n\nif __name__ == "__main__":\n    run_job()`
   }
-];
-
-const REGIONS = [
-  { id: 'us-east-1', name: 'US East (N. Virginia)' },
-  { id: 'us-west-2', name: 'US West (Oregon)' },
-  { id: 'eu-west-1', name: 'EU (Ireland)' },
-  { id: 'ap-southeast-1', name: 'Asia Pacific (Singapore)' },
 ];
 
 function AppContent() {
@@ -63,13 +59,44 @@ function AppContent() {
 
   const [availableInstances, setAvailableInstances] = useState<CloudInstance[]>([]);
   const [loadingInstances, setLoadingInstances] = useState(false);
+  const [cloudProvider, setCloudProvider] = useState<'aws' | 'azure' | 'gcp'>('aws');
+  const [availableRegions, setAvailableRegions] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingRegions, setLoadingRegions] = useState(false);
 
-  // Fetch instances when region changes
+  // Fetch regions when cloud provider changes
+  useEffect(() => {
+    const loadRegions = async () => {
+      setLoadingRegions(true);
+      try {
+        const response = await client.get(`/pricing/regions?cloud=${cloudProvider}`) as any;
+        setAvailableRegions(response.regions || []);
+        // Set first region as default if current region is not in the list
+        if (response.regions && response.regions.length > 0) {
+          const regionIds = response.regions.map((r: any) => r.id);
+          if (!regionIds.includes(clusterContext.region)) {
+            setClusterContext(prev => ({ ...prev, region: response.regions[0].id }));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load regions", e);
+        // Fallback to default regions
+        setAvailableRegions([
+          { id: 'us-east-1', name: 'US East (N. Virginia)' },
+          { id: 'us-west-2', name: 'US West (Oregon)' },
+        ]);
+      } finally {
+        setLoadingRegions(false);
+      }
+    };
+    loadRegions();
+  }, [cloudProvider]);
+
+  // Fetch instances when region or cloud provider changes
   useEffect(() => {
     const loadInstances = async () => {
       setLoadingInstances(true);
       try {
-        const instances = await client.getCloudInstances(clusterContext.region || 'us-east-1');
+        const instances = await client.getCloudInstances(clusterContext.region || 'us-east-1', cloudProvider);
         setAvailableInstances(instances);
         // Default to first if current selection is invalid
         if (!instances.some(i => i.id === clusterContext.clusterType)) {
@@ -82,7 +109,7 @@ function AppContent() {
       }
     };
     loadInstances();
-  }, [clusterContext.region]);
+  }, [clusterContext.region, cloudProvider]);
 
   const handleFetchRepo = async () => {
     if (!repoConfig.url) return;
@@ -241,13 +268,18 @@ function AppContent() {
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Cloud Region</label>
                             <div className="relative">
                               <select
-                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50"
                                 value={clusterContext.region}
                                 onChange={e => setClusterContext({ ...clusterContext, region: e.target.value })}
+                                disabled={loadingRegions}
                               >
-                                {REGIONS.map(r => (
-                                  <option key={r.id} value={r.id}>{r.name}</option>
-                                ))}
+                                {loadingRegions ? (
+                                  <option>Loading regions...</option>
+                                ) : (
+                                  availableRegions.map(r => (
+                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                  ))
+                                )}
                               </select>
                               <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
                                 <Globe className="w-4 h-4" />
@@ -321,10 +353,32 @@ function AppContent() {
                 )}
 
                 {result && appState === AppState.SUCCESS && (
-                  <div className="space-y-8 animate-fade-in pb-20">
-                    <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 relative overflow-hidden transition-colors"><div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div><div className="flex items-start gap-6 relative z-10"><div className="p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl border border-orange-100 dark:border-orange-800 hidden sm:block shadow-sm"><Activity className="w-8 h-8" /></div><div className="flex-1"><div className="flex justify-between items-center mb-3"><h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Summary</h3><span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span></div><p className="text-slate-800 dark:text-slate-300 leading-relaxed text-lg font-medium">{result.summary}</p></div></div></section>
+                  <div className="space-y-8 animate-fade-in pb-20" id="dashboard-container">
+                    <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 relative overflow-hidden transition-colors">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+                      <div className="flex items-start gap-6 relative z-10">
+                        <div className="p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl border border-orange-100 dark:border-orange-800 hidden sm:block shadow-sm">
+                          <Activity className="w-8 h-8" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-4">
+                              <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Summary</h3>
+                              <div className="hidden md:block">
+                                <ExportButton result={result} />
+                              </div>
+                            </div>
+                            <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span>
+                          </div>
+                          <p className="text-slate-800 dark:text-slate-300 leading-relaxed text-lg font-medium">{result.summary}</p>
+                          <div className="md:hidden mt-4">
+                            <ExportButton result={result} />
+                          </div>
+                        </div>
+                      </div>
+                    </section>
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8"><EnhancedDagVisualizer nodes={result.dagNodes} links={result.dagLinks} optimizations={result.optimizations} /><ResourceChart data={result.resourceMetrics} /></div>
-                    <OptimizationList optimizations={result.optimizations} />
+                    <OptimizationPanel optimizations={result.optimizations} />
                     {prediction && <><PredictivePanel prediction={prediction} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
                   </div>
                 )}
@@ -335,7 +389,7 @@ function AppContent() {
               <div className="max-w-5xl mx-auto pb-20">{result ? <AdvancedInsights clusterRec={result.clusterRecommendation} configRec={result.sparkConfigRecommendation} rewrites={result.queryRewrites} /> : <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800"><Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" /><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Insights Available</h3><p className="text-slate-600 dark:text-slate-400">Run an analysis first to generate advanced insights.</p><button onClick={goToNewAnalysis} className="mt-6 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold">Go to Analyzer</button></div>}</div>
             )}
             {activeTab === ActiveTab.LIVE && <div className="h-full w-full"><LiveMonitor /></div>}
-            {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result?.estimatedDurationMin} instances={availableInstances} region={clusterContext.region} /></div>}
+            {activeTab === ActiveTab.COST && <div className="max-w-4xl mx-auto"><CostEstimator estimatedDurationMin={result?.estimatedDurationMin} instances={availableInstances} region={clusterContext.region} availableRegions={availableRegions} cloudProvider={cloudProvider} onCloudProviderChange={setCloudProvider} onRegionChange={(r) => setClusterContext(prev => ({ ...prev, region: r }))} /></div>}
             {activeTab === ActiveTab.HISTORY && (
               <HistoryPage
                 onNewAnalysis={goToNewAnalysis}
@@ -348,7 +402,18 @@ function AppContent() {
             )}
             {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface analysisResult={result} /></div>}
             {activeTab === ActiveTab.REPO && (
-              <div className="space-y-6 max-w-5xl mx-auto">{repoFiles.length === 0 && <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm text-center"><div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200 dark:border-slate-700"><GitBranch className="w-8 h-8 text-slate-400" /></div><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Connect a Repository</h3><p className="text-slate-600 dark:text-slate-400 mb-6">Link your GitHub repository to enable deep code traceability.</p><div className="max-w-md mx-auto space-y-4"><input placeholder="https://github.com/..." className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3 text-sm focus:border-orange-500 outline-none text-slate-900 dark:text-slate-100" value={repoConfig.url} onChange={e => setRepoConfig({ ...repoConfig, url: e.target.value })} /><button onClick={handleFetchRepo} className="w-full bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Link Repository</button><button onClick={loadDemoRepo} className="w-full bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-bold py-3 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors border border-orange-200 dark:border-orange-800">Load Demo Repo</button></div></div>}<CodeMapper mappings={result?.codeMappings} /></div>
+              <div className="h-full">
+                {repoFiles.length === 0 ? (
+                  <RepoConnectForm
+                    url={repoConfig.url}
+                    onUrlChange={(url) => setRepoConfig({ ...repoConfig, url })}
+                    onScan={handleFetchRepo}
+                    isLoading={isFetchingRepo}
+                  />
+                ) : (
+                  <RepositoryPanel />
+                )}
+              </div>
             )}
           </div>
         </main>

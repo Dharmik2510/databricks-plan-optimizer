@@ -39,14 +39,30 @@ export const client = {
   getRecentAnalyses: apiClient.getRecentAnalyses.bind(apiClient),
   getAnalysisHistory: apiClient.getAnalysisHistory.bind(apiClient),
 
-  getCloudInstances: async (region: string): Promise<CloudInstance[]> => {
-    // Mock Data - in real app, fetch from backend or static config
-    return [
-      { id: 'm5.xlarge', name: 'm5.xlarge', displayName: 'General Purpose (m5.xlarge)', category: 'General', vCPUs: 4, memoryGB: 16, pricePerHour: 0.192, region },
-      { id: 'm5.2xlarge', name: 'm5.2xlarge', displayName: 'General Purpose (m5.2xlarge)', category: 'General', vCPUs: 8, memoryGB: 32, pricePerHour: 0.384, region },
-      { id: 'c5.4xlarge', name: 'c5.4xlarge', displayName: 'Compute Optimized (c5.4xlarge)', category: 'Compute', vCPUs: 16, memoryGB: 32, pricePerHour: 0.68, region },
-      { id: 'r5.2xlarge', name: 'r5.2xlarge', displayName: 'Memory Optimized (r5.2xlarge)', category: 'Memory', vCPUs: 8, memoryGB: 64, pricePerHour: 0.504, region }
-    ];
+  getCloudInstances: async (region: string, cloudProvider: 'aws' | 'azure' | 'gcp' = 'aws'): Promise<CloudInstance[]> => {
+    try {
+      const response = await apiClient.get(`/pricing/instances?region=${region}&cloud=${cloudProvider}`) as any;
+      return response.instances || [];
+    } catch (error) {
+      console.error('Failed to fetch cloud instances:', error);
+      // Fallback to basic instances if API fails
+      return [
+        { id: 'm5.xlarge', name: 'm5.xlarge', displayName: 'General Purpose (4 vCPU, 16 GB)', category: 'General', vCPUs: 4, memoryGB: 16, pricePerHour: 0.192, region, cloudProvider },
+        { id: 'm5.2xlarge', name: 'm5.2xlarge', displayName: 'General Purpose (8 vCPU, 32 GB)', category: 'General', vCPUs: 8, memoryGB: 32, pricePerHour: 0.384, region, cloudProvider },
+        { id: 'c5.4xlarge', name: 'c5.4xlarge', displayName: 'Compute Optimized (16 vCPU, 32 GB)', category: 'Compute', vCPUs: 16, memoryGB: 32, pricePerHour: 0.68, region, cloudProvider },
+        { id: 'r5.2xlarge', name: 'r5.2xlarge', displayName: 'Memory Optimized (8 vCPU, 64 GB)', category: 'Memory', vCPUs: 8, memoryGB: 64, pricePerHour: 0.504, region, cloudProvider }
+      ];
+    }
+  },
+
+  getRegions: async (cloudProvider: 'aws' | 'azure' | 'gcp' = 'aws'): Promise<Array<{ id: string, name: string }>> => {
+    try {
+      const response = await apiClient.get(`/pricing/regions?cloud=${cloudProvider}`) as any;
+      return response.regions || [];
+    } catch (error) {
+      console.error("Failed to fetch regions:", error);
+      return [];
+    }
   },
 
   fetchRepo: async (config: any, options: any) => {

@@ -196,3 +196,24 @@ model RefreshToken {
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PRICING CACHE - Cache cloud provider pricing data
+// ═══════════════════════════════════════════════════════════════
+
+model PricingCache {
+  id            String   @id @default(cuid())
+  cacheKey      String   @unique // e.g., "aws-us-east-1-instances"
+  data          Json     // Cached pricing data
+  cloudProvider String   // aws, azure, gcp
+  region        String
+  expiresAt     DateTime
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([cloudProvider, region])
+  @@index([expiresAt])
+  @@map("pricing_cache")
+}
+
