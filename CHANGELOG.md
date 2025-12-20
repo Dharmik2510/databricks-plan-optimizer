@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.8.0...v1.9.0) (2025-12-20)
+
+
+### Features
+
+* New features ([#2](https://github.com/Dharmik2510/databricks-plan-optimizer/issues/2)) ([edc8754](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/edc8754b5b0f2747cc165ad20bb55444cb3fae6d))
+
 # [1.8.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.7.1...v1.8.0) (2025-12-13)
 
 
