@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudProvider } from './dto';
-import { PricingClient, GetProductsCommand } from '@aws-sdk/client-pricing';
+// AWS SDK import removed as we now use runs-on.com API via axios
 import axios from 'axios';
 import { CloudCatalogClient } from '@google-cloud/billing';
 import { ConfigService } from '@nestjs/config';
@@ -59,7 +59,7 @@ export class PricingService {
         },
     };
 
-    private readonly pricingClient = new PricingClient({ region: 'us-east-1' });
+
 
     constructor(
         private readonly prisma: PrismaService,
@@ -126,67 +126,54 @@ export class PricingService {
     }
 
     /**
-     * Fetch AWS EC2 pricing using AWS Pricing API
+     * Fetch AWS EC2 pricing using runs-on.com API
      */
     private async fetchAWSPricing(region: string): Promise<CloudInstance[]> {
         try {
-            this.logger.log(`Fetching AWS pricing for ${region}...`);
-            const location = this.awsRegionToLocation(region);
-            if (!location) {
-                this.logger.warn(`Unknown AWS region mapping for ${region}, using fallback`);
-                return this.getFallbackPricing(region, CloudProvider.AWS);
-            }
+            this.logger.log(`Fetching AWS pricing for ${region} via runs-on.com API...`);
 
-            // We filter for a subset of common instances to keep the response manageable
-            // In a real prod environment, you might want to paginate or handle more types
-            const command = new GetProductsCommand({
-                ServiceCode: 'AmazonEC2',
-                Filters: [
-                    { Type: 'TERM_MATCH', Field: 'location', Value: location },
-                    { Type: 'TERM_MATCH', Field: 'operatingSystem', Value: 'Linux' },
-                    { Type: 'TERM_MATCH', Field: 'preInstalledSw', Value: 'NA' },
-                    { Type: 'TERM_MATCH', Field: 'tenancy', Value: 'Shared' },
-                    { Type: 'TERM_MATCH', Field: 'capacitystatus', Value: 'Used' },
-                ],
-                MaxResults: 100, // Limit to 100 to avoid timeouts/limits in this demo
+            // runs-on.com API endpoint
+            // Documentation: https://go.runs-on.com/api
+            const url = `https://go.runs-on.com/api/finder`;
+
+            // We want to fetch instances for the specific region
+            // The API supports filtering by region
+            const validRegion = region === 'us-east-1' ? 'us-east-1' : region;
+
+            // Fetch generic Linux instances
+            const response = await axios.get(url, {
+                params: {
+                    region: validRegion,
+                    os: 'linux', // Default to linux
+                }
             });
 
-            const response = await this.pricingClient.send(command);
+            // The API returns { results: [], top3: ..., ... }
+            const results = response.data.results || [];
 
             const instances: CloudInstance[] = [];
 
-            for (const priceItemStr of response.PriceList || []) {
-                try {
-                    const item = JSON.parse(priceItemStr as string);
-                    const attributes = item.product.attributes;
-                    const terms = item.terms.OnDemand;
+            for (const item of results) {
+                // Map API response to our CloudInstance interface
+                // API Item Example: { "instanceType": "m5.large", "instanceFamily": "m5", "vcpus": 2, "memoryGiB": 8, "avgSpotPrice": 0.029, "avgOnDemandPrice": 0.096, ... }
 
-                    // Simplify: Get the first OnDemand price found
-                    const termId = Object.keys(terms)[0];
-                    const priceDimensions = terms[termId].priceDimensions;
-                    const priceDimensionId = Object.keys(priceDimensions)[0];
-                    const pricePerUnit = priceDimensions[priceDimensionId].pricePerUnit.USD;
+                if (!item.instanceType) continue;
 
-                    if (attributes.instanceType) {
-                        instances.push({
-                            id: attributes.instanceType,
-                            name: attributes.instanceType,
-                            displayName: `${attributes.instanceFamily} ${attributes.instanceType} (${attributes.vcpu} vCPU, ${attributes.memory})`,
-                            category: this.mapInstanceCategory(attributes.instanceFamily),
-                            vCPUs: parseInt(attributes.vcpu),
-                            memoryGB: parseFloat(attributes.memory.replace(' GiB', '')),
-                            pricePerHour: parseFloat(pricePerUnit),
-                            region: region,
-                            cloudProvider: 'aws',
-                        });
-                    }
-                } catch (e) {
-                    continue; // Skip malformed items
-                }
+                instances.push({
+                    id: item.instanceType,
+                    name: item.instanceType,
+                    displayName: `${item.instanceFamily} ${item.instanceType} (${item.vcpus} vCPU, ${item.memoryGiB} GB)`,
+                    category: this.mapInstanceCategory(item.instanceFamily),
+                    vCPUs: item.vcpus,
+                    memoryGB: item.memoryGiB,
+                    pricePerHour: item.avgOnDemandPrice || 0, // Use average on-demand price
+                    region: region,
+                    cloudProvider: 'aws',
+                });
             }
 
             if (instances.length === 0) {
-                this.logger.warn(`No AWS instances found for ${region}, using fallback`);
+                this.logger.warn(`No AWS instances found for ${region} via API, using fallback`);
                 return this.getFallbackPricing(region, CloudProvider.AWS);
             }
 
@@ -197,18 +184,7 @@ export class PricingService {
         }
     }
 
-    private awsRegionToLocation(region: string): string | null {
-        const map: Record<string, string> = {
-            'us-east-1': 'US East (N. Virginia)',
-            'us-east-2': 'US East (Ohio)',
-            'us-west-1': 'US West (N. California)',
-            'us-west-2': 'US West (Oregon)',
-            'eu-west-1': 'EU (Ireland)',
-            'eu-central-1': 'EU (Frankfurt)',
-            // ... add more as needed
-        };
-        return map[region] || map['us-east-1']; // Default to N. Virginia if unknown for safer execution in demo
-    }
+
 
     private mapInstanceCategory(family: string): 'General' | 'Memory' | 'Compute' | 'Storage' | 'GPU' {
         if (family.startsWith('c')) return 'Compute';
