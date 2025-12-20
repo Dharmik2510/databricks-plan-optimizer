@@ -69,7 +69,14 @@ export const DAGNode: React.FC<ComponentProps> = memo(({ node, selected, onClick
                     </div>
                 </div>
                 {isBottleneck && (
-                    <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" />
+                    <div className="group/tooltip relative">
+                        <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" />
+                        {/* Tooltip for bottleneck reason */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-xs rounded shadow-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none">
+                            {node.relatedOptimization?.title || "Potential Bottleneck Detected"}
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+                        </div>
+                    </div>
                 )}
             </div>
 
@@ -80,17 +87,6 @@ export const DAGNode: React.FC<ComponentProps> = memo(({ node, selected, onClick
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                         {node.rowsProcessed ? (node.rowsProcessed >= 1e6 ? `${(node.rowsProcessed / 1e6).toFixed(1)}M` : `${(node.rowsProcessed / 1e3).toFixed(1)}K`) : '-'}
                     </span>
-                </div>
-
-                {/* Mini Bar Chart / Sparkline representation of cost */}
-                <div className="flex flex-col items-end w-16">
-                    <span className="text-[10px] text-slate-400 font-medium">Est. Cost</span>
-                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
-                        <div
-                            className={`h-full rounded-full ${isBottleneck ? 'bg-red-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${Math.min(100, node.estimatedCost || 0)}%` }}
-                        />
-                    </div>
                 </div>
             </div>
 

@@ -8,12 +8,13 @@ import { useToast } from '../../hooks/useToast';
 interface OptimizationPanelProps {
     optimizations: OptimizationTip[];
     className?: string;
+    onViewInDag?: (optimization: OptimizationTip) => void;
 }
 
 type SortOption = 'severity' | 'impact' | 'confidence';
 type FilterOption = 'ALL' | Severity;
 
-export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({ optimizations, className }) => {
+export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({ optimizations, className, onViewInDag }) => {
     const [filter, setFilter] = useState<FilterOption>('ALL');
     const [sortBy, setSortBy] = useState<SortOption>('severity');
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null); // Use index instead of ID
@@ -150,7 +151,7 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({ optimizati
                         expanded={expandedIndex === opt.originalIndex}
                         onToggle={() => setExpandedIndex(expandedIndex === opt.originalIndex ? null : opt.originalIndex)}
                         onApply={() => { }}
-                        onViewInDag={() => { }}
+                        onViewInDag={() => onViewInDag ? onViewInDag(opt) : undefined}
                     />
                 ))}
             </div>

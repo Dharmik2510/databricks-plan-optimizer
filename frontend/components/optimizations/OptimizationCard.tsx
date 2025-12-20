@@ -125,16 +125,6 @@ export const OptimizationCard: React.FC<OptimizationCardProps> = ({
                                 View in DAG
                             </button>
                         )}
-
-                        {onApply && (
-                            <button
-                                onClick={handleApply}
-                                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm shadow-orange-500/20 transition-all active:scale-95"
-                            >
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                Apply Fix
-                            </button>
-                        )}
                     </div>
                 </div>
             )}

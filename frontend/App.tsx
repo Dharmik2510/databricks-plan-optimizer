@@ -63,6 +63,10 @@ function AppContent() {
   const [availableRegions, setAvailableRegions] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingRegions, setLoadingRegions] = useState(false);
 
+  // DAG Visualization State
+  const [dagExpanded, setDagExpanded] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
   // Fetch regions when cloud provider changes
   useEffect(() => {
     const loadRegions = async () => {
@@ -377,8 +381,76 @@ function AppContent() {
                         </div>
                       </div>
                     </section>
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8"><EnhancedDagVisualizer nodes={result.dagNodes} links={result.dagLinks} optimizations={result.optimizations} /><ResourceChart data={result.resourceMetrics} /></div>
-                    <OptimizationPanel optimizations={result.optimizations} />
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8" id="dag-visualizer-section">
+                      {(() => {
+                        // Calculate dynamic cost savings
+                        const currentInstance = availableInstances.find(i => i.id === clusterContext.clusterType);
+                        // Default to $0.5/hr if not found (fallback)
+                        const pricePerHour = currentInstance?.pricePerHour || 0.5;
+
+                        const enrichedOptimizations = result.optimizations.map(opt => {
+                          if (opt.estimated_time_saved_seconds) {
+                            // Calculate cost savings: (seconds / 3600) * price/hr
+                            const costSaved = (opt.estimated_time_saved_seconds / 3600) * pricePerHour;
+                            return { ...opt, estimated_cost_saved_usd: costSaved };
+                          }
+                          return opt;
+                        });
+
+                        return (
+                          <EnhancedDagVisualizer
+                            nodes={result.dagNodes}
+                            links={result.dagLinks}
+                            optimizations={enrichedOptimizations}
+                            isExpanded={dagExpanded}
+                            onToggleExpand={setDagExpanded}
+                            highlightedNodeId={selectedNodeId}
+                            onSelectNode={setSelectedNodeId}
+                          />
+                        );
+                      })()}
+                      <ResourceChart data={result.resourceMetrics} />
+                    </div>
+                    {(() => {
+                      // We also need to pass enriched optimizations to OptimizationPanel
+                      const currentInstance = availableInstances.find(i => i.id === clusterContext.clusterType);
+                      const pricePerHour = currentInstance?.pricePerHour || 0.5;
+                      const enrichedOptimizations = result.optimizations.map(opt => {
+                        if (opt.estimated_time_saved_seconds) {
+                          const costSaved = (opt.estimated_time_saved_seconds / 3600) * pricePerHour;
+                          return { ...opt, estimated_cost_saved_usd: costSaved };
+                        }
+                        return opt;
+                      });
+                      return <OptimizationPanel
+                        optimizations={enrichedOptimizations}
+                        onViewInDag={(opt) => {
+                          // Expand DAG
+                          setDagExpanded(true);
+
+                          // Find relevant node
+                          if (opt.affected_stages && opt.affected_stages.length > 0) {
+                            // Simple matching logic - usually first affected stage is the primary target
+                            // The stage names in optimizations might be just numbers or names, 
+                            // we try to find a node that contains this ID.
+                            const targetStage = opt.affected_stages[0];
+                            const matchingNode = result.dagNodes.find(n => n.id.includes(targetStage));
+                            if (matchingNode) {
+                              setSelectedNodeId(matchingNode.id);
+                            }
+                          }
+
+                          // Scroll to view
+                          // We use a slight timeout to allow the portal to open if needed
+                          setTimeout(() => {
+                            const element = document.getElementById('dag-visualizer-section');
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                          }, 100);
+                        }}
+                      />;
+                    })()}
                     {prediction && <><PredictivePanel prediction={prediction} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
                   </div>
                 )}
