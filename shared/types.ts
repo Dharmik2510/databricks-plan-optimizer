@@ -269,8 +269,20 @@ export interface CloudInstance {
   category: 'General' | 'Memory' | 'Compute' | 'Storage' | 'GPU';
   vCPUs: number;
   memoryGB: number;
-  pricePerHour: number;
+  pricePerHour: number; // Compute cost only
   region: string;
+  cloudProvider?: 'aws' | 'azure' | 'gcp'; // NEW
+  dbuPricePerHour?: number; // NEW - Databricks Unit cost
+  totalPricePerHour?: number; // NEW - Compute + DBU
+  lastUpdated?: string; // NEW - ISO timestamp
+}
+
+export interface PricingMetadata {
+  region: string;
+  cloudProvider: 'aws' | 'azure' | 'gcp';
+  lastFetched: string;
+  source: 'api' | 'cache';
+  expiresAt: string;
 }
 
 export interface AnalysisOptions {

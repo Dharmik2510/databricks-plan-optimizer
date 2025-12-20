@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  DollarSign, Server, Clock, TrendingDown, Calculator, 
-  Zap, Calendar, BarChart3, PieChart, ArrowRight, 
-  Sparkles, Info, ChevronDown
+import {
+  DollarSign, Server, Clock, TrendingDown, Calculator,
+  Zap, Calendar, BarChart3, PieChart, ArrowRight,
+  Sparkles, Info, ChevronDown, Globe
 } from 'lucide-react';
 import { CloudInstance } from '../../shared/types';
 
@@ -11,6 +10,10 @@ interface Props {
   estimatedDurationMin?: number;
   instances?: CloudInstance[];
   region?: string;
+  availableRegions?: Array<{ id: string; name: string }>;
+  cloudProvider?: 'aws' | 'azure' | 'gcp';
+  onCloudProviderChange?: (provider: 'aws' | 'azure' | 'gcp') => void;
+  onRegionChange?: (region: string) => void;
 }
 
 const FREQUENCIES = [
@@ -20,7 +23,15 @@ const FREQUENCIES = [
   { value: 'monthly', label: 'Monthly', multiplier: 12 },
 ];
 
-export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, instances = [], region = 'us-east-1' }) => {
+export const CostEstimator: React.FC<Props> = ({
+  estimatedDurationMin = 15,
+  instances = [],
+  region = 'us-east-1',
+  availableRegions = [],
+  cloudProvider = 'aws',
+  onCloudProviderChange,
+  onRegionChange
+}) => {
   const [numNodes, setNumNodes] = useState(8);
   const [instanceType, setInstanceType] = useState<CloudInstance | null>(null);
   const [duration, setDuration] = useState(estimatedDurationMin);
@@ -32,27 +43,37 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
     if (instances.length > 0 && !instanceType) {
       setInstanceType(instances[0]);
     } else if (instances.length > 0 && instanceType) {
-        // If reloaded with different region, try to find same type or default
-        const match = instances.find(i => i.name === instanceType.name);
-        setInstanceType(match || instances[0]);
+      // If reloaded with different region, try to find same type or default
+      const match = instances.find(i => i.name === instanceType.name);
+      setInstanceType(match || instances[0]);
     }
   }, [instances, instanceType]);
 
-  // Calculate costs
+  // Calculate costs with DBU pricing
   const costs = useMemo(() => {
     if (!instanceType) return {
-        currentCostPerRun: 0, optimizedCostPerRun: 0, savingsPerRun: 0,
-        currentAnnualCost: 0, optimizedAnnualCost: 0, annualSavings: 0, savingsPercent: 0
+      currentCostPerRun: 0, optimizedCostPerRun: 0, savingsPerRun: 0,
+      currentAnnualCost: 0, optimizedAnnualCost: 0, annualSavings: 0, savingsPercent: 0,
+      computeCostPerRun: 0, dbuCostPerRun: 0
     };
 
     const durationHours = duration / 60;
-    const currentCostPerRun = numNodes * instanceType.pricePerHour * durationHours;
+
+    // Use totalPricePerHour if available (includes DBU), otherwise just compute
+    const pricePerHour = instanceType.totalPricePerHour || instanceType.pricePerHour;
+    const currentCostPerRun = numNodes * pricePerHour * durationHours;
     const optimizedCostPerRun = currentCostPerRun * (1 - optimizationFactor);
     const savingsPerRun = currentCostPerRun - optimizedCostPerRun;
-    
+
+    // Calculate separate compute and DBU costs
+    const computeCostPerRun = numNodes * instanceType.pricePerHour * durationHours;
+    const dbuCostPerRun = instanceType.dbuPricePerHour
+      ? numNodes * instanceType.dbuPricePerHour * durationHours
+      : 0;
+
     const frequencyData = FREQUENCIES.find(f => f.value === frequency);
     const multiplier = frequencyData?.multiplier || 365;
-    
+
     const currentAnnualCost = currentCostPerRun * multiplier;
     const optimizedAnnualCost = optimizedCostPerRun * multiplier;
     const annualSavings = savingsPerRun * multiplier;
@@ -65,6 +86,8 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
       optimizedAnnualCost,
       annualSavings,
       savingsPercent: optimizationFactor * 100,
+      computeCostPerRun,
+      dbuCostPerRun,
     };
   }, [numNodes, instanceType, duration, frequency, optimizationFactor]);
 
@@ -81,11 +104,11 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
   };
 
   if (instances.length === 0) {
-      return (
-          <div className="p-8 text-center text-slate-500 animate-pulse">
-              Loading instance data for region {region}...
-          </div>
-      );
+    return (
+      <div className="p-8 text-center text-slate-500 animate-pulse">
+        Loading instance data for region {region}...
+      </div>
+    );
   }
 
   return (
@@ -94,7 +117,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
       <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 rounded-2xl p-6 text-white relative overflow-hidden shadow-xl shadow-emerald-500/20">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-        
+
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -136,7 +159,47 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
         </div>
 
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            {/* Cloud Provider */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                Cloud Provider
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
+                  value={cloudProvider}
+                  onChange={(e) => onCloudProviderChange?.(e.target.value as 'aws' | 'azure' | 'gcp')}
+                >
+                  <option value="aws" className="bg-white dark:bg-slate-800">AWS</option>
+                  <option value="azure" className="bg-white dark:bg-slate-800">Azure</option>
+                  <option value="gcp" className="bg-white dark:bg-slate-800">GCP</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Cloud Region */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                Cloud Region
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
+                  value={region}
+                  onChange={(e) => onRegionChange?.(e.target.value)}
+                >
+                  {availableRegions.length > 0 ? availableRegions.map(r => (
+                    <option key={r.id} value={r.id} className="bg-white dark:bg-slate-800">
+                      {r.name}
+                    </option>
+                  )) : <option value={region} className="bg-white dark:bg-slate-800">{region}</option>}
+                </select>
+                <Globe className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
             {/* Cluster Size */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
@@ -144,9 +207,9 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
               </label>
               <div className="relative">
                 <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <input 
-                  type="number" 
-                  value={numNodes} 
+                <input
+                  type="number"
+                  value={numNodes}
                   onChange={(e) => setNumNodes(Math.max(1, Number(e.target.value)))}
                   className="w-full pl-11 pr-16 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                   min={1}
@@ -165,9 +228,9 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
               </label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <input 
-                  type="number" 
-                  value={duration} 
+                <input
+                  type="number"
+                  value={duration}
                   onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))}
                   className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                   min={1}
@@ -184,7 +247,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
                 Instance Type
               </label>
               <div className="relative">
-                <select 
+                <select
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
                   onChange={(e) => {
                     const selected = instances.find(t => t.id === e.target.value);
@@ -194,7 +257,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
                 >
                   {instances.map(t => (
                     <option key={t.id} value={t.id} className="bg-white dark:bg-slate-800">
-                      {t.displayName} (${t.pricePerHour}/hr)
+                      {t.displayName}
                     </option>
                   ))}
                 </select>
@@ -209,7 +272,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <select 
+                <select
                   className="w-full pl-11 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value)}
@@ -225,31 +288,41 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
             </div>
           </div>
 
-          {/* Instance Details */}
+          {/* Instance Details with DBU Breakdown */}
           {instanceType && (
             <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <Info className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Instance Details ({region})</span>
-                </div>
-                <div className="grid grid-cols-4 gap-4">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Instance Details ({cloudProvider.toUpperCase()} - {region})</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Category</div>
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.category}</div>
-                </div>
-                <div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">vCPUs</div>
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.vCPUs} cores</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Category</div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.category}</div>
                 </div>
                 <div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Memory</div>
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.memoryGB} GB</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">vCPUs</div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.vCPUs} cores</div>
                 </div>
                 <div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Price</div>
-                    <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${instanceType.pricePerHour}/hr</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Memory</div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.memoryGB} GB</div>
                 </div>
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Compute</div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">${instanceType.pricePerHour.toFixed(3)}/hr</div>
                 </div>
+                {instanceType.dbuPricePerHour && (
+                  <div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">DBU Cost</div>
+                    <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">${instanceType.dbuPricePerHour.toFixed(3)}/hr</div>
+                  </div>
+                )}
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Total</div>
+                  <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${(instanceType.totalPricePerHour || instanceType.pricePerHour).toFixed(3)}/hr</div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -323,7 +396,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
         {/* Annual Savings */}
         <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-2xl p-6 shadow-xl shadow-orange-500/20 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-          
+
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
@@ -360,7 +433,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
               <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(costs.currentAnnualCost)}</span>
             </div>
             <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-end pr-3"
                 style={{ width: '100%' }}
               >
@@ -381,14 +454,14 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
               <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(costs.optimizedAnnualCost)}</span>
             </div>
             <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-end pr-3 transition-all duration-500"
                 style={{ width: `${100 - costs.savingsPercent}%` }}
               >
                 <span className="text-xs font-bold text-white">{Math.round(100 - costs.savingsPercent)}%</span>
               </div>
               {/* Savings portion */}
-              <div 
+              <div
                 className="absolute top-0 right-0 h-full bg-gradient-to-r from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/30 rounded-r-lg flex items-center justify-center border-l-2 border-dashed border-amber-400 dark:border-amber-600 transition-all duration-500"
                 style={{ width: `${costs.savingsPercent}%` }}
               >
@@ -410,7 +483,7 @@ export const CostEstimator: React.FC<Props> = ({ estimatedDurationMin = 15, inst
               </div>
               <p className="text-sm text-emerald-700 dark:text-emerald-400">
                 By applying the recommended optimizations, you could save approximately{' '}
-                <span className="font-bold">{formatCurrency(costs.annualSavings)}</span> annually 
+                <span className="font-bold">{formatCurrency(costs.annualSavings)}</span> annually
                 ({Math.round(costs.savingsPercent)}% reduction). This translates to{' '}
                 <span className="font-bold">{formatCurrency(costs.savingsPerRun)}</span> per execution.
               </p>
