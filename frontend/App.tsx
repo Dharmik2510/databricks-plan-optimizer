@@ -14,7 +14,9 @@ import { PredictivePanel } from './components/PredictivePanel';
 import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
-import { ExportButton } from './components/export/ExportButton';
+import { UserGuideModal } from './components/guide/UserGuideModal';
+import { ComingSoonModal } from './components/common/ComingSoonModal';
+
 import { RepositoryPanel } from './components/repository/RepositoryPanel';
 import { RepoConnectForm } from './components/repository/RepoConnectForm';
 import { client } from './api';
@@ -62,6 +64,11 @@ function AppContent() {
   const [cloudProvider, setCloudProvider] = useState<'aws' | 'azure' | 'gcp'>('aws');
   const [availableRegions, setAvailableRegions] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingRegions, setLoadingRegions] = useState(false);
+
+  // Modal State
+  const [showUserGuide, setShowUserGuide] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [comingSoonFeature, setComingSoonFeature] = useState('');
 
   // DAG Visualization State
   const [dagExpanded, setDagExpanded] = useState(false);
@@ -171,6 +178,11 @@ function AppContent() {
   const resetApp = () => { setResult(null); setPrediction(null); setAppState(AppState.IDLE); setTextContent(''); setActiveTab(ActiveTab.HOME); setRepoFiles([]); setRepoConfig({ url: '', branch: 'main', token: '' }); };
   const goToNewAnalysis = () => { setAppState(AppState.IDLE); setActiveTab(ActiveTab.DASHBOARD); };
 
+  const handleComputeClick = () => {
+    setComingSoonFeature('Live Compute Monitor');
+    setShowComingSoon(true);
+  };
+
   // Auth Checks after all hooks
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <AuthPage />;
@@ -179,7 +191,15 @@ function AppContent() {
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
       <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} appState={appState} resetApp={resetApp} goToNewAnalysis={goToNewAnalysis} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          appState={appState}
+          resetApp={resetApp}
+          goToNewAnalysis={goToNewAnalysis}
+          onGuideClick={() => setShowUserGuide(true)}
+          onComputeClick={handleComputeClick}
+        />
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
             {prediction?.aiAgentStatus && activeTab !== ActiveTab.HOME && (
@@ -197,7 +217,7 @@ function AppContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <GetStartedCard icon={Plus} title="Import and transform data" desc="Upload local files or paste execution plans for immediate analysis." actionText="Create analysis" onClick={goToNewAnalysis} color="blue" />
                   <GetStartedCard icon={FileText} title="Repository Trace" desc="Connect your GitHub repository to map execution plans to source code." actionText="Connect repo" onClick={() => setActiveTab(ActiveTab.REPO)} color="orange" />
-                  <GetStartedCard icon={Radio} title="Live Monitor" desc="Connect to a live Databricks cluster to visualize real-time telemetry." actionText="Connect cluster" onClick={() => setActiveTab(ActiveTab.LIVE)} color="emerald" />
+                  <GetStartedCard icon={Radio} title="Live Monitor" desc="Connect to a live Databricks cluster to visualize real-time telemetry." actionText="Connect cluster" onClick={handleComputeClick} color="emerald" />
                   <GetStartedCard icon={Sparkles} title="Advanced Insights" desc="Explore cluster right-sizing, config generation, and query rewrites." actionText="Explore insights" onClick={() => setActiveTab(ActiveTab.INSIGHTS)} color="purple" />
                 </div>
                 <div className="space-y-4">
@@ -369,14 +389,14 @@ function AppContent() {
                             <div className="flex items-center gap-4">
                               <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Summary</h3>
                               <div className="hidden md:block">
-                                <ExportButton result={result} />
+
                               </div>
                             </div>
                             <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span>
                           </div>
                           <p className="text-slate-800 dark:text-slate-300 leading-relaxed text-lg font-medium">{result.summary}</p>
                           <div className="md:hidden mt-4">
-                            <ExportButton result={result} />
+
                           </div>
                         </div>
                       </div>
@@ -489,6 +509,8 @@ function AppContent() {
             )}
           </div>
         </main>
+        <UserGuideModal isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
+        <ComingSoonModal isOpen={showComingSoon} onClose={() => setShowComingSoon(false)} featureName={comingSoonFeature} />
       </div>
     </div>
   );
@@ -544,7 +566,7 @@ const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
   );
 };
 
-const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis }: any) => (
+const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis, onGuideClick, onComputeClick }: any) => (
   <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
     <div className="p-4">
       <button onClick={goToNewAnalysis} className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors shadow-sm mb-6"><Plus className="w-5 h-5" /> New</button>
@@ -554,7 +576,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
         <div className="h-px bg-slate-800 my-2 mx-3"></div>
         <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
         <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
-        <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={() => setActiveTab(ActiveTab.LIVE)} />
+        <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={onComputeClick} />
         <SidebarItem icon={GitBranch} label="Repo Mapping" active={activeTab === ActiveTab.REPO} onClick={() => setActiveTab(ActiveTab.REPO)} />
         <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
         <SidebarItem icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
@@ -562,7 +584,8 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
     </div>
     <div className="mt-auto p-4 border-t border-slate-800">
       {appState === AppState.SUCCESS && <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><LogOut className="w-4 h-4" /> Reset Context</button>}
-      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><BookOpen className="w-3 h-3" /> v{__APP_VERSION__}</div>
+      <button onClick={onGuideClick} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><BookOpen className="w-4 h-4" /> User Guide</button>
+      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><Activity className="w-3 h-3" /> v{__APP_VERSION__}</div>
     </div>
   </aside>
 );
