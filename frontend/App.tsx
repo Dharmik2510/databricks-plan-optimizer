@@ -408,8 +408,7 @@ function AppContent() {
                         </div>
                         <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
                           <button onClick={handleAnalyze} disabled={!textContent.trim()} className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
-                            {appState === AppState.ANALYZING ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <PlayCircle className="w-6 h-6" />}
-                            {appState === AppState.ANALYZING ? 'Optimizing...' : 'Start Optimization'}
+                            <PlayCircle className="w-6 h-6" /> Start Optimization
                           </button>
                         </div>
                       </div>
