@@ -54,14 +54,14 @@ export class AnalysisService {
     });
 
     // Process asynchronously (don't await)
-    this.processAnalysis(analysis.id, dto.content).catch((error) => {
+    this.processAnalysis(analysis.id, dto.content, dto.repoFiles).catch((error) => {
       this.logger.error(`Failed to process analysis ${analysis.id}:`, error);
     });
 
     return analysis;
   }
 
-  private async processAnalysis(analysisId: string, content: string) {
+  private async processAnalysis(analysisId: string, content: string, repoFiles: any[] = []) {
     const startTime = Date.now();
 
     try {
@@ -69,6 +69,13 @@ export class AnalysisService {
 
       // Call Gemini AI
       const result = await this.gemini.analyzeDAG(content);
+
+      // --- SMART CODE MAPPING ---
+      if (repoFiles && repoFiles.length > 0 && result.dagNodes) {
+        this.logger.log(`Mapping ${result.dagNodes.length} DAG nodes to ${repoFiles.length} files...`);
+        result.dagNodes = this.mapNodesToCode(result.dagNodes, repoFiles);
+      }
+      // --------------------------
 
       // Extract denormalized fields
       const severity = this.getHighestSeverity(result.optimizations);
@@ -122,6 +129,70 @@ export class AnalysisService {
         },
       });
     }
+  }
+
+  // Heuristic to link Plan Nodes -> Code Files
+  private mapNodesToCode(dagNodes: any[], repoFiles: any[]): any[] {
+    return dagNodes.map(node => {
+      // 1. Extract Keywords
+      const keywords: string[] = [];
+      const desc = node.description || "";
+      const op = node.operation || "";
+
+      // Extract table names (e.g., "scan parquet default.transactions")
+      const tableMatch = desc.match(/(?:from|scan|table)\s+([a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)/i);
+      if (tableMatch) keywords.push(tableMatch[1]);
+
+      // Extract paths (e.g., "s3://bucket/path")
+      const pathMatch = desc.match(/(?:s3|abfss?|gs):\/\/[^\s]+/);
+      if (pathMatch) {
+        // Use the last part of the path as a keyword
+        const parts = pathMatch[0].split('/');
+        const folder = parts[parts.length - 2];
+        const file = parts[parts.length - 1];
+        if (folder) keywords.push(folder);
+        if (file) keywords.push(file);
+      }
+
+      // 2. Search in Files
+      let bestMatch: any = null;
+
+      // Only search if we have significant keywords
+      if (keywords.length > 0) {
+        for (const file of repoFiles) {
+          // Skip binary or gigantic files
+          if (file.size > 500000) continue;
+
+          for (const keyword of keywords) {
+            if (file.content.includes(keyword)) {
+              // Found a match!
+              // Simple confidence: if exact match of a full table name
+              bestMatch = {
+                filePath: file.path,
+                // Try to find line number
+                line: this.findLineNumber(file.content, keyword),
+                confidence: 'High'
+              };
+              break;
+            }
+          }
+          if (bestMatch) break;
+        }
+      }
+
+      return {
+        ...node,
+        codeMapping: bestMatch
+      };
+    });
+  }
+
+  private findLineNumber(content: string, term: string): number {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes(term)) return i + 1;
+    }
+    return 1;
   }
 
   private generateTitle(content: string): string {

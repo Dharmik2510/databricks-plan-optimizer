@@ -47,6 +47,7 @@ export interface CreateAnalysisData {
   title?: string;
   inputType: 'SPARK_PLAN' | 'SQL_EXPLAIN' | 'LOG_FILE';
   content: string;
+  repoFiles?: any[];
 }
 
 export const analysisApi = {

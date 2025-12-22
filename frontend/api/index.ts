@@ -66,14 +66,24 @@ export const client = {
   },
 
   fetchRepo: async (config: any, options: any) => {
-    // Not implemented in backend yet, returning empty
-    console.warn("Repo fetch not implemented in backend");
-    return [];
+    try {
+      const response = await apiClient.post('/repository/scan', {
+        url: config.url,
+        branch: config.branch,
+        token: config.token,
+        fileExtensions: options.fileExtensions
+      }) as any;
+      return response || [];
+    } catch (error) {
+      console.error("Repo fetch failed:", error);
+      throw error;
+    }
   },
 
   analyzeDag: async (content: string, repoFiles: any[], options: any, clusterContext: any) => {
     let analysis = await analysisApi.create({
       content,
+      repoFiles: repoFiles,
       inputType: 'SPARK_PLAN',
       title: options?.title || `Analysis ${new Date().toLocaleString()}`
     });

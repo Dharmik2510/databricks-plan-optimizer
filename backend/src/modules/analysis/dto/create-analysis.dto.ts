@@ -19,4 +19,7 @@ export class CreateAnalysisDto {
   @IsString()
   @MinLength(10, { message: 'Content must be at least 10 characters' })
   content: string;
+
+  @IsOptional()
+  repoFiles?: Array<{ path: string; content: string; language: string; size: number }>;
 }

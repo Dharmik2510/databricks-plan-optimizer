@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe } from 'lucide-react';
+import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe, Check } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -14,7 +14,9 @@ import { PredictivePanel } from './components/PredictivePanel';
 import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
-import { ExportButton } from './components/export/ExportButton';
+import { UserGuideModal } from './components/guide/UserGuideModal';
+import { ComingSoonModal } from './components/common/ComingSoonModal';
+
 import { RepositoryPanel } from './components/repository/RepositoryPanel';
 import { RepoConnectForm } from './components/repository/RepoConnectForm';
 import { client } from './api';
@@ -62,6 +64,11 @@ function AppContent() {
   const [cloudProvider, setCloudProvider] = useState<'aws' | 'azure' | 'gcp'>('aws');
   const [availableRegions, setAvailableRegions] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingRegions, setLoadingRegions] = useState(false);
+
+  // Modal State
+  const [showUserGuide, setShowUserGuide] = useState(false);
+  const [showComingSoon, setShowComingSoon] = useState(false);
+  const [comingSoonFeature, setComingSoonFeature] = useState('');
 
   // DAG Visualization State
   const [dagExpanded, setDagExpanded] = useState(false);
@@ -135,9 +142,24 @@ function AppContent() {
     setError(null);
     setPrediction(null);
     try {
+      // Auto-fetch repo if URL provided but files not loaded
+      let currentRepoFiles = repoFiles;
+      if (repoConfig.url && repoFiles.length === 0) {
+        try {
+          // Default to main if not specified
+          const config = { ...repoConfig, branch: repoConfig.branch || 'main' };
+          currentRepoFiles = await client.fetchRepo(config, { maxFiles: 50, includeTests: false, fileExtensions: ['.py', '.scala', '.sql', '.ipynb'] });
+          setRepoFiles(currentRepoFiles);
+        } catch (repoErr: any) {
+          console.warn("Repo fetch failed, proceeding without mapping", repoErr);
+          setError(`Repo Connect Warning: ${repoErr.message}`);
+          // We continue analysis even if repo fails, just without mapping
+        }
+      }
+
       const data = await client.analyzeDag(
         textContent,
-        repoFiles,
+        currentRepoFiles,
         { enableCodeMapping: true, enableDependencyAnalysis: true, confidenceThreshold: 50, maxMappingsPerNode: 3, deepAnalysis: true, title: analysisTitle },
         clusterContext
       );
@@ -171,6 +193,11 @@ function AppContent() {
   const resetApp = () => { setResult(null); setPrediction(null); setAppState(AppState.IDLE); setTextContent(''); setActiveTab(ActiveTab.HOME); setRepoFiles([]); setRepoConfig({ url: '', branch: 'main', token: '' }); };
   const goToNewAnalysis = () => { setAppState(AppState.IDLE); setActiveTab(ActiveTab.DASHBOARD); };
 
+  const handleComputeClick = () => {
+    setComingSoonFeature('Live Compute Monitor');
+    setShowComingSoon(true);
+  };
+
   // Auth Checks after all hooks
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <AuthPage />;
@@ -179,7 +206,15 @@ function AppContent() {
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
       <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} appState={appState} resetApp={resetApp} goToNewAnalysis={goToNewAnalysis} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          appState={appState}
+          resetApp={resetApp}
+          goToNewAnalysis={goToNewAnalysis}
+          onGuideClick={() => setShowUserGuide(true)}
+          onComputeClick={handleComputeClick}
+        />
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
             {prediction?.aiAgentStatus && activeTab !== ActiveTab.HOME && (
@@ -196,8 +231,8 @@ function AppContent() {
                 <div><h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Get started</h1><p className="text-slate-600 dark:text-slate-400 font-medium">Welcome to BrickOptima. What would you like to do today?</p></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <GetStartedCard icon={Plus} title="Import and transform data" desc="Upload local files or paste execution plans for immediate analysis." actionText="Create analysis" onClick={goToNewAnalysis} color="blue" />
-                  <GetStartedCard icon={FileText} title="Repository Trace" desc="Connect your GitHub repository to map execution plans to source code." actionText="Connect repo" onClick={() => setActiveTab(ActiveTab.REPO)} color="orange" />
-                  <GetStartedCard icon={Radio} title="Live Monitor" desc="Connect to a live Databricks cluster to visualize real-time telemetry." actionText="Connect cluster" onClick={() => setActiveTab(ActiveTab.LIVE)} color="emerald" />
+                  <GetStartedCard icon={FileText} title="Repository Trace" desc="Connect your GitHub repository to map execution plans to source code." actionText="Connect repo" onClick={goToNewAnalysis} color="orange" />
+                  <GetStartedCard icon={Radio} title="Live Monitor" desc="Connect to a live Databricks cluster to visualize real-time telemetry." actionText="Connect cluster" onClick={handleComputeClick} color="emerald" />
                   <GetStartedCard icon={Sparkles} title="Advanced Insights" desc="Explore cluster right-sizing, config generation, and query rewrites." actionText="Explore insights" onClick={() => setActiveTab(ActiveTab.INSIGHTS)} color="purple" />
                 </div>
                 <div className="space-y-4">
@@ -343,6 +378,33 @@ function AppContent() {
                               onChange={e => setClusterContext({ ...clusterContext, sparkConf: e.target.value })}
                             ></textarea>
                           </div>
+
+                          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Repository Context <span className="text-xs font-normal text-slate-400 lowercase">(optional)</span></label>
+                            <div className="flex gap-2 mb-2">
+                              <div className="relative flex-1">
+                                <input
+                                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                                  placeholder="https://github.com/org/repo"
+                                  value={repoConfig.url}
+                                  onChange={e => setRepoConfig({ ...repoConfig, url: e.target.value })}
+                                />
+                                <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
+                                  <GitBranch className="w-4 h-4" />
+                                </div>
+                              </div>
+                            </div>
+                            {repoConfig.url && (
+                              <input
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none mb-2"
+                                placeholder="Personal Access Token (for private repos)"
+                                type="password"
+                                value={repoConfig.token}
+                                onChange={e => setRepoConfig({ ...repoConfig, token: e.target.value })}
+                              />
+                            )}
+                            {repoFiles.length > 0 && <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1"><Check className="w-3 h-3" /> {repoFiles.length} files linked</div>}
+                          </div>
                         </div>
                         <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
                           <button onClick={handleAnalyze} disabled={!textContent.trim()} className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
@@ -369,14 +431,14 @@ function AppContent() {
                             <div className="flex items-center gap-4">
                               <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Executive Summary</h3>
                               <div className="hidden md:block">
-                                <ExportButton result={result} />
+
                               </div>
                             </div>
                             <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">AI Generated</span>
                           </div>
                           <p className="text-slate-800 dark:text-slate-300 leading-relaxed text-lg font-medium">{result.summary}</p>
                           <div className="md:hidden mt-4">
-                            <ExportButton result={result} />
+
                           </div>
                         </div>
                       </div>
@@ -389,12 +451,35 @@ function AppContent() {
                         const pricePerHour = currentInstance?.pricePerHour || 0.5;
 
                         const enrichedOptimizations = result.optimizations.map(opt => {
+                          let relatedCodeSnippets = opt.relatedCodeSnippets || [];
+
+                          // If we have affected stages, try to find code mappings from DAG nodes
+                          if (opt.affected_stages && opt.affected_stages.length > 0 && result.dagNodes) {
+                            const relevantNodes = result.dagNodes.filter(node =>
+                              opt.affected_stages!.some(stageId => node.id.includes(stageId))
+                            );
+
+                            const newSnippets = relevantNodes
+                              .filter(node => node.mappedCode)
+                              .map(node => node.mappedCode!);
+
+                            // Deduplicate by path+line
+                            const existingKeys = new Set(relatedCodeSnippets.map(s => `${s.filePath}:${s.lineNumber}`));
+                            newSnippets.forEach(s => {
+                              const key = `${s.filePath}:${s.lineNumber}`;
+                              if (!existingKeys.has(key)) {
+                                relatedCodeSnippets.push(s);
+                                existingKeys.add(key);
+                              }
+                            });
+                          }
+
                           if (opt.estimated_time_saved_seconds) {
                             // Calculate cost savings: (seconds / 3600) * price/hr
                             const costSaved = (opt.estimated_time_saved_seconds / 3600) * pricePerHour;
-                            return { ...opt, estimated_cost_saved_usd: costSaved };
+                            return { ...opt, estimated_cost_saved_usd: costSaved, relatedCodeSnippets };
                           }
-                          return opt;
+                          return { ...opt, relatedCodeSnippets };
                         });
 
                         return (
@@ -416,11 +501,34 @@ function AppContent() {
                       const currentInstance = availableInstances.find(i => i.id === clusterContext.clusterType);
                       const pricePerHour = currentInstance?.pricePerHour || 0.5;
                       const enrichedOptimizations = result.optimizations.map(opt => {
+                        let relatedCodeSnippets = opt.relatedCodeSnippets || [];
+
+                        // If we have affected stages, try to find code mappings from DAG nodes
+                        if (opt.affected_stages && opt.affected_stages.length > 0 && result.dagNodes) {
+                          const relevantNodes = result.dagNodes.filter(node =>
+                            opt.affected_stages!.some(stageId => node.id.includes(stageId))
+                          );
+
+                          const newSnippets = relevantNodes
+                            .filter(node => node.mappedCode)
+                            .map(node => node.mappedCode!);
+
+                          // Deduplicate by path+line
+                          const existingKeys = new Set(relatedCodeSnippets.map(s => `${s.filePath}:${s.lineNumber}`));
+                          newSnippets.forEach(s => {
+                            const key = `${s.filePath}:${s.lineNumber}`;
+                            if (!existingKeys.has(key)) {
+                              relatedCodeSnippets.push(s);
+                              existingKeys.add(key);
+                            }
+                          });
+                        }
+
                         if (opt.estimated_time_saved_seconds) {
                           const costSaved = (opt.estimated_time_saved_seconds / 3600) * pricePerHour;
-                          return { ...opt, estimated_cost_saved_usd: costSaved };
+                          return { ...opt, estimated_cost_saved_usd: costSaved, relatedCodeSnippets };
                         }
-                        return opt;
+                        return { ...opt, relatedCodeSnippets };
                       });
                       return <OptimizationPanel
                         optimizations={enrichedOptimizations}
@@ -483,12 +591,14 @@ function AppContent() {
                     isLoading={isFetchingRepo}
                   />
                 ) : (
-                  <RepositoryPanel />
+                  <RepositoryPanel files={repoFiles} />
                 )}
               </div>
             )}
           </div>
         </main>
+        <UserGuideModal isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
+        <ComingSoonModal isOpen={showComingSoon} onClose={() => setShowComingSoon(false)} featureName={comingSoonFeature} />
       </div>
     </div>
   );
@@ -544,7 +654,7 @@ const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
   );
 };
 
-const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis }: any) => (
+const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis, onGuideClick, onComputeClick }: any) => (
   <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
     <div className="p-4">
       <button onClick={goToNewAnalysis} className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors shadow-sm mb-6"><Plus className="w-5 h-5" /> New</button>
@@ -554,15 +664,15 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis 
         <div className="h-px bg-slate-800 my-2 mx-3"></div>
         <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
         <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
-        <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={() => setActiveTab(ActiveTab.LIVE)} />
-        <SidebarItem icon={GitBranch} label="Repo Mapping" active={activeTab === ActiveTab.REPO} onClick={() => setActiveTab(ActiveTab.REPO)} />
+        <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={onComputeClick} />
         <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
         <SidebarItem icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
       </div>
     </div>
     <div className="mt-auto p-4 border-t border-slate-800">
       {appState === AppState.SUCCESS && <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><LogOut className="w-4 h-4" /> Reset Context</button>}
-      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><BookOpen className="w-3 h-3" /> v{__APP_VERSION__}</div>
+      <button onClick={onGuideClick} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><BookOpen className="w-4 h-4" /> User Guide</button>
+      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><Activity className="w-3 h-3" /> v{__APP_VERSION__}</div>
     </div>
   </aside>
 );

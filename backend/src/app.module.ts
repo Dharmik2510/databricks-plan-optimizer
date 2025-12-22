@@ -12,6 +12,8 @@ import { PricingModule } from './modules/pricing/pricing.module';
 import { GeminiModule } from './integrations/gemini/gemini.module';
 import { HealthModule } from './health/health.module';
 
+import { RepositoryModule } from './modules/repository/repository.module';
+
 @Module({
   imports: [
     // Configuration
@@ -42,6 +44,7 @@ import { HealthModule } from './health/health.module';
     AnalysisModule,
     ChatModule,
     PricingModule,
+    RepositoryModule,
 
     // Integration modules
     GeminiModule,
