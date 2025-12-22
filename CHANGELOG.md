@@ -1,3 +1,13 @@
+# [1.10.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.9.0...v1.10.0) (2025-12-22)
+
+
+### Features
+
+* Implement cloud pricing service, enhanced DAG visualization, optimization display, and repository analysis features. ([6445305](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/644530564cfa255914cb50af230827472f00e0c6))
+* Implement full-screen DAG visualization with controlled state for expansion and node selection ([df9ffd0](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/df9ffd055cec11a23837db9d6ed5a893f8351e4d))
+* Implement repository scanning and file content display with new backend module and frontend UI. ([f58fa9a](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/f58fa9a5682003803d3ae82e2b4ff638e19b7079))
+* Introduce user guide and coming soon modals while removing export and share functionalities. ([448e6f3](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/448e6f397f53e24c85c5ea2f3786d609dd848191))
+
 # [1.9.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.8.0...v1.9.0) (2025-12-20)
 
 
