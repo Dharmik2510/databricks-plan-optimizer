@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle, ExternalLink, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle, ExternalLink, X, FileCode } from 'lucide-react';
 import { OptimizationTip, Severity } from '../../../shared/types';
 import { SeverityBadge } from './SeverityBadge';
 import { ImpactMetrics } from './ImpactMetrics';
@@ -102,6 +102,25 @@ export const OptimizationCard: React.FC<OptimizationCardProps> = ({
                             <CodeDiff
                                 suggestedCode={codeSuggestion}
                             />
+                        </div>
+                    )}
+
+                    {/* Repo Links */}
+                    {optimization.relatedCodeSnippets && optimization.relatedCodeSnippets.length > 0 && (
+                        <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><FileCode className="w-3 h-3" /> Linked Source Code</h4>
+                            <div className="space-y-2">
+                                {optimization.relatedCodeSnippets.map((snippet, idx) => (
+                                    <div key={idx} className="flex items-center justify-between text-sm">
+                                        <span className="font-mono text-slate-700 dark:text-slate-300 truncate" title={snippet.filePath}>
+                                            {snippet.filePath.split('/').pop()}:{snippet.lineNumber}
+                                        </span>
+                                        <span className="text-xs text-slate-500">
+                                            Line {snippet.lineNumber}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 

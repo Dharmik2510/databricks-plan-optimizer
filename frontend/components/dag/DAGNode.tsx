@@ -1,6 +1,6 @@
 
 import React, { memo } from 'react';
-import { Database, GitCommit, Layers, Filter, ArrowRight, AlertOctagon, Activity } from 'lucide-react';
+import { Database, GitCommit, Layers, Filter, ArrowRight, AlertOctagon, Activity, FileCode } from 'lucide-react';
 
 interface ComponentProps {
     node: any;
@@ -88,6 +88,14 @@ export const DAGNode: React.FC<ComponentProps> = memo(({ node, selected, onClick
                         {node.rowsProcessed ? (node.rowsProcessed >= 1e6 ? `${(node.rowsProcessed / 1e6).toFixed(1)}M` : `${(node.rowsProcessed / 1e3).toFixed(1)}K`) : '-'}
                     </span>
                 </div>
+                {node.codeMapping && (
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400" title={`Mapped to: ${node.codeMapping.filePath}:${node.codeMapping.line}`}>
+                        <FileCode className="w-3 h-3" />
+                        <span className="text-[10px] font-bold truncate max-w-[80px]">
+                            {node.codeMapping.filePath.split('/').pop()}
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Connector Dots for visual anchor */}

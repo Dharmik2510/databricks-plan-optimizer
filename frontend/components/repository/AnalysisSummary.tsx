@@ -1,35 +1,45 @@
 
 import React from 'react';
-import { PieChart, AlertOctagon, FileText, Code } from 'lucide-react';
+import { AlertTriangle, FileText, Code } from 'lucide-react';
 
-export const AnalysisSummary: React.FC = () => {
+interface Props {
+    files?: any[];
+}
+
+export const AnalysisSummary: React.FC<Props> = ({ files = [] }) => {
+    // Generate dynamic stats
+    const totalLines = files.reduce((acc, file) => acc + Math.floor(file.size / 20), 0); // approx lines
+    const totalFiles = files.length;
+    const criticalIssues = Math.floor(Math.random() * 5 * totalFiles); // mock issue count
+
     return (
-        <div className="flex flex-col gap-4 p-4">
-            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="p-4 space-y-4">
+            <div className="bg-slate-800 dark:bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg"><Code className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /></div>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Lines</span>
+                    <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400"><Code className="w-5 h-5" /></div>
+                    <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Total Lines</span>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">142,893</div>
-                <div className="text-xs text-emerald-500 font-medium mt-1">+1.2% this week</div>
+                <div className="text-3xl font-bold text-white mb-1">{totalLines.toLocaleString()}</div>
+                <div className="text-xs text-emerald-400 font-bold">+1.2% this week</div>
             </div>
 
-            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="bg-slate-800 dark:bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg"><AlertOctagon className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Critical Issues</span>
+                    <div className="p-2 bg-red-500/20 rounded-lg text-red-400"><AlertTriangle className="w-5 h-5" /></div>
+                    <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Critical Issues</span>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">23</div>
-                <div className="text-xs text-red-500 font-medium mt-1">Requires immediate attention</div>
+                <div className="text-3xl font-bold text-white mb-1">{criticalIssues}</div>
+                <div className="text-xs text-red-400 font-bold">Requires immediate attention</div>
             </div>
 
-            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="bg-slate-800 dark:bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><FileText className="w-5 h-5 text-slate-600 dark:text-slate-400" /></div>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Files</span>
+                    <div className="p-2 bg-slate-500/20 rounded-lg text-slate-400"><FileText className="w-5 h-5" /></div>
+                    <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Total Files</span>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white">482</div>
+                <div className="text-3xl font-bold text-white mb-1">{totalFiles}</div>
             </div>
         </div>
     );
 };
+
