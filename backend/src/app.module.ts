@@ -13,6 +13,7 @@ import { GeminiModule } from './integrations/gemini/gemini.module';
 import { HealthModule } from './health/health.module';
 
 import { RepositoryModule } from './modules/repository/repository.module';
+import { AgentModule } from './modules/agent/agent.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { RepositoryModule } from './modules/repository/repository.module';
     ChatModule,
     PricingModule,
     RepositoryModule,
+    AgentModule,
 
     // Integration modules
     GeminiModule,

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe, Check } from 'lucide-react';
+import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe, Check, FileCode2 } from 'lucide-react';
+import { PlanCodeMapper } from './components/agent/PlanCodeMapper';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
@@ -231,7 +232,7 @@ function AppContent() {
                 <div><h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Get started</h1><p className="text-slate-600 dark:text-slate-400 font-medium">Welcome to BrickOptima. What would you like to do today?</p></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <GetStartedCard icon={Plus} title="Import and transform data" desc="Upload local files or paste execution plans for immediate analysis." actionText="Create analysis" onClick={goToNewAnalysis} color="blue" />
-                  <GetStartedCard icon={FileText} title="Repository Trace" desc="Connect your GitHub repository to map execution plans to source code." actionText="Connect repo" onClick={goToNewAnalysis} color="orange" />
+                  <GetStartedCard icon={FileText} title="Repository Trace" desc="Connect your GitHub repository to map execution plans to source code." actionText="Connect repo" onClick={() => setActiveTab(ActiveTab.CODE_MAP)} color="orange" />
                   <GetStartedCard icon={Radio} title="Live Monitor" desc="Connect to a live Databricks cluster to visualize real-time telemetry." actionText="Connect cluster" onClick={handleComputeClick} color="emerald" />
                   <GetStartedCard icon={Sparkles} title="Advanced Insights" desc="Explore cluster right-sizing, config generation, and query rewrites." actionText="Explore insights" onClick={() => setActiveTab(ActiveTab.INSIGHTS)} color="purple" />
                 </div>
@@ -491,6 +492,7 @@ function AppContent() {
                             onToggleExpand={setDagExpanded}
                             highlightedNodeId={selectedNodeId}
                             onSelectNode={setSelectedNodeId}
+                            onMapToCode={() => setActiveTab(ActiveTab.CODE_MAP)}
                           />
                         );
                       })()}
@@ -581,6 +583,7 @@ function AppContent() {
               />
             )}
             {activeTab === ActiveTab.CHAT && <div className="max-w-4xl mx-auto h-full"><ChatInterface analysisResult={result} /></div>}
+            {activeTab === ActiveTab.CODE_MAP && <PlanCodeMapper onBack={() => setActiveTab(ActiveTab.HOME)} initialPlanContent={textContent} initialRepoConfig={repoConfig} initialDagStages={result?.dagNodes} />}
             {activeTab === ActiveTab.REPO && (
               <div className="h-full">
                 {repoFiles.length === 0 ? (
@@ -663,6 +666,7 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis,
         <SidebarItem icon={FileClock} label="History" active={activeTab === ActiveTab.HISTORY} onClick={() => setActiveTab(ActiveTab.HISTORY)} />
         <div className="h-px bg-slate-800 my-2 mx-3"></div>
         <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
+        <SidebarItem icon={FileCode2} label="Code Mapper" active={activeTab === ActiveTab.CODE_MAP} onClick={() => setActiveTab(ActiveTab.CODE_MAP)} />
         <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
         <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={onComputeClick} />
         <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />

@@ -6,7 +6,7 @@ import { DAGLink } from './DAGLink';
 import { DAGMinimap } from './DAGMinimap';
 import { useTheme } from '../../ThemeContext';
 import { DagNode, DagLink, OptimizationTip } from '../../../shared/types';
-import { ZoomIn, ZoomOut, Maximize, RefreshCw, Minimize, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, RefreshCw, Minimize, X, FileCode2 } from 'lucide-react';
 import { useDagLayout } from '../../hooks/useDagLayout';
 
 interface DAGCanvasProps {
@@ -17,6 +17,7 @@ interface DAGCanvasProps {
     onToggleExpand?: (expanded: boolean) => void;
     highlightedNodeId?: string | null; // Controlled state
     onSelectNode?: (nodeId: string | null) => void;
+    onMapToCode?: () => void;
 }
 
 export const DAGCanvas: React.FC<DAGCanvasProps> = ({
@@ -26,7 +27,8 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
     isExpanded: propsIsExpanded,
     onToggleExpand,
     highlightedNodeId: propsHighlightedNodeId,
-    onSelectNode
+    onSelectNode,
+    onMapToCode
 }) => {
     const { theme } = useTheme();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -129,6 +131,14 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
             </button>
             <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
             <button onClick={handleReset} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors" title="Reset Layout"><RefreshCw className="w-5 h-5 text-slate-600 dark:text-slate-400" /></button>
+            {onMapToCode && (
+                <>
+                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+                    <button onClick={onMapToCode} className="p-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded transition-colors" title="Map to Code">
+                        <FileCode2 className="w-5 h-5" />
+                    </button>
+                </>
+            )}
         </div>
     );
 

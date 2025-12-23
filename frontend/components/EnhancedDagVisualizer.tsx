@@ -11,6 +11,7 @@ interface Props {
   onToggleExpand?: (expanded: boolean) => void;
   highlightedNodeId?: string | null;
   onSelectNode?: (nodeId: string | null) => void;
+  onMapToCode?: () => void;
 }
 
 export const EnhancedDagVisualizer: React.FC<Props> = ({
@@ -20,7 +21,8 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({
   isExpanded,
   onToggleExpand,
   highlightedNodeId,
-  onSelectNode
+  onSelectNode,
+  onMapToCode
 }) => {
   return (
     <DAGCanvas
@@ -31,6 +33,7 @@ export const EnhancedDagVisualizer: React.FC<Props> = ({
       onToggleExpand={onToggleExpand}
       highlightedNodeId={highlightedNodeId}
       onSelectNode={onSelectNode}
+      onMapToCode={onMapToCode}
     />
   );
 };
