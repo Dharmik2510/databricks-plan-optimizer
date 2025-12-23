@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.10.0...v1.11.0) (2025-12-23)
+
+
+### Features
+
+* Add PySpark script to calculate total spend by user, fixing a missing join condition. ([af9b5e1](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/af9b5e1a0fe0e11e91e16434c6c4d31ba0ab94ab))
+
 # [1.10.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.9.0...v1.10.0) (2025-12-22)
 
 
