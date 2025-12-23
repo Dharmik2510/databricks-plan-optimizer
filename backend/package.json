@@ -50,7 +50,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.4.5",
+    "@nestjs/cli": "^10.1.18",
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^10.4.6",
     "@types/bcrypt": "^5.0.2",
@@ -91,5 +91,10 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "glob": "^11.0.0",
+    "tmp": "^0.2.4",
+    "inquirer": "^10.0.0"
   }
 }
