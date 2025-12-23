@@ -10,7 +10,8 @@ import {
 import { useAuth } from '../../store/AuthContext';
 import { userApi } from '../../api/user';
 import { ProfileModal } from '../modals/ProfileModal';
-import { SettingsModal, HelpModal } from '../modals/SettingsModal';
+import { SettingsModal } from '../modals/SettingsModal';
+import { HelpModal } from '../modals/HelpModal';
 
 export const UserMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Moon, Sun, Bell, Globe, Shield, HelpCircle, FileText, MessageCircle, ExternalLink } from 'lucide-react';
+import { X, Moon, Sun, Bell, Globe } from 'lucide-react';
 import { useTheme } from '../../ThemeContext';
 
 interface ModalProps {
@@ -67,46 +67,4 @@ export const SettingsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
     );
 };
 
-export const HelpModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
-    if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-orange-50 dark:bg-orange-900/10">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><HelpCircle className="w-6 h-6 text-orange-600" /> Help & Support</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X className="w-5 h-5 text-slate-500" /></button>
-                </div>
-
-                <div className="p-6 space-y-4">
-                    <a href="#" className="block p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-500 dark:hover:border-orange-500 transition-colors group">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold"><FileText className="w-5 h-5 text-indigo-500" /> Documentation</div>
-                            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors" />
-                        </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Read the comprehensive guides to getting the most out of BrickOptima.</p>
-                    </a>
-
-                    <a href="#" className="block p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-500 dark:hover:border-orange-500 transition-colors group">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold"><MessageCircle className="w-5 h-5 text-emerald-500" /> Contact Support</div>
-                            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors" />
-                        </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Need help? Chat with our support team or send us an email.</p>
-                    </a>
-
-                    <a href="#" className="block p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-500 dark:hover:border-orange-500 transition-colors group">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold"><Shield className="w-5 h-5 text-blue-500" /> Privacy Policy</div>
-                            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors" />
-                        </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Learn how we handle your data and DAG information securely.</p>
-                    </a>
-                </div>
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-center text-xs text-slate-400">
-                    Version 2.5.0-beta • Build 2024.12.06
-                </div>
-            </div>
-        </div>
-    );
-};
