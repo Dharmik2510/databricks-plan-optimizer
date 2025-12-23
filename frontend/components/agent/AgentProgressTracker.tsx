@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AgentJob } from '../../../shared/agent-types';
-import { Loader2, CheckCircle2, Terminal, FileCode2, GitBranch, Play, StopCircle, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle2, Terminal, FileCode2, GitBranch, Play, StopCircle, ArrowRight, Bot, Sparkles, Search, Brain, Code2, CheckCircle } from 'lucide-react';
 
 interface AgentProgressTrackerProps {
     job: AgentJob;
@@ -14,6 +14,7 @@ export const AgentProgressTracker: React.FC<AgentProgressTrackerProps> = ({
     onViewResults
 }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [agentActions, setAgentActions] = useState<string[]>([]);
 
     // Auto-scroll logs
     useEffect(() => {
@@ -22,29 +23,63 @@ export const AgentProgressTracker: React.FC<AgentProgressTrackerProps> = ({
         }
     }, [job.progress.logs]);
 
-    const phasesContent = [
-        { id: 'fetching_repo', label: 'Fetch Repo', icon: GitBranch },
-        { id: 'analyzing_files', label: 'Analyze Files', icon: FileCode2 },
-        { id: 'mapping_stages', label: 'Map Logic', icon: Play },
-        { id: 'finalizing', label: 'Finalize', icon: CheckCircle2 },
-    ];
+    // Generate agent action steps based on current status
+    useEffect(() => {
+        const actions: string[] = [];
 
-    // Determine current phase index
-    const phases = ['queued', 'fetching_repo', 'analyzing_files', 'mapping_stages', 'ai_inference', 'finalizing', 'completed'];
-    const currentPhaseIndex = phases.indexOf(job.status);
+        switch (job.status) {
+            case 'queued':
+                actions.push('Initializing AI agent...');
+                actions.push('Loading execution plan...');
+                break;
+            case 'fetching_repo':
+                actions.push('Connected to repository');
+                actions.push(`Cloning branch: ${job.repoConfig.branch}`);
+                actions.push('Scanning directory structure...');
+                if (job.progress.filesProcessed > 0) {
+                    actions.push(`Discovered ${job.progress.totalFiles} code files`);
+                }
+                break;
+            case 'analyzing_files':
+                actions.push('Analyzing code structure and patterns');
+                actions.push('Extracting functions and classes...');
+                actions.push('Identifying data operations...');
+                actions.push('Building dependency graph...');
+                if (job.progress.filesProcessed > 0) {
+                    actions.push(`Processed ${job.progress.filesProcessed}/${job.progress.totalFiles} files`);
+                }
+                break;
+            case 'mapping_stages':
+                actions.push('Mapping execution plan to codebase');
+                actions.push('Analyzing semantic relationships...');
+                actions.push('Matching tables and operations...');
+                actions.push('Calculating confidence scores...');
+                if (job.progress.stagesMapped > 0) {
+                    actions.push(`Mapped ${job.progress.stagesMapped}/${job.progress.totalStages} stages`);
+                }
+                break;
+            case 'finalizing':
+                actions.push('Generating final report...');
+                actions.push('Calculating statistics...');
+                actions.push('Building repository summary...');
+                break;
+            case 'completed':
+                actions.push('Analysis complete!');
+                actions.push(`Successfully mapped ${job.progress.stagesMapped} stages`);
+                actions.push(`Analyzed ${job.progress.filesProcessed} files`);
+                break;
+            case 'failed':
+                actions.push('Agent encountered an error');
+                break;
+            case 'cancelled':
+                actions.push('Analysis cancelled by user');
+                break;
+        }
 
-    // Helper to map job status to UI steps
-    const getPhaseStatus = (phaseId: string) => {
-        const stepIdx = phasesContent.findIndex(p => p.id === phaseId);
-        const targetIdx = phases.indexOf(phaseId);
+        setAgentActions(actions);
+    }, [job.status, job.progress.filesProcessed, job.progress.totalFiles, job.progress.stagesMapped, job.progress.totalStages, job.repoConfig.branch]);
 
-        if (job.status === 'completed') return 'completed';
-        if (job.status === 'failed' || job.status === 'cancelled') return 'error';
 
-        if (currentPhaseIndex > targetIdx) return 'completed';
-        if (job.status === phaseId) return 'active';
-        return 'pending';
-    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -84,32 +119,7 @@ export const AgentProgressTracker: React.FC<AgentProgressTrackerProps> = ({
                     </div>
                 </div>
 
-                {/* Stages Steps */}
-                <div className="grid grid-cols-4 gap-4 mb-8">
-                    {phasesContent.map((phase) => {
-                        const status = getPhaseStatus(phase.id);
-                        const isActive = status === 'active';
-                        const isCompleted = status === 'completed';
-                        const Icon = phase.icon;
 
-                        return (
-                            <div key={phase.id} className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors ${isActive
-                                ? 'bg-violet-50 dark:bg-violet-500/20 border-violet-200 dark:border-violet-500/50 text-violet-600 dark:text-violet-300'
-                                : isCompleted
-                                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 text-slate-400 dark:text-slate-500'
-                                }`}>
-                                <div className={`p-2 rounded-full ${isActive ? 'bg-violet-100 dark:bg-violet-500/20' : isCompleted ? 'bg-emerald-100 dark:bg-emerald-500/20' : 'bg-slate-100 dark:bg-slate-700/50'
-                                    }`}>
-                                    {isActive ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                                        isCompleted ? <CheckCircle2 className="w-4 h-4" /> :
-                                            <Icon className="w-4 h-4" />}
-                                </div>
-                                <span className="text-xs font-semibold">{phase.label}</span>
-                            </div>
-                        );
-                    })}
-                </div>
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-4 mb-8">
@@ -128,6 +138,67 @@ export const AgentProgressTracker: React.FC<AgentProgressTrackerProps> = ({
                     <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50">
                         <div className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider mb-1">Logs</div>
                         <div className="text-xl font-mono text-slate-900 dark:text-white">{job.progress.logs.length}</div>
+                    </div>
+                </div>
+
+                {/* AI Agent Activity Feed */}
+                <div className="bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-500/10 dark:to-indigo-500/10 rounded-xl border border-violet-200 dark:border-violet-500/30 p-5 mb-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-violet-500 blur-md opacity-50 animate-pulse"></div>
+                            <div className="relative bg-gradient-to-br from-violet-500 to-indigo-600 p-2 rounded-lg">
+                                <Bot className="w-5 h-5 text-white" />
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-violet-900 dark:text-violet-100">AI Agent Activity</h3>
+                            <p className="text-xs text-violet-600 dark:text-violet-300">Real-time processing updates</p>
+                        </div>
+                        {job.status !== 'completed' && job.status !== 'failed' && job.status !== 'cancelled' && (
+                            <Sparkles className="w-4 h-4 text-violet-500 dark:text-violet-400 ml-auto animate-pulse" />
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        {agentActions.map((action, index) => {
+                            const isLast = index === agentActions.length - 1;
+                            const isCompleted = !isLast || job.status === 'completed';
+
+                            return (
+                                <div
+                                    key={index}
+                                    className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-300 ${isLast && job.status !== 'completed' && job.status !== 'failed' && job.status !== 'cancelled'
+                                        ? 'bg-white dark:bg-slate-800 border border-violet-300 dark:border-violet-500/50 shadow-sm'
+                                        : 'bg-white/50 dark:bg-slate-800/50 border border-violet-100 dark:border-violet-500/20'
+                                        }`}
+                                >
+                                    <div className="flex-shrink-0 mt-0.5">
+                                        {isLast && job.status !== 'completed' && job.status !== 'failed' && job.status !== 'cancelled' ? (
+                                            <Loader2 className="w-4 h-4 text-violet-600 dark:text-violet-400 animate-spin" />
+                                        ) : isCompleted ? (
+                                            <CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                                        ) : (
+                                            <div className="w-4 h-4 rounded-full bg-violet-200 dark:bg-violet-500/30"></div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-sm ${isLast && job.status !== 'completed' && job.status !== 'failed' && job.status !== 'cancelled'
+                                            ? 'text-violet-900 dark:text-violet-100 font-semibold'
+                                            : 'text-violet-700 dark:text-violet-300'
+                                            }`}>
+                                            {action}
+                                        </p>
+                                    </div>
+                                    {isLast && job.status !== 'completed' && job.status !== 'failed' && job.status !== 'cancelled' && (
+                                        <div className="flex gap-1">
+                                            <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                            <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                            <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
