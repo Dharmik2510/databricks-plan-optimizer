@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.12.0...v1.13.0) (2025-12-23)
+
+
+### Features
+
+* implement GitHub Actions workflow for security scanning with NPM audit and Trivy, adding documentation and updating package lock files. ([7363509](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/7363509faec7797d959f5da5251a8951a1a8fe08))
+
 # [1.12.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.11.0...v1.12.0) (2025-12-23)
 
 
