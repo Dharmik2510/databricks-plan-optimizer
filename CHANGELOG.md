@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.11.0...v1.12.0) (2025-12-23)
+
+
+### Features
+
+* Implement plan-code mapping agent with backend services for plan parsing and repository crawling, and frontend components for mapping results and progress tracking. ([00a9ee3](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/00a9ee3ab9d911e69248e1acf3ec5ec8e9c8cabb))
+
 # [1.11.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.10.0...v1.11.0) (2025-12-23)
 
 
