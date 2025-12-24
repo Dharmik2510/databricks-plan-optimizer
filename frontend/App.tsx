@@ -150,13 +150,13 @@ function AppContent() {
 
   const handleAnalyze = async () => {
     if (!textContent.trim()) {
-      addToast({ type: 'error', message: 'Please paste or upload a Spark execution plan first' });
+      addToast({ type: 'error', title: 'Plan Required', description: 'Please paste or upload a Spark execution plan first' });
       return;
     }
     setAppState(AppState.ANALYZING);
     setError(null);
     setPrediction(null);
-    addToast({ type: 'info', message: 'Starting analysis...' });
+    addToast({ type: 'info', title: 'Analysis Started', description: 'Starting analysis...' });
     try {
       // Auto-fetch repo if URL provided but files not loaded
       let currentRepoFiles = repoFiles;
@@ -166,11 +166,11 @@ function AppContent() {
           const config = { ...repoConfig, branch: repoConfig.branch || 'main' };
           currentRepoFiles = await client.fetchRepo(config, { maxFiles: 50, includeTests: false, fileExtensions: ['.py', '.scala', '.sql', '.ipynb'] });
           setRepoFiles(currentRepoFiles);
-          addToast({ type: 'success', message: `Connected to repository: ${repoConfig.url}` });
+          addToast({ type: 'success', title: 'Repo Connected', description: `Connected to repository: ${repoConfig.url}` });
         } catch (repoErr: any) {
           console.warn("Repo fetch failed, proceeding without mapping", repoErr);
           setError(`Repo Connect Warning: ${repoErr.message}`);
-          addToast({ type: 'warning', message: 'Repository connection failed, continuing without code mapping' });
+          addToast({ type: 'warning', title: 'Repo Connection Failed', description: 'Repository connection failed, continuing without code mapping' });
           // We continue analysis even if repo fails, just without mapping
         }
       }
@@ -190,12 +190,13 @@ function AppContent() {
       setActiveTab(ActiveTab.DASHBOARD);
       addToast({
         type: 'success',
-        message: `Analysis complete! Found ${data.optimizations.length} optimization${data.optimizations.length !== 1 ? 's' : ''}`
+        title: 'Analysis Complete',
+        description: `Found ${data.optimizations.length} optimization${data.optimizations.length !== 1 ? 's' : ''}`
       });
     } catch (e: any) {
       setError(`Analysis Failed: ${e.message}`);
       setAppState(AppState.ERROR);
-      addToast({ type: 'error', message: `Analysis failed: ${e.message}` });
+      addToast({ type: 'error', title: 'Analysis Failed', description: e.message });
     }
   };
 
@@ -206,10 +207,10 @@ function AppContent() {
       reader.onload = (event) => {
         setTextContent(event.target?.result as string);
         setInputMode('text');
-        addToast({ type: 'success', message: `File "${file.name}" loaded successfully` });
+        addToast({ type: 'success', title: 'File Loaded', description: `File "${file.name}" loaded successfully` });
       };
       reader.onerror = () => {
-        addToast({ type: 'error', message: 'Failed to read file' });
+        addToast({ type: 'error', title: 'Upload Failed', description: 'Failed to read file' });
       };
       reader.readAsText(file);
     }
@@ -219,7 +220,7 @@ function AppContent() {
     const demo = `== Physical Plan ==\n  AdaptiveSparkPlan isFinalPlan=true\n  +- == Final Plan ==\n    ResultQueryStage 1 (est. rows: 2.5M, size: 180MB)\n    +- Project [user_id#12, sum(amount)#45 AS total_spend#99]\n        +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])\n          +- Sort [user_id#12 ASC NULLS FIRST], true, 0\n              +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]\n                +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])\n                    +- Sort [user_id#12 ASC NULLS FIRST], false, 0\n                      +- Project [user_id#12, amount#45]\n                          +- BroadcastNestedLoopJoin BuildRight, Inner (WARNING: Missing Join Condition - Cartesian Product)\n                            :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))\n                            :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] \n                            :     Batched: true, \n                            :     DataFilters: [isnotnull(transaction_date#40)], \n                            :     Format: Parquet, \n                            :     Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], \n                            :     PartitionFilters: [], \n                            :     PushedFilters: [IsNotNull(transaction_date)], \n                            :     ReadSchema: struct<user_id:string,transaction_date:date,amount:double>\n                            :     Statistics: rows=15000000, size=1.2GB\n                            +- BroadcastExchange IdentityBroadcastMode, [id=#98] (size: 45MB)\n                                +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))\n                                  +- FileScan csv db.users[user_id#10, status#20] \n                                      Batched: false,
                                       Format: CSV, \n                                      Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], \n                                      PartitionFilters: [], \n                                      PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], \n                                      ReadSchema: struct<user_id:string,status:string>\n                                      Statistics: rows=500000, size=25MB`;
     setTextContent(demo);
-    addToast({ type: 'info', message: 'Demo execution plan loaded' });
+    addToast({ type: 'info', title: 'Demo Loaded', description: 'Demo execution plan loaded successfully' });
   };
   const resetApp = () => {
     setResult(null);
@@ -229,7 +230,7 @@ function AppContent() {
     setActiveTab(ActiveTab.HOME);
     setRepoFiles([]);
     setRepoConfig({ url: '', branch: 'main', token: '' });
-    addToast({ type: 'info', message: 'Application reset to home' });
+    addToast({ type: 'info', title: 'Reset', description: 'Application context has been reset' });
   };
   const goToNewAnalysis = () => { setAppState(AppState.IDLE); setActiveTab(ActiveTab.DASHBOARD); };
 
@@ -855,7 +856,21 @@ const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis,
   </aside>
 );
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, 'data-tour': dataTour }: any) => (<button data-tour={dataTour} onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${active ? 'bg-slate-800 text-white relative' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>{active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>}<Icon className={`w-4 h-4 ${active ? 'text-orange-400' : ''}`} />{label}</button>);
+const SidebarItem = ({ icon: Icon, label, active, onClick, 'data-tour': dataTour }: any) => (
+  <button
+    data-tour={dataTour}
+    onClick={onClick}
+    className="w-full relative group p-[1px] rounded-lg overflow-hidden transition-all duration-300 mb-1 focus:outline-none"
+  >
+    <span className={`absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}></span>
+    <span className={`relative flex items-center gap-3 px-3 py-2 rounded-[7px] w-full transition-colors duration-300 ${active ? 'bg-slate-800' : 'bg-slate-900 group-hover:bg-slate-900/90'}`}>
+      <Icon className={`w-4 h-4 transition-colors duration-300 ${active ? 'text-orange-400' : 'text-slate-400 group-hover:text-white'}`} />
+      <span className={`text-sm font-medium transition-colors duration-300 ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+        {label}
+      </span>
+    </span>
+  </button>
+);
 const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }: any) => { const colorMap: any = { blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800', orange: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800', emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800', purple: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800' }; const theme = colorMap[color] || colorMap.blue; return (<div onClick={onClick} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col"><div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border shadow-sm`}><Icon className="w-6 h-6" /></div><h3 className="font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">{title}</h3><p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1 leading-relaxed font-medium">{desc}</p><div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1 group-hover:gap-2 transition-all">{actionText} <ChevronRight className="w-3 h-3 text-orange-600 dark:text-orange-400" /></div></div>); };
 const RecentRow = ({ name, type, date, status }: any) => (<tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 cursor-pointer group"><td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300 group-hover:text-orange-700 dark:group-hover:text-orange-400 flex items-center gap-2 transition-colors"><FileClock className="w-4 h-4 text-slate-400" />{name}</td><td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-medium">{type}</td><td className="px-6 py-4 text-slate-500 dark:text-slate-500 font-medium">{date}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${status === 'Critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : status === 'Optimized' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : status === 'Completed' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400'}`}>{status}</span></td></tr>);
 
