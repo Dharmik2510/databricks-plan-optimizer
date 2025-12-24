@@ -1,6 +1,6 @@
-// AFTER
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './index.css';
 import App from './App';
 import { AuthProvider } from './store/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';

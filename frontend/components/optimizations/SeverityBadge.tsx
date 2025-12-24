@@ -40,7 +40,7 @@ export const SeverityBadge: React.FC<SeverityBadgeProps> = ({
     const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs';
 
     return (
-        <span className={`inline-flex items-center gap-1.5 rounded-full font-bold uppercase tracking-wide ${config.bg} ${config.text} ${sizeClasses}`}>
+        <span data-tour="severity-badge" className={`inline-flex items-center gap-1.5 rounded-full font-bold uppercase tracking-wide ${config.bg} ${config.text} ${sizeClasses}`}>
             <Icon className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
             {showLabel && config.label}
         </span>

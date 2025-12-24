@@ -15,6 +15,7 @@ import { PredictivePanel } from './components/PredictivePanel';
 import { OptimizationPlayground } from './components/OptimizationPlayground';
 import { AdvancedInsights } from './components/AdvancedInsights';
 import { LoadingScreen } from './components/LoadingScreen';
+import AnalysisLoadingState from './components/AnalysisLoadingState';
 import { UserGuideModal } from './components/guide/UserGuideModal';
 import { ComingSoonModal } from './components/common/ComingSoonModal';
 
@@ -28,6 +29,11 @@ import { AuthPage } from './components/auth/AuthPage';
 import { UserMenu } from './components/auth/UserMenu';
 import { RecentAnalyses } from './components/RecentAnalyses';
 import { HistoryPage } from './components/HistoryPage';
+import { ToastProvider, useToast, Button } from './design-system/components';
+import Onboarding from './components/Onboarding';
+import CommandPalette from './components/CommandPalette';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
 const DEMO_REPO_FILES: RepoFile[] = [
   {
@@ -38,6 +44,7 @@ const DEMO_REPO_FILES: RepoFile[] = [
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { addToast } = useToast();
 
   const [inputMode, setInputMode] = useState<'file' | 'text'>('text');
   const [textContent, setTextContent] = useState('');
@@ -70,6 +77,10 @@ function AppContent() {
   const [showUserGuide, setShowUserGuide] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [comingSoonFeature, setComingSoonFeature] = useState('');
+
+  // UI Enhancement State
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   // DAG Visualization State
   const [dagExpanded, setDagExpanded] = useState(false);
@@ -138,10 +149,14 @@ function AppContent() {
   const loadDemoRepo = () => { setRepoFiles(DEMO_REPO_FILES); setRepoConfig({ ...repoConfig, url: 'DEMO_MODE_ACTIVE' }); };
 
   const handleAnalyze = async () => {
-    if (!textContent.trim()) return;
+    if (!textContent.trim()) {
+      addToast({ type: 'error', message: 'Please paste or upload a Spark execution plan first' });
+      return;
+    }
     setAppState(AppState.ANALYZING);
     setError(null);
     setPrediction(null);
+    addToast({ type: 'info', message: 'Starting analysis...' });
     try {
       // Auto-fetch repo if URL provided but files not loaded
       let currentRepoFiles = repoFiles;
@@ -151,9 +166,11 @@ function AppContent() {
           const config = { ...repoConfig, branch: repoConfig.branch || 'main' };
           currentRepoFiles = await client.fetchRepo(config, { maxFiles: 50, includeTests: false, fileExtensions: ['.py', '.scala', '.sql', '.ipynb'] });
           setRepoFiles(currentRepoFiles);
+          addToast({ type: 'success', message: `Connected to repository: ${repoConfig.url}` });
         } catch (repoErr: any) {
           console.warn("Repo fetch failed, proceeding without mapping", repoErr);
           setError(`Repo Connect Warning: ${repoErr.message}`);
+          addToast({ type: 'warning', message: 'Repository connection failed, continuing without code mapping' });
           // We continue analysis even if repo fails, just without mapping
         }
       }
@@ -171,9 +188,14 @@ function AppContent() {
       } catch (predError) { console.warn("Predictive analysis failed:", predError); }
       setAppState(AppState.SUCCESS);
       setActiveTab(ActiveTab.DASHBOARD);
+      addToast({
+        type: 'success',
+        message: `Analysis complete! Found ${data.optimizations.length} optimization${data.optimizations.length !== 1 ? 's' : ''}`
+      });
     } catch (e: any) {
       setError(`Analysis Failed: ${e.message}`);
       setAppState(AppState.ERROR);
+      addToast({ type: 'error', message: `Analysis failed: ${e.message}` });
     }
   };
 
@@ -181,17 +203,34 @@ function AppContent() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => { setTextContent(event.target?.result as string); setInputMode('text'); };
+      reader.onload = (event) => {
+        setTextContent(event.target?.result as string);
+        setInputMode('text');
+        addToast({ type: 'success', message: `File "${file.name}" loaded successfully` });
+      };
+      reader.onerror = () => {
+        addToast({ type: 'error', message: 'Failed to read file' });
+      };
       reader.readAsText(file);
     }
   };
 
   const insertDemoData = () => {
-    const demo = `== Physical Plan ==\n  AdaptiveSparkPlan isFinalPlan=true\n  +- == Final Plan ==\n    ResultQueryStage 1 (est. rows: 2.5M, size: 180MB)\n    +- Project [user_id#12, sum(amount)#45 AS total_spend#99]\n        +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])\n          +- Sort [user_id#12 ASC NULLS FIRST], true, 0\n              +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]\n                +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])\n                    +- Sort [user_id#12 ASC NULLS FIRST], false, 0\n                      +- Project [user_id#12, amount#45]\n                          +- BroadcastNestedLoopJoin BuildRight, Inner (WARNING: Missing Join Condition - Cartesian Product)\n                            :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))\n                            :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] \n                            :     Batched: true, \n                            :     DataFilters: [isnotnull(transaction_date#40)], \n                            :     Format: Parquet, \n                            :     Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], \n                            :     PartitionFilters: [], \n                            :     PushedFilters: [IsNotNull(transaction_date)], \n                            :     ReadSchema: struct<user_id:string,transaction_date:date,amount:double>\n                            :     Statistics: rows=15000000, size=1.2GB\n                            +- BroadcastExchange IdentityBroadcastMode, [id=#98] (size: 45MB)\n                                +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))\n                                  +- FileScan csv db.users[user_id#10, status#20] \n                                      Batched: false, 
+    const demo = `== Physical Plan ==\n  AdaptiveSparkPlan isFinalPlan=true\n  +- == Final Plan ==\n    ResultQueryStage 1 (est. rows: 2.5M, size: 180MB)\n    +- Project [user_id#12, sum(amount)#45 AS total_spend#99]\n        +- SortAggregate(key=[user_id#12], functions=[sum(amount#45)], output=[user_id#12, total_spend#99])\n          +- Sort [user_id#12 ASC NULLS FIRST], true, 0\n              +- Exchange hashpartitioning(user_id#12, 200), ENSURE_REQUIREMENTS, [id=#105]\n                +- SortAggregate(key=[user_id#12], functions=[partial_sum(amount#45)], output=[user_id#12, sum#108])\n                    +- Sort [user_id#12 ASC NULLS FIRST], false, 0\n                      +- Project [user_id#12, amount#45]\n                          +- BroadcastNestedLoopJoin BuildRight, Inner (WARNING: Missing Join Condition - Cartesian Product)\n                            :- Filter (isnotnull(transaction_date#40) AND (transaction_date#40 >= 2023-01-01))\n                            :  +- FileScan parquet db.transactions[user_id#12, transaction_date#40, amount#45] \n                            :     Batched: true, \n                            :     DataFilters: [isnotnull(transaction_date#40)], \n                            :     Format: Parquet, \n                            :     Location: InMemoryFileIndex(1 paths)[s3://bucket/data/transactions], \n                            :     PartitionFilters: [], \n                            :     PushedFilters: [IsNotNull(transaction_date)], \n                            :     ReadSchema: struct<user_id:string,transaction_date:date,amount:double>\n                            :     Statistics: rows=15000000, size=1.2GB\n                            +- BroadcastExchange IdentityBroadcastMode, [id=#98] (size: 45MB)\n                                +- Filter ((status#20 = 'active') AND isnotnull(user_id#10))\n                                  +- FileScan csv db.users[user_id#10, status#20] \n                                      Batched: false,
                                       Format: CSV, \n                                      Location: InMemoryFileIndex(1 paths)[s3://bucket/data/users], \n                                      PartitionFilters: [], \n                                      PushedFilters: [EqualTo(status,active), IsNotNull(user_id)], \n                                      ReadSchema: struct<user_id:string,status:string>\n                                      Statistics: rows=500000, size=25MB`;
     setTextContent(demo);
+    addToast({ type: 'info', message: 'Demo execution plan loaded' });
   };
-  const resetApp = () => { setResult(null); setPrediction(null); setAppState(AppState.IDLE); setTextContent(''); setActiveTab(ActiveTab.HOME); setRepoFiles([]); setRepoConfig({ url: '', branch: 'main', token: '' }); };
+  const resetApp = () => {
+    setResult(null);
+    setPrediction(null);
+    setAppState(AppState.IDLE);
+    setTextContent('');
+    setActiveTab(ActiveTab.HOME);
+    setRepoFiles([]);
+    setRepoConfig({ url: '', branch: 'main', token: '' });
+    addToast({ type: 'info', message: 'Application reset to home' });
+  };
   const goToNewAnalysis = () => { setAppState(AppState.IDLE); setActiveTab(ActiveTab.DASHBOARD); };
 
   const handleComputeClick = () => {
@@ -199,8 +238,96 @@ function AppContent() {
     setShowComingSoon(true);
   };
 
+  const handleAnalyzeExample = (plan: string) => {
+    setTextContent(plan);
+    setAppState(AppState.IDLE);
+    setActiveTab(ActiveTab.DASHBOARD);
+  };
+
+  // Keyboard Shortcuts Setup
+  const shortcuts = [
+    {
+      key: 'k',
+      ctrlKey: true,
+      description: 'Open command palette',
+      action: () => setShowCommandPalette(true),
+      category: 'Navigation'
+    },
+    {
+      key: '?',
+      shiftKey: true,
+      description: 'Show keyboard shortcuts',
+      action: () => setShowShortcutsHelp(true),
+      category: 'Help'
+    },
+    {
+      key: 'n',
+      ctrlKey: true,
+      description: 'New analysis',
+      action: goToNewAnalysis,
+      category: 'Actions'
+    },
+    {
+      key: 'Escape',
+      description: 'Close modals',
+      action: () => {
+        setShowCommandPalette(false);
+        setShowShortcutsHelp(false);
+      },
+      category: 'Navigation'
+    },
+  ];
+
+  // Command Palette Commands
+  const commands = [
+    {
+      id: 'new-analysis',
+      label: 'New Analysis',
+      description: 'Create a new query analysis',
+      icon: <Plus className="h-4 w-4" />,
+      action: goToNewAnalysis,
+      category: 'Actions',
+      keywords: ['create', 'add', 'new'],
+    },
+    {
+      id: 'home',
+      label: 'Go to Home',
+      description: 'Navigate to home page',
+      icon: <Home className="h-4 w-4" />,
+      action: () => setActiveTab(ActiveTab.HOME),
+      category: 'Navigation',
+    },
+    {
+      id: 'history',
+      label: 'View History',
+      description: 'See your analysis history',
+      icon: <FileClock className="h-4 w-4" />,
+      action: () => setActiveTab(ActiveTab.HISTORY),
+      category: 'Navigation',
+    },
+    {
+      id: 'chat',
+      label: 'AI Consultant',
+      description: 'Ask AI about your query',
+      icon: <MessageSquare className="h-4 w-4" />,
+      action: () => setActiveTab(ActiveTab.CHAT),
+      category: 'Chat',
+    },
+    {
+      id: 'reset',
+      label: 'Reset Context',
+      description: 'Clear current analysis',
+      icon: <LogOut className="h-4 w-4" />,
+      action: resetApp,
+      category: 'Actions',
+    },
+  ];
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts({ shortcuts, enabled: isAuthenticated });
+
   // Auth Checks after all hooks
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading) return <AnalysisLoadingState currentStep={0} estimatedTime={3000} />;
   if (!isAuthenticated) return <AuthPage />;
 
   return (
@@ -256,7 +383,7 @@ function AppContent() {
 
             {activeTab === ActiveTab.DASHBOARD && (
               <>
-                {appState === AppState.ANALYZING && <LoadingScreen />}
+                {appState === AppState.ANALYZING && <AnalysisLoadingState currentStep={2} estimatedTime={10000} />}
 
                 {(appState === AppState.IDLE || appState === AppState.ERROR) && (
                   <div className="flex flex-col min-h-[75vh] animate-fade-in gap-6">
@@ -273,7 +400,17 @@ function AppContent() {
                           {inputMode === 'text' ? (
                             <div className="relative group flex-1">
                               <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} className="w-full h-full min-h-[400px] p-6 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-sm rounded-2xl border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400 dark:placeholder-slate-600" placeholder="Paste your 'EXPLAIN EXTENDED' output here..."></textarea>
-                              <button onClick={insertDemoData} className="absolute top-4 right-4 text-xs bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-orange-700 dark:hover:text-orange-400 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm font-bold">Load Demo Plan</button>
+                              <div className="absolute top-4 right-4">
+                                <button
+                                  onClick={insertDemoData}
+                                  className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 hover:border-orange-200 dark:hover:border-orange-800 transition-all cursor-pointer"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5 text-orange-500 group-hover:rotate-12 transition-transform" />
+                                  <span className="text-xs font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent group-hover:from-orange-500 group-hover:to-red-500">
+                                    Load Demo Plan
+                                  </span>
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <div className="h-full min-h-[400px] border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all relative group cursor-pointer"><div className="p-5 bg-white dark:bg-slate-800 rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 dark:text-orange-400 border border-slate-200 dark:border-slate-700"><Upload className="w-8 h-8" /></div><p className="text-slate-800 dark:text-slate-200 font-bold text-lg">Click to Upload</p><input type="file" accept=".json,.txt,.log" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" /></div>
@@ -408,7 +545,7 @@ function AppContent() {
                           </div>
                         </div>
                         <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
-                          <button onClick={handleAnalyze} disabled={!textContent.trim()} className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
+                          <button data-tour="new-analysis" onClick={handleAnalyze} disabled={!textContent.trim()} className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
                             <PlayCircle className="w-6 h-6" /> Analyze Plan
                           </button>
                         </div>
@@ -484,16 +621,18 @@ function AppContent() {
                         });
 
                         return (
-                          <EnhancedDagVisualizer
-                            nodes={result.dagNodes}
-                            links={result.dagLinks}
-                            optimizations={enrichedOptimizations}
-                            isExpanded={dagExpanded}
-                            onToggleExpand={setDagExpanded}
-                            highlightedNodeId={selectedNodeId}
-                            onSelectNode={setSelectedNodeId}
-                            onMapToCode={() => setActiveTab(ActiveTab.CODE_MAP)}
-                          />
+                          <div data-tour="dag-canvas">
+                            <EnhancedDagVisualizer
+                              nodes={result.dagNodes}
+                              links={result.dagLinks}
+                              optimizations={enrichedOptimizations}
+                              isExpanded={dagExpanded}
+                              onToggleExpand={setDagExpanded}
+                              highlightedNodeId={selectedNodeId}
+                              onSelectNode={setSelectedNodeId}
+                              onMapToCode={() => setActiveTab(ActiveTab.CODE_MAP)}
+                            />
+                          </div>
                         );
                       })()}
                       <ResourceChart data={result.resourceMetrics} />
@@ -532,34 +671,36 @@ function AppContent() {
                         }
                         return { ...opt, relatedCodeSnippets };
                       });
-                      return <OptimizationPanel
-                        optimizations={enrichedOptimizations}
-                        onViewInDag={(opt) => {
-                          // Expand DAG
-                          setDagExpanded(true);
+                      return <div data-tour="optimization-panel">
+                        <OptimizationPanel
+                          optimizations={enrichedOptimizations}
+                          onViewInDag={(opt) => {
+                            // Expand DAG
+                            setDagExpanded(true);
 
-                          // Find relevant node
-                          if (opt.affected_stages && opt.affected_stages.length > 0) {
-                            // Simple matching logic - usually first affected stage is the primary target
-                            // The stage names in optimizations might be just numbers or names, 
-                            // we try to find a node that contains this ID.
-                            const targetStage = opt.affected_stages[0];
-                            const matchingNode = result.dagNodes.find(n => n.id.includes(targetStage));
-                            if (matchingNode) {
-                              setSelectedNodeId(matchingNode.id);
+                            // Find relevant node
+                            if (opt.affected_stages && opt.affected_stages.length > 0) {
+                              // Simple matching logic - usually first affected stage is the primary target
+                              // The stage names in optimizations might be just numbers or names, 
+                              // we try to find a node that contains this ID.
+                              const targetStage = opt.affected_stages[0];
+                              const matchingNode = result.dagNodes.find(n => n.id.includes(targetStage));
+                              if (matchingNode) {
+                                setSelectedNodeId(matchingNode.id);
+                              }
                             }
-                          }
 
-                          // Scroll to view
-                          // We use a slight timeout to allow the portal to open if needed
-                          setTimeout(() => {
-                            const element = document.getElementById('dag-visualizer-section');
-                            if (element) {
-                              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }
-                          }, 100);
-                        }}
-                      />;
+                            // Scroll to view
+                            // We use a slight timeout to allow the portal to open if needed
+                            setTimeout(() => {
+                              const element = document.getElementById('dag-visualizer-section');
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }, 100);
+                          }}
+                        />
+                      </div>;
                     })()}
                     {prediction && <><PredictivePanel prediction={prediction} /><OptimizationPlayground optimizations={result.optimizations} baselineDuration={result.estimatedDurationMin || 15} /></>}
                   </div>
@@ -602,6 +743,22 @@ function AppContent() {
         </main>
         <UserGuideModal isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
         <ComingSoonModal isOpen={showComingSoon} onClose={() => setShowComingSoon(false)} featureName={comingSoonFeature} />
+
+        {/* UI Enhancement Components */}
+        <Onboarding
+          onAnalyzeExample={handleAnalyzeExample}
+          onComplete={() => console.log('Onboarding completed')}
+        />
+        <CommandPalette
+          open={showCommandPalette}
+          onOpenChange={setShowCommandPalette}
+          commands={commands}
+        />
+        <KeyboardShortcutsModal
+          open={showShortcutsHelp}
+          onOpenChange={setShowShortcutsHelp}
+          shortcuts={shortcuts}
+        />
       </div>
     </div>
   );
@@ -610,7 +767,9 @@ function AppContent() {
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </ThemeProvider>
   </ErrorBoundary>
 );
@@ -660,28 +819,43 @@ const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
 const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis, onGuideClick, onComputeClick }: any) => (
   <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
     <div className="p-4">
-      <button onClick={goToNewAnalysis} className="w-full bg-white text-slate-900 font-bold py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors shadow-sm mb-6"><Plus className="w-5 h-5" /> New</button>
+      <button
+        onClick={goToNewAnalysis}
+        className="w-full mb-6 relative group overflow-hidden rounded-xl p-[1px] focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+      >
+        <span className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 opacity-80 group-hover:opacity-100 transition-opacity duration-300"></span>
+        <span className="relative flex items-center justify-center gap-2 w-full bg-slate-900 group-hover:bg-slate-800/50 text-white px-4 py-3 rounded-[11px] font-bold text-sm transition-colors duration-300">
+          <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+          <span className="bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">New Analysis</span>
+        </span>
+      </button>
       <div className="space-y-1">
         <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
         <SidebarItem icon={FileClock} label="History" active={activeTab === ActiveTab.HISTORY} onClick={() => setActiveTab(ActiveTab.HISTORY)} />
         <div className="h-px bg-slate-800 my-2 mx-3"></div>
         <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
-        <SidebarItem icon={FileCode2} label="Code Mapper" active={activeTab === ActiveTab.CODE_MAP} onClick={() => setActiveTab(ActiveTab.CODE_MAP)} />
+        <SidebarItem data-tour="repo-tab" icon={FileCode2} label="Code Mapper" active={activeTab === ActiveTab.CODE_MAP} onClick={() => setActiveTab(ActiveTab.CODE_MAP)} />
         <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
         <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={onComputeClick} />
         <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
-        <SidebarItem icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
+        <SidebarItem data-tour="chat-tab" icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
       </div>
     </div>
-    <div className="mt-auto p-4 border-t border-slate-800">
-      {appState === AppState.SUCCESS && <button onClick={resetApp} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><LogOut className="w-4 h-4" /> Reset Context</button>}
-      <button onClick={onGuideClick} className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><BookOpen className="w-4 h-4" /> User Guide</button>
+    <div className="mt-auto p-4 border-t border-slate-800 space-y-2">
+      {appState === AppState.SUCCESS && (
+        <Button onClick={resetApp} variant="ghost" size="sm" className="w-full justify-start" leftIcon={<LogOut className="w-4 h-4" />}>
+          Reset Context
+        </Button>
+      )}
+      <Button onClick={onGuideClick} variant="ghost" size="sm" className="w-full justify-start" leftIcon={<BookOpen className="w-4 h-4" />}>
+        User Guide
+      </Button>
       <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><Activity className="w-3 h-3" /> v{__APP_VERSION__}</div>
     </div>
   </aside>
 );
 
-const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (<button onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${active ? 'bg-slate-800 text-white relative' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>{active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>}<Icon className={`w-4 h-4 ${active ? 'text-orange-400' : ''}`} />{label}</button>);
+const SidebarItem = ({ icon: Icon, label, active, onClick, 'data-tour': dataTour }: any) => (<button data-tour={dataTour} onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${active ? 'bg-slate-800 text-white relative' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>{active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500"></div>}<Icon className={`w-4 h-4 ${active ? 'text-orange-400' : ''}`} />{label}</button>);
 const GetStartedCard = ({ icon: Icon, title, desc, actionText, onClick, color }: any) => { const colorMap: any = { blue: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800', orange: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800', emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800', purple: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800' }; const theme = colorMap[color] || colorMap.blue; return (<div onClick={onClick} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col"><div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme} border shadow-sm`}><Icon className="w-6 h-6" /></div><h3 className="font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">{title}</h3><p className="text-sm text-slate-600 dark:text-slate-400 mb-6 flex-1 leading-relaxed font-medium">{desc}</p><div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1 group-hover:gap-2 transition-all">{actionText} <ChevronRight className="w-3 h-3 text-orange-600 dark:text-orange-400" /></div></div>); };
 const RecentRow = ({ name, type, date, status }: any) => (<tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0 cursor-pointer group"><td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300 group-hover:text-orange-700 dark:group-hover:text-orange-400 flex items-center gap-2 transition-colors"><FileClock className="w-4 h-4 text-slate-400" />{name}</td><td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-medium">{type}</td><td className="px-6 py-4 text-slate-500 dark:text-slate-500 font-medium">{date}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${status === 'Critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : status === 'Optimized' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : status === 'Completed' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400'}`}>{status}</span></td></tr>);
 
