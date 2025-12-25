@@ -16,7 +16,7 @@ COPY index.html ./
 COPY types.ts ./
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Set environment variable for build
 ENV VITE_API_URL=$VITE_API_URL
