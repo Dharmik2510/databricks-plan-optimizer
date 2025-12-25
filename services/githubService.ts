@@ -1,16 +1,32 @@
 
 import { RepoConfig, RepoFile } from "../types";
 
-// Helper to parse GitHub URL
+// Helper to validate and parse GitHub URL
 const parseGithubUrl = (url: string) => {
   try {
+    // Validate that it's a GitHub URL
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+
+    if (hostname !== 'github.com' && !hostname.endsWith('.github.com')) {
+      throw new Error("Invalid URL. Please enter a valid GitHub repository URL (e.g., https://github.com/username/repo)");
+    }
+
     const cleanUrl = url.replace(/\.git$/, "");
     const parts = cleanUrl.split("/");
     const owner = parts[parts.length - 2];
     const repo = parts[parts.length - 1];
+
+    if (!owner || !repo) {
+      throw new Error("Invalid GitHub URL format. Expected: https://github.com/username/repo");
+    }
+
     return { owner, repo };
   } catch (e) {
-    throw new Error("Invalid GitHub URL");
+    if (e instanceof Error && e.message.includes("Invalid URL")) {
+      throw e;
+    }
+    throw new Error("Invalid URL. Please enter a valid GitHub repository URL (e.g., https://github.com/username/repo)");
   }
 };
 

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Github, FolderUp, Link } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Github, FolderUp, Link, AlertCircle } from 'lucide-react';
 
 interface Props {
     url: string;
@@ -9,6 +9,40 @@ interface Props {
 }
 
 export const RepoConnectForm: React.FC<Props> = ({ url, onUrlChange, onScan, isLoading }) => {
+    const [urlError, setUrlError] = useState<string>('');
+
+    const isValidGitHubUrl = (url: string): boolean => {
+        if (!url) return true; // Empty is valid (no error shown)
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname.toLowerCase();
+            return hostname === 'github.com' || hostname.endsWith('.github.com');
+        } catch {
+            return false;
+        }
+    };
+
+    useEffect(() => {
+        if (url && !isValidGitHubUrl(url)) {
+            setUrlError('Please enter a valid GitHub repository URL');
+        } else {
+            setUrlError('');
+        }
+    }, [url]);
+
+    const handleScan = () => {
+        if (!url) {
+            setUrlError('Repository URL is required');
+            return;
+        }
+        if (!isValidGitHubUrl(url)) {
+            setUrlError('Please enter a valid GitHub repository URL (e.g., https://github.com/username/repo)');
+            return;
+        }
+        setUrlError('');
+        onScan();
+    };
+
     return (
         <div className="max-w-md mx-auto p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg mt-10">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Connect Repository</h2>
@@ -39,24 +73,36 @@ export const RepoConnectForm: React.FC<Props> = ({ url, onUrlChange, onScan, isL
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="https://github.com/username/repo"
-                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            value={url}
-                            onChange={(e) => onUrlChange(e.target.value)}
-                        />
+                <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="https://github.com/username/repo"
+                                className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
+                                    urlError
+                                        ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
+                                        : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'
+                                } bg-slate-50 dark:bg-slate-800 text-sm focus:ring-2 outline-none`}
+                                value={url}
+                                onChange={(e) => onUrlChange(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            onClick={handleScan}
+                            disabled={isLoading || !!urlError}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? 'Scanning...' : 'Scan'}
+                        </button>
                     </div>
-                    <button
-                        onClick={onScan}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                        {isLoading ? 'Scanning...' : 'Scan'}
-                    </button>
+                    {urlError && (
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>{urlError}</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

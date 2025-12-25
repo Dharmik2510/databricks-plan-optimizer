@@ -18,7 +18,8 @@ import {
     Brain,
     Target,
     FolderGit2,
-    LayoutDashboard
+    LayoutDashboard,
+    AlertCircle
 } from 'lucide-react';
 import { AgentProgressTracker } from './AgentProgressTracker';
 import { MappingResultsView } from './MappingResultsView';
@@ -51,6 +52,26 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [job, setJob] = useState<AgentJob | null>(null);
+    const [urlError, setUrlError] = useState<string>('');
+
+    const isValidGitHubUrl = (url: string): boolean => {
+        if (!url) return true; // Empty is valid (no error shown)
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname.toLowerCase();
+            return hostname === 'github.com' || hostname.endsWith('.github.com');
+        } catch {
+            return false;
+        }
+    };
+
+    useEffect(() => {
+        if (repoUrl && !isValidGitHubUrl(repoUrl)) {
+            setUrlError('Please enter a valid GitHub repository URL');
+        } else {
+            setUrlError('');
+        }
+    }, [repoUrl]);
 
     useEffect(() => {
         if (initialPlanContent) {
@@ -84,8 +105,14 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     const handleStartMapping = useCallback(async () => {
         if (!planContent.trim() || !repoUrl.trim()) return;
 
+        if (!isValidGitHubUrl(repoUrl)) {
+            setUrlError('Please enter a valid GitHub repository URL (e.g., https://github.com/username/repo)');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
+        setUrlError('');
 
         try {
             const data = await client.post<AgentJob>('/agent/jobs', {
@@ -221,8 +248,18 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                                 placeholder="https://github.com/owner/repo"
                                 value={repoUrl}
                                 onChange={(e) => setRepoUrl(e.target.value)}
-                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                                className={`w-full bg-slate-50 dark:bg-slate-800/50 border ${
+                                    urlError
+                                        ? 'border-red-500 dark:border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                                        : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500/20 focus:border-indigo-500'
+                                } rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium`}
                             />
+                            {urlError && (
+                                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs mt-2">
+                                    <AlertCircle className="w-3 h-3" />
+                                    <span>{urlError}</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-6">
@@ -291,7 +328,7 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                     <div className="p-6 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
                         <button
                             onClick={handleStartMapping}
-                            disabled={!planContent.trim() || !repoUrl.trim() || isLoading}
+                            disabled={!planContent.trim() || !repoUrl.trim() || isLoading || !!urlError}
                             className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:from-slate-300 disabled:to-slate-400 disabled:dark:from-slate-700 disabled:dark:to-slate-800 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg shadow-indigo-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-3"
                         >
                             {isLoading ? (

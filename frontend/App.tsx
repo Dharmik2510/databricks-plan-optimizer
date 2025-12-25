@@ -134,8 +134,30 @@ function AppContent() {
     loadInstances();
   }, [clusterContext.region, cloudProvider]);
 
+  const isValidGitHubUrl = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      return hostname === 'github.com' || hostname.endsWith('.github.com');
+    } catch {
+      return false;
+    }
+  };
+
   const handleFetchRepo = async () => {
     if (!repoConfig.url) return;
+
+    // Validate GitHub URL
+    if (!isValidGitHubUrl(repoConfig.url)) {
+      setError('Invalid URL. Please enter a valid GitHub repository URL (e.g., https://github.com/username/repo)');
+      addToast({
+        type: 'error',
+        title: 'Invalid URL',
+        description: 'Please enter a valid GitHub repository URL'
+      });
+      return;
+    }
+
     setIsFetchingRepo(true);
     setError(null);
     try {
@@ -161,6 +183,18 @@ function AppContent() {
       // Auto-fetch repo if URL provided but files not loaded
       let currentRepoFiles = repoFiles;
       if (repoConfig.url && repoFiles.length === 0) {
+        // Validate GitHub URL before fetching
+        if (!isValidGitHubUrl(repoConfig.url)) {
+          addToast({
+            type: 'error',
+            title: 'Invalid Repository URL',
+            description: 'Please enter a valid GitHub repository URL'
+          });
+          setAppState(AppState.ERROR);
+          setError('Invalid URL. Please enter a valid GitHub repository URL (e.g., https://github.com/username/repo)');
+          return;
+        }
+
         try {
           // Default to main if not specified
           const config = { ...repoConfig, branch: repoConfig.branch || 'main' };
