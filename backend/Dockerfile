@@ -27,8 +27,8 @@ FROM node:20-slim AS production
 
 WORKDIR /app
 
-# Install OpenSSL for Prisma
-RUN apt-get update -y && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL for Prisma and Git for repository cloning
+RUN apt-get update -y && apt-get install -y openssl wget git && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
