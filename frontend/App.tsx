@@ -333,7 +333,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
-      <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} />
+      <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} prediction={prediction} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           activeTab={activeTab}
@@ -346,15 +346,6 @@ function AppContent() {
         />
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
-            {prediction?.aiAgentStatus && activeTab !== ActiveTab.HOME && (
-              <div className="mb-6 bg-indigo-900 text-white rounded-xl p-4 flex items-center justify-between shadow-lg ring-1 ring-indigo-700">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-700 rounded-lg animate-pulse"><BrainCircuit className="w-5 h-5" /></div>
-                  <div><div className="text-xs font-bold text-indigo-300 uppercase tracking-wider">AI Optimization Agent Active</div><div className="text-sm font-medium">Prevented {prediction.aiAgentStatus.prevented_issues.length} critical issues • {prediction.aiAgentStatus.mode} mode</div></div>
-                </div>
-                <div className="text-right"><div className="text-2xl font-bold">${prediction.aiAgentStatus.total_savings_session.toFixed(2)}</div><div className="text-xs text-indigo-300">Session Savings</div></div>
-              </div>
-            )}
             {activeTab === ActiveTab.HOME && (
               <div className="space-y-12 animate-fade-in">
                 <div><h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Get started</h1><p className="text-slate-600 dark:text-slate-400 font-medium">Welcome to BrickOptima. What would you like to do today?</p></div>
@@ -774,7 +765,7 @@ const App = () => (
   </ErrorBoundary>
 );
 
-const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
+const Header = ({ onLogoClick, prediction }: { onLogoClick: () => void, prediction: PerformancePrediction | null }) => {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -808,6 +799,18 @@ const Header = ({ onLogoClick }: { onLogoClick: () => void }) => {
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           <span className="text-xs font-bold text-indigo-300">AI Engine Ready</span>
         </div>
+
+        {prediction?.aiAgentStatus && (
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md border border-indigo-400/30 animate-fade-in group hover:shadow-lg transition-all cursor-default">
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="w-4 h-4 text-white animate-pulse" />
+              <div className="flex flex-col leading-none">
+                <span className="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Agent Active</span>
+                <span className="text-xs font-bold text-white">${prediction.aiAgentStatus.total_savings_session.toFixed(2)} Saved</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="h-8 w-px bg-slate-800 mx-2"></div>
         <UserMenu />
