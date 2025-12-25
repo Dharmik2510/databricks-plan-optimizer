@@ -10,6 +10,8 @@ export interface ModalProps {
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   showCloseButton?: boolean;
+  className?: string; // Custom styles for Content
+  padding?: boolean; // Whether to include default padding
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -20,6 +22,8 @@ const Modal: React.FC<ModalProps> = ({
   children,
   size = 'md',
   showCloseButton = true,
+  className,
+  padding = true,
 }) => {
   const sizes = {
     sm: 'max-w-md',
@@ -53,7 +57,9 @@ const Modal: React.FC<ModalProps> = ({
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             'data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]',
             'data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
-            sizes[size]
+            'data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
+            sizes[size],
+            className
           )}
         >
           {/* Header */}
@@ -94,7 +100,7 @@ const Modal: React.FC<ModalProps> = ({
           )}
 
           {/* Body */}
-          <div className="p-6">{children}</div>
+          <div className={padding ? 'p-6' : ''}>{children}</div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

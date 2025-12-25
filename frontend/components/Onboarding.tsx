@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Joyride, { Step, CallBackProps, STATUS } from 'react-joyride';
 import Modal from '../design-system/components/Modal';
 import Button from '../design-system/components/Button';
+import OnboardingTooltip from './OnboardingTooltip';
 
 import { Sparkles, FileText, GitBranch, Zap } from 'lucide-react';
 
@@ -125,116 +126,87 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onAnalyzeExample })
         onOpenChange={(open) => !open && handleWelcomeClose(true)}
         title=""
         size="lg"
-        showCloseButton={false} // We typically handle this manually for custom headers or keep it false for this welcome screen style
+        showCloseButton={false}
+        padding={false}
+        className="!bg-transparent !border-none !shadow-none !p-0 overflow-visible bg-none"
       >
-        <div className="relative">
-          {/* Decorative background elements */}
-          <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative rounded-3xl overflow-hidden p-[1px]">
+          {/* Glowing Gradient Border Container */}
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500 via-pink-500 to-indigo-600 animate-gradient-x"></div>
 
-          {/* Header Section */}
-          <div className="text-center mb-8 relative z-10">
-            <h2 className="text-3xl font-bold mb-3 bg-gradient-to-r from-primary-600 to-purple-600 bg-clip-text text-transparent dark:from-primary-400 dark:to-purple-400">
-              Welcome to BrickOptima! 🎉
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 text-lg max-w-lg mx-auto leading-relaxed">
-              Optimize your Databricks queries with AI-powered insights. Let's get you started with a quick tour.
-            </p>
-          </div>
+          {/* Glass Content Container */}
+          <div className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[23px] p-8 h-full w-full">
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
-            <div className="group p-4 rounded-xl border border-gray-200/50 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:shadow-primary-500/10 hover:border-primary-500/30 transition-all duration-300 cursor-default">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/30 dark:to-primary-800/20 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                  <Sparkles className="h-6 w-6 text-primary-600 dark:text-primary-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                    AI-Powered Analysis
-                  </h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Get instant optimization recommendations from advanced AI models
-                  </p>
-                </div>
+            {/* Header Section */}
+            <div className="text-center mb-10 relative z-10">
+              <div className="inline-block p-3 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/20 dark:to-orange-800/10 mb-6 shadow-inner border border-orange-200 dark:border-orange-800/30">
+                <Sparkles className="h-8 w-8 text-orange-600 dark:text-orange-400" />
               </div>
+              <h2 className="text-4xl font-extrabold mb-4 text-slate-900 dark:text-white tracking-tight">
+                Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-indigo-600">BrickOptima</span>
+              </h2>
+              <p className="text-slate-600 dark:text-slate-300 text-lg max-w-lg mx-auto leading-relaxed font-medium">
+                Optimize your Databricks queries with AI-powered insights. Let's get you started with a quick tour.
+              </p>
             </div>
 
-            <div className="group p-4 rounded-xl border border-gray-200/50 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:shadow-green-500/10 hover:border-green-500/30 transition-all duration-300 cursor-default">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                  <FileText className="h-6 w-6 text-green-600 dark:text-green-400" />
+            {/* Features Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-10 relative z-10">
+              {[
+                { icon: Sparkles, color: 'text-orange-500', bg: 'bg-orange-500/10', title: 'AI-Powered Analysis', desc: 'Get instant optimization recommendations' },
+                { icon: FileText, color: 'text-green-500', bg: 'bg-green-500/10', title: 'DAG Visualization', desc: 'Interactive query execution graphs' },
+                { icon: GitBranch, color: 'text-purple-500', bg: 'bg-purple-500/10', title: 'Code Mapping', desc: 'Link optimizations to source code' },
+                { icon: Zap, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Cost & Performance', desc: 'Estimate savings and improvements' },
+              ].map((item, i) => (
+                <div key={i} className="group p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 hover:scale-[1.02] cursor-default">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl ${item.bg} ${item.color}`}>
+                      <item.icon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                        {item.title}
+                      </h4>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                        {item.desc}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                    DAG Visualization
-                  </h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Interactive query execution graphs with performance metrics
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="group p-4 rounded-xl border border-gray-200/50 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-500/30 transition-all duration-300 cursor-default">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 bg-gradient-to-br from-purple-100 to-purple-50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                  <GitBranch className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                    Code Mapping
-                  </h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Connect GitHub repos to map optimizations to your codebase
-                  </p>
-                </div>
-              </div>
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-2 relative z-10">
+              <button
+                onClick={handleTryExample}
+                className="group relative flex-1 px-6 py-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-lg font-bold shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-pink-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <span className="relative z-10 flex items-center gap-2 text-white dark:text-slate-900 group-hover:text-white transition-colors duration-300">
+                  <Sparkles className="w-5 h-5" /> Try Example Analysis
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleWelcomeClose(false)}
+                className="flex-1 px-6 py-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+              >
+                Start Tour
+              </button>
+
+              <button
+                onClick={() => handleWelcomeClose(true)}
+                className="px-6 py-4 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-medium transition-colors"
+              >
+                Skip
+              </button>
             </div>
 
-            <div className="group p-4 rounded-xl border border-gray-200/50 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-500/30 transition-all duration-300 cursor-default">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-800/20 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                  <Zap className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                    Cost & Performance
-                  </h4>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Estimate savings and performance improvements for each optimization
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            {/* Decorative Blur */}
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-orange-500/10 dark:bg-orange-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-2 relative z-10">
-            <Button
-              className="flex-1 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white border-0 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300"
-              size="lg"
-              onClick={handleTryExample}
-              leftIcon={<Sparkles className="h-5 w-5" />}
-            >
-              Try Example Analysis
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="flex-1 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
-              onClick={() => handleWelcomeClose(false)}
-            >
-              Start Tour
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={() => handleWelcomeClose(true)}
-            >
-              Skip
-            </Button>
           </div>
         </div>
       </Modal>
@@ -250,31 +222,23 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onAnalyzeExample })
           disableScrolling={false}
           spotlightPadding={0}
           callback={handleJoyrideCallback}
+          tooltipComponent={OnboardingTooltip}
+          floaterProps={{
+            hideArrow: true,
+            styles: {
+              floater: {
+                filter: "drop-shadow(0 20px 30px rgba(0,0,0,0.2))",
+              }
+            }
+          }}
           styles={{
             options: {
-              primaryColor: '#2196F3',
               zIndex: 10000,
+              overlayColor: 'rgba(0, 0, 0, 0.65)',
             },
-            tooltip: {
-              borderRadius: 8,
-              fontSize: 14,
-            },
-            buttonNext: {
-              backgroundColor: '#2196F3',
-              borderRadius: 6,
-              padding: '8px 16px',
-            },
-            buttonBack: {
-              color: '#6B7280',
-              marginRight: 8,
-            },
-          }}
-          locale={{
-            back: 'Back',
-            close: 'Close',
-            last: 'Finish',
-            next: 'Next',
-            skip: 'Skip Tour',
+            spotlight: {
+              borderRadius: 16,
+            }
           }}
         />
       )}
