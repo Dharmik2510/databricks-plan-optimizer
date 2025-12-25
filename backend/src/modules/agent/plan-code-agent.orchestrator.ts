@@ -130,38 +130,46 @@ export class PlanCodeAgentOrchestrator {
 
         try {
             // Phase 1: Parse Execution Plan
-            this.updateJobStatus(job, 'fetching_repo', 'Parsing execution plan...');
+            this.updateJobStatus(job, 'fetching_repo', 'Initializing AI agent...');
+            this.addLog(job, 'info', '🤖 AI Agent initialized and ready');
+            this.addLog(job, 'info', '📋 Loading execution plan...');
 
             let plan: ExecutionPlan;
             if (dagStages && dagStages.length > 0) {
                 plan = this.planParser.createPlanFromDag(dagStages, planName, planContent);
-                this.addLog(job, 'info', `Using ${dagStages.length} generated DAG stages for mapping`);
+                this.addLog(job, 'info', `✓ Using ${dagStages.length} generated DAG stages for intelligent mapping`);
             } else {
                 plan = this.planParser.parsePlan(planContent, planName);
-                this.addLog(job, 'info', `Parsed ${plan.parsedStages.length} stages from raw execution plan`);
+                this.addLog(job, 'info', `✓ Successfully parsed ${plan.parsedStages.length} execution stages`);
             }
 
             job.planId = plan.id;
             job.progress.totalStages = plan.parsedStages.length;
 
+            this.addLog(job, 'info', `🎯 Target: Map ${plan.parsedStages.length} stages to codebase`);
             this.emitEvent({ type: 'progress', data: job.progress });
 
             // Check for cancellation
             if ((job.status as string) === 'cancelled') return;
 
             // Phase 2: Crawl Repository
-            this.updateJobStatus(job, 'fetching_repo', 'Fetching repository contents...');
+            this.updateJobStatus(job, 'fetching_repo', 'Connecting to repository...');
+            this.addLog(job, 'info', `🔗 Connecting to repository: ${job.repoConfig.url}`);
+            this.addLog(job, 'info', `📦 Cloning branch: ${job.repoConfig.branch}`);
 
             const crawler = new RepositoryCrawlerService((log) => {
                 this.addLog(job, log.level, log.message, log.details);
                 this.emitEvent({ type: 'log', data: log });
             });
 
+            this.addLog(job, 'info', '🔍 Scanning directory structure...');
             const analyzedFiles = await crawler.crawlRepository(job.repoConfig);
             job.progress.totalFiles = analyzedFiles.length;
             job.progress.filesProcessed = analyzedFiles.length;
 
-            this.addLog(job, 'info', `Analyzed ${analyzedFiles.length} files from repository`);
+            this.addLog(job, 'info', `✓ Discovered ${analyzedFiles.length} code files`);
+            const languages = [...new Set(analyzedFiles.map(f => f.language))];
+            this.addLog(job, 'info', `📚 Languages detected: ${languages.join(', ')}`);
             this.emitEvent({ type: 'progress', data: job.progress });
 
             // Check for cancellation
@@ -169,9 +177,19 @@ export class PlanCodeAgentOrchestrator {
 
             // Phase 3: Analyze Files
             this.updateJobStatus(job, 'analyzing_files', 'Analyzing code structure...');
+            this.addLog(job, 'info', '🔬 Analyzing code structure and patterns...');
+
+            // Count analysis results
+            let totalFunctions = 0;
+            let totalClasses = 0;
+            let totalOperations = 0;
 
             // Files are already analyzed by crawler, emit individual file events
             for (const file of analyzedFiles) {
+                totalFunctions += file.analysis.functions.length;
+                totalClasses += file.analysis.classes.length;
+                totalOperations += file.analysis.dataOperations.length;
+
                 this.emitEvent({
                     type: 'file_analyzed',
                     data: {
@@ -181,11 +199,17 @@ export class PlanCodeAgentOrchestrator {
                 });
             }
 
+            this.addLog(job, 'info', `✓ Extracted ${totalFunctions} functions across ${analyzedFiles.length} files`);
+            this.addLog(job, 'info', `✓ Identified ${totalClasses} classes and ${totalOperations} data operations`);
+            this.addLog(job, 'info', '🧠 Building dependency graph...');
+
             // Check for cancellation
             if ((job.status as string) === 'cancelled') return;
 
             // Phase 4: Map Stages to Code
             this.updateJobStatus(job, 'mapping_stages', 'Mapping plan stages to code...');
+            this.addLog(job, 'info', '🎯 Starting intelligent stage-to-code mapping...');
+            this.addLog(job, 'info', '🔍 Analyzing semantic relationships...');
 
             const mappingEngine = new PlanCodeMappingEngine(job.agentConfig, (log) => {
                 this.addLog(job, log.level, log.message, log.details);
@@ -195,12 +219,20 @@ export class PlanCodeAgentOrchestrator {
             const mappings = await mappingEngine.mapPlanToCode(plan, analyzedFiles);
 
             // Emit individual stage mapping events
+            let confirmedCount = 0;
+            let probableCount = 0;
+
             for (const mapping of mappings) {
                 job.progress.stagesMapped++;
                 job.progress.percentage = Math.round(
                     ((job.progress.filesProcessed + job.progress.stagesMapped) /
                         (job.progress.totalFiles + job.progress.totalStages)) * 100
                 );
+
+                if (mapping.status === 'confirmed') confirmedCount++;
+                if (mapping.status === 'probable') probableCount++;
+
+                this.addLog(job, 'debug', `✓ Mapped stage: ${mapping.stageName} (${mapping.confidence}% confidence)`);
 
                 this.emitEvent({
                     type: 'stage_mapped',
@@ -209,11 +241,15 @@ export class PlanCodeAgentOrchestrator {
                 this.emitEvent({ type: 'progress', data: job.progress });
             }
 
+            this.addLog(job, 'info', `✓ Mapping complete: ${confirmedCount} confirmed, ${probableCount} probable`);
+
             // Check for cancellation
             if ((job.status as string) === 'cancelled') return;
 
             // Phase 5: Finalize
             this.updateJobStatus(job, 'finalizing', 'Generating results...');
+            this.addLog(job, 'info', '📊 Generating final report...');
+            this.addLog(job, 'info', '🔢 Calculating statistics...');
 
             const result = this.buildResult(
                 plan,
@@ -223,6 +259,8 @@ export class PlanCodeAgentOrchestrator {
                 Date.now() - startTime
             );
 
+            this.addLog(job, 'info', '📝 Building repository summary...');
+
             // Complete job
             job.status = 'completed';
             job.result = result;
@@ -230,7 +268,10 @@ export class PlanCodeAgentOrchestrator {
             job.progress.percentage = 100;
             job.progress.currentPhase = 'Complete';
 
-            this.addLog(job, 'info', `Job completed in ${result.executionTime}ms`);
+            const duration = (result.executionTime / 1000).toFixed(2);
+            this.addLog(job, 'info', `✅ Analysis complete in ${duration}s!`);
+            this.addLog(job, 'info', `🎉 Successfully mapped ${result.statistics.mappedStages}/${result.statistics.totalStages} stages`);
+            this.addLog(job, 'info', `📈 Coverage: ${result.statistics.coveragePercentage}% | Avg confidence: ${result.statistics.averageConfidence}%`);
             this.emitEvent({ type: 'completed', data: result });
 
         } catch (error) {
