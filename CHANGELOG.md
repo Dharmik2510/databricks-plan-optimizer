@@ -1,3 +1,21 @@
+# [1.14.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.13.0...v1.14.0) (2025-12-25)
+
+
+### Bug Fixes
+
+* Add `--legacy-peer-deps` to `npm ci` commands in CI workflow and Dockerfile. ([8c43035](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/8c43035d24dbac95770307b1e69d8055d36daff2))
+
+
+### Features
+
+* Add titles and icons to toast notifications and update sidebar item styling. ([a4acec4](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/a4acec49867164130ff60bb9a9d507f844675898))
+* enhance agent progress tracker with a new UI, elapsed time display, and structured progress steps. ([ad3c401](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/ad3c401708c4298fa3ac6648e636eeb89dc42b17))
+* enhance agent progress tracker with a new UI, elapsed time display, and structured progress steps. ([932b87f](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/932b87f7e57ba783fbba23c52a20a3d9d42832b6))
+* enhance onboarding experience with new tooltip component and modal styling improvements ([5659ccf](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/5659ccf42d9e3a110687ab6961c33a5869432845))
+* Introduce a new frontend UI, comprehensive design system, and core components for optimization features and user experience. ([f11fe44](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/f11fe442340ec37898bdad7cbb74e6d3758318b6))
+* Introduce agentic code mapping experience with real-time progress tracking UI and enhanced backend logging. ([e2680fa](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/e2680fa4ef793d14767671c521f5289b134f596a))
+* relocate AI agent status display from main content to header. ([b94ebec](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/b94ebec659812f24afa392e3919773803eba932e))
+
 # [1.13.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.12.0...v1.13.0) (2025-12-23)
 
 
