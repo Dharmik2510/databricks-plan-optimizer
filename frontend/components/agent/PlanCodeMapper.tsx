@@ -23,6 +23,7 @@ import {
 import { AgentProgressTracker } from './AgentProgressTracker';
 import { MappingResultsView } from './MappingResultsView';
 import { AgentJob } from '../../../shared/agent-types';
+import { client } from '../../api';
 
 interface PlanCodeMapperProps {
     onBack?: () => void;
@@ -68,9 +69,8 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
         if (viewMode === 'processing' && job && !['completed', 'failed', 'cancelled'].includes(job.status)) {
             interval = setInterval(async () => {
                 try {
-                    const res = await fetch(`http://localhost:3001/api/v1/agent/jobs/${job.id}`);
-                    if (res.ok) {
-                        const updatedJob = await res.json();
+                    const updatedJob = await client.get<AgentJob>(`/agent/jobs/${job.id}`);
+                    if (updatedJob) {
                         setJob(updatedJob);
                     }
                 } catch (e) {
@@ -88,28 +88,18 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
         setError(null);
 
         try {
-            const response = await fetch('http://localhost:3001/api/v1/agent/jobs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    planContent,
-                    planName: planName || 'Untitled Plan',
-                    repositoryUrl: repoUrl,
-                    branch,
-                    token: token || undefined,
-                    dagStages: initialDagStages,
-                    options: {
-                        maxConcurrentFiles: 50,
-                    }
-                }),
+            const data = await client.post<AgentJob>('/agent/jobs', {
+                planContent,
+                planName: planName || 'Untitled Plan',
+                repositoryUrl: repoUrl,
+                branch,
+                token: token || undefined,
+                dagStages: initialDagStages,
+                options: {
+                    maxConcurrentFiles: 50,
+                }
             });
 
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.message || 'Failed to start job');
-            }
-
-            const data = await response.json();
             setJob(data);
             setViewMode('processing');
         } catch (err: any) {
@@ -122,7 +112,7 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     const handleCancelJob = async () => {
         if (job) {
             try {
-                await fetch(`http://localhost:3001/api/v1/agent/jobs/${job.id}/cancel`, { method: 'POST' });
+                await client.post(`/agent/jobs/${job.id}/cancel`);
                 setJob({ ...job, status: 'cancelled' });
             } catch (e) {
                 console.error(e);

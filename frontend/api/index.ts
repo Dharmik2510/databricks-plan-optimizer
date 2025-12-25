@@ -31,10 +31,10 @@ export type {
 
 // Facade Client for backward compatibility/ease of use in App.tsx
 export const client = {
-  get: apiClient.get.bind(apiClient),
-  post: apiClient.post.bind(apiClient),
-  patch: apiClient.patch.bind(apiClient),
-  delete: apiClient.delete.bind(apiClient),
+  get: <T>(url: string) => apiClient.get<T>(url),
+  post: <T>(url: string, body?: any) => apiClient.post<T>(url, body),
+  patch: <T>(url: string, body?: any) => apiClient.patch<T>(url, body),
+  delete: <T>(url: string) => apiClient.delete<T>(url),
   updateAnalysis: apiClient.updateAnalysis.bind(apiClient),
   getRecentAnalyses: apiClient.getRecentAnalyses.bind(apiClient),
   getAnalysisHistory: apiClient.getAnalysisHistory.bind(apiClient),
