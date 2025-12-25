@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProgressSteps } from '../design-system/components/Progress';
-
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 
 export interface AnalysisStep {
   label: string;
@@ -55,55 +53,72 @@ const AnalysisLoadingState: React.FC<AnalysisLoadingStateProps> = ({
   const progressPercentage = Math.min((elapsedTime / estimatedTime) * 100, 95);
 
   return (
-    <div className="flex items-center justify-center min-h-[400px] p-8 relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-96 h-96 bg-primary-500/10 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
-        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-2000"></div>
-      </div>
+    <div className="flex items-center justify-center min-h-[600px] p-8 relative overflow-hidden bg-slate-50 dark:bg-transparent">
+      {/* Background Ambient Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 dark:bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="relative max-w-2xl w-full backdrop-blur-md bg-white/70 dark:bg-gray-900/60 rounded-3xl border border-white/20 dark:border-white/5 shadow-2xl p-8 transform transition-all duration-500 hover:shadow-primary-500/10">
-        <div className="space-y-8">
+      <div className="relative max-w-2xl w-full bg-white dark:bg-[#0B1120] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500">
+
+        {/* Glowing Top Border */}
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+
+        <div className="p-10 space-y-10 relative z-10">
+
           {/* Header */}
-          <div className="text-center relative">
-            <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-tr from-primary-100 to-white dark:from-primary-900/30 dark:to-gray-800 shadow-lg mb-6 ring-1 ring-white/50 dark:ring-white/10 relative">
-              <div className="absolute inset-0 rounded-full bg-primary-500/20 animate-ping opacity-20"></div>
-              <Loader2 className="h-10 w-10 text-primary-600 dark:text-primary-400 animate-spin" />
+          <div className="flex flex-col items-center text-center">
+            <div className="relative mb-8">
+              {/* Ripple Effect */}
+              <div className="absolute inset-0 rounded-full border border-indigo-500/30 dark:border-indigo-500/30 animate-[ping_2s_ease-out_infinite]"></div>
+              <div className="absolute inset-0 rounded-full border border-violet-500/20 dark:border-violet-500/20 animate-[ping_3s_ease-out_infinite_delay-700ms]"></div>
+
+              <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-xl relative z-10">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500/10 dark:from-indigo-500/20 to-violet-500/10 dark:to-violet-500/20 animate-spin-slow"></div>
+                <Loader2 className="w-8 h-8 text-indigo-500 dark:text-indigo-400 animate-spin" />
+              </div>
             </div>
-            <h3 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-3">
+
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-white dark:via-slate-200 dark:to-slate-400 mb-3 tracking-tight">
               Analyzing Your Query
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">
+            <p className="text-slate-500 dark:text-slate-400 text-lg max-w-lg leading-relaxed">
               Our AI is reviewing your query plan and generating optimization recommendations...
             </p>
           </div>
 
           {/* Progress Bar */}
-          <div className="relative pt-2">
-            <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner border border-gray-200 dark:border-gray-700/50">
+          <div className="space-y-3">
+            <div className="h-3 bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden border border-slate-200 dark:border-white/5 backdrop-blur-sm shadow-inner">
               <div
-                className="h-full bg-gradient-to-r from-primary-500 via-purple-500 to-orange-500 relative"
-                style={{ width: `${progressPercentage}%`, transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 bg-[length:200%_100%] animate-gradient-x transition-all duration-300 ease-out relative"
+                style={{ width: `${progressPercentage}%` }}
               >
-                <div className="absolute inset-0 bg-white/30 w-full h-full animate-shimmer" style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)', backgroundSize: '1rem 1rem' }}></div>
+                {/* Striped overlay */}
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-move-stripes"></div>
+
+                {/* Glowing tip */}
+                <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/50 blur-[2px]"></div>
               </div>
             </div>
-            <div className="flex justify-between items-center mt-3 font-medium">
-              <span className="text-primary-600 dark:text-primary-400">{progressPercentage.toFixed(0)}% complete</span>
-              <span className="text-gray-500 dark:text-gray-400 font-mono text-sm">{(elapsedTime / 1000).toFixed(1)}s elapsed</span>
+            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-slate-500">
+              <span className="text-indigo-600 dark:text-indigo-400">{progressPercentage.toFixed(0)}% complete</span>
+              <span className="font-mono">{(elapsedTime / 1000).toFixed(1)}s elapsed</span>
             </div>
           </div>
 
           {/* Step-by-step Progress */}
-          <div className="bg-white/40 dark:bg-black/20 rounded-2xl p-6 border border-white/20 dark:border-white/5 shadow-inner">
-            <ProgressSteps steps={progressSteps} />
+          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md">
+            <div className="space-y-4">
+              {progressSteps.map((step, idx) => (
+                <StepItem key={idx} step={step} />
+              ))}
+            </div>
           </div>
 
           {/* Tips */}
-          <div className="pt-4 border-t border-gray-200/50 dark:border-gray-700/50 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
-              💡 Tip: Larger query plans may take up to 30 seconds to analyze thoroughly
+          <div className="pt-6 border-t border-slate-200 dark:border-white/5 text-center">
+            <p className="text-sm text-slate-500 dark:text-slate-500 flex items-center justify-center gap-2 animate-pulse">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              Tip: Larger query plans may take up to 30 seconds to analyze thoroughly
             </p>
           </div>
         </div>
@@ -112,23 +127,42 @@ const AnalysisLoadingState: React.FC<AnalysisLoadingStateProps> = ({
   );
 };
 
-export default AnalysisLoadingState;
-
-// Simpler spinner component for inline use
-export const InlineLoader: React.FC<{ text?: string; size?: 'sm' | 'md' | 'lg' }> = ({
-  text = 'Loading...',
-  size = 'md',
-}) => {
-  const sizes = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8',
-  };
-
+const StepItem = ({ step }: { step: AnalysisStep }) => {
   return (
-    <div className="flex items-center gap-3">
-      <Loader2 className={`${sizes[size]} text-primary-500 animate-spin`} />
-      {text && <span className="text-sm text-gray-600 dark:text-gray-400">{text}</span>}
+    <div className="flex items-center gap-4">
+      <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+        {step.status === 'completed' && (
+          <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+          </div>
+        )}
+        {step.status === 'current' && (
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full border-2 border-indigo-200 dark:border-white/20"></div>
+            <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 dark:border-indigo-400 animate-spin"></div>
+            <div className="w-6 h-6 rounded-full"></div>
+          </div>
+        )}
+        {step.status === 'pending' && (
+          <div className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50"></div>
+        )}
+      </div>
+      <div className="flex-1 flex justify-between items-center">
+        <span className={`text-sm font-medium ${step.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' :
+            step.status === 'current' ? 'text-slate-900 dark:text-white' :
+              'text-slate-400 dark:text-slate-500'
+          }`}>
+          {step.label}
+        </span>
+        {step.status === 'completed' && step.duration && (
+          <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{step.duration}</span>
+        )}
+        {step.status === 'current' && (
+          <Loader2 className="w-3 h-3 text-indigo-500 dark:text-indigo-400 animate-spin" />
+        )}
+      </div>
     </div>
   );
 };
+
+export default AnalysisLoadingState;

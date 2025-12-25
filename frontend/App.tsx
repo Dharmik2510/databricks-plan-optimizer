@@ -582,7 +582,7 @@ function AppContent() {
                         </div>
                       </div>
                     </section>
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8" id="dag-visualizer-section">
+                    <div className="grid grid-cols-1 gap-8" id="dag-visualizer-section">
                       {(() => {
                         // Calculate dynamic cost savings
                         const currentInstance = availableInstances.find(i => i.id === clusterContext.clusterType);
@@ -636,7 +636,6 @@ function AppContent() {
                           </div>
                         );
                       })()}
-                      <ResourceChart data={result.resourceMetrics} />
                     </div>
                     {(() => {
                       // We also need to pass enriched optimizations to OptimizationPanel
