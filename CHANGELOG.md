@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.15.0...v1.16.0) (2025-12-27)
+
+
+### Features
+
+* Add initial Terraform configuration for Google Cloud infrastructure, secret management, and artifact registry. ([a58dcc7](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/a58dcc7242f5b2a78d16d83aec6fe64beee9f2c2))
+
 # [1.15.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.14.0...v1.15.0) (2025-12-27)
 
 
