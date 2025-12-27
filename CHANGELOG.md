@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.16.0...v1.17.0) (2025-12-27)
+
+
+### Features
+
+* implement admin panel with user management, analytics, and role-based access control ([560c8dc](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/560c8dc0509ba4782e3771fad08db4dfdf820dd2))
+
 # [1.16.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.15.0...v1.16.0) (2025-12-27)
 
 
