@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.14.0...v1.15.0) (2025-12-27)
+
+
+### Features
+
+* add legal policy pages and initial landing page, integrating them into the app and authentication flow. ([ab8f6ba](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/ab8f6ba823a4309fa8d98d2193f715742736e61c))
+
 # [1.14.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.13.0...v1.14.0) (2025-12-25)
 
 
