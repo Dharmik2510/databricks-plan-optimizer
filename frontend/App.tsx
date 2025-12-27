@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe, Check, FileCode2 } from 'lucide-react';
+import { Upload, Activity, Layers, BookOpen, PlayCircle, MessageSquare, LayoutDashboard, DollarSign, LogOut, FileText, GitBranch, Radio, Sparkles, BrainCircuit, Plus, FileClock, ChevronRight, Home, Search, Server, Cpu, Settings, Moon, Sun, Monitor, Globe, Check, FileCode2, Shield } from 'lucide-react';
 import { PlanCodeMapper } from './components/agent/PlanCodeMapper';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import AdminPanel from './components/admin/AdminPanel';
 import { EnhancedDagVisualizer } from './components/EnhancedDagVisualizer';
 import { ResourceChart } from './components/ResourceChart';
 import { OptimizationPanel } from './components/optimizations/OptimizationPanel';
@@ -44,7 +45,7 @@ const DEMO_REPO_FILES: RepoFile[] = [
 ];
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { addToast } = useToast();
 
   const [inputMode, setInputMode] = useState<'file' | 'text'>('text');
@@ -388,6 +389,7 @@ function AppContent() {
           goToNewAnalysis={goToNewAnalysis}
           onGuideClick={() => setShowUserGuide(true)}
           onComputeClick={handleComputeClick}
+          user={user}
         />
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
@@ -775,6 +777,7 @@ function AppContent() {
                 )}
               </div>
             )}
+            {activeTab === ActiveTab.ADMIN && <AdminPanel />}
           </div>
         </main>
         <UserGuideModal isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
@@ -864,44 +867,68 @@ const Header = ({ onLogoClick, prediction }: { onLogoClick: () => void, predicti
   );
 };
 
-const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis, onGuideClick, onComputeClick }: any) => (
-  <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
-    <div className="p-4">
-      <button
-        onClick={goToNewAnalysis}
-        className="w-full mb-6 relative group overflow-hidden rounded-xl p-[1px] focus:outline-none focus:ring-2 focus:ring-orange-500/40"
-      >
-        <span className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 opacity-80 group-hover:opacity-100 transition-opacity duration-300"></span>
-        <span className="relative flex items-center justify-center gap-2 w-full bg-slate-900 group-hover:bg-slate-800/50 text-white px-4 py-3 rounded-[11px] font-bold text-sm transition-colors duration-300">
-          <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-          <span className="bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">New Analysis</span>
-        </span>
-      </button>
-      <div className="space-y-1">
-        <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
-        <SidebarItem icon={FileClock} label="History" active={activeTab === ActiveTab.HISTORY} onClick={() => setActiveTab(ActiveTab.HISTORY)} />
-        <div className="h-px bg-slate-800 my-2 mx-3"></div>
-        <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
-        <SidebarItem data-tour="repo-tab" icon={FileCode2} label="Code Mapper" active={activeTab === ActiveTab.CODE_MAP} onClick={() => setActiveTab(ActiveTab.CODE_MAP)} />
-        <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
-        <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={onComputeClick} />
-        <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
-        <SidebarItem data-tour="chat-tab" icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
+const Sidebar = ({ activeTab, setActiveTab, appState, resetApp, goToNewAnalysis, onGuideClick, onComputeClick, user }: any) => {
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
+  // Auto-switch to Admin tab if admin user is not on it
+  React.useEffect(() => {
+    if (isAdmin && activeTab !== ActiveTab.ADMIN) {
+      setActiveTab(ActiveTab.ADMIN);
+    }
+  }, [isAdmin, setActiveTab]);
+
+  return (
+    <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
+      <div className="p-4">
+        {!isAdmin && (
+          <button
+            onClick={goToNewAnalysis}
+            className="w-full mb-6 relative group overflow-hidden rounded-xl p-[1px] focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+          >
+            <span className="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 opacity-80 group-hover:opacity-100 transition-opacity duration-300"></span>
+            <span className="relative flex items-center justify-center gap-2 w-full bg-slate-900 group-hover:bg-slate-800/50 text-white px-4 py-3 rounded-[11px] font-bold text-sm transition-colors duration-300">
+              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">New Analysis</span>
+            </span>
+          </button>
+        )}
+
+        <div className="space-y-1">
+          {!isAdmin && (
+            <>
+              <SidebarItem icon={Home} label="Home" active={activeTab === ActiveTab.HOME} onClick={() => setActiveTab(ActiveTab.HOME)} />
+              <SidebarItem icon={FileClock} label="History" active={activeTab === ActiveTab.HISTORY} onClick={() => setActiveTab(ActiveTab.HISTORY)} />
+              <div className="h-px bg-slate-800 my-2 mx-3"></div>
+              <SidebarItem icon={LayoutDashboard} label="Plan Analyzer" active={activeTab === ActiveTab.DASHBOARD} onClick={() => setActiveTab(ActiveTab.DASHBOARD)} />
+              <SidebarItem data-tour="repo-tab" icon={FileCode2} label="Code Mapper" active={activeTab === ActiveTab.CODE_MAP} onClick={() => setActiveTab(ActiveTab.CODE_MAP)} />
+              <SidebarItem icon={Sparkles} label="Advanced Insights" active={activeTab === ActiveTab.INSIGHTS} onClick={() => setActiveTab(ActiveTab.INSIGHTS)} />
+              <SidebarItem icon={Radio} label="Compute" active={activeTab === ActiveTab.LIVE} onClick={onComputeClick} />
+              <SidebarItem icon={DollarSign} label="Cost Management" active={activeTab === ActiveTab.COST} onClick={() => setActiveTab(ActiveTab.COST)} />
+              <SidebarItem data-tour="chat-tab" icon={MessageSquare} label="AI Consultant" active={activeTab === ActiveTab.CHAT} onClick={() => setActiveTab(ActiveTab.CHAT)} />
+            </>
+          )}
+
+          {isAdmin && (
+            <SidebarItem icon={Shield} label="Admin Panel" active={activeTab === ActiveTab.ADMIN} onClick={() => setActiveTab(ActiveTab.ADMIN)} />
+          )}
+        </div>
       </div>
-    </div>
-    <div className="mt-auto p-4 border-t border-slate-800 space-y-2">
-      {appState === AppState.SUCCESS && (
-        <Button onClick={resetApp} variant="ghost" size="sm" className="w-full justify-start" leftIcon={<LogOut className="w-4 h-4" />}>
-          Reset Context
-        </Button>
-      )}
-      <Button onClick={onGuideClick} variant="ghost" size="sm" className="w-full justify-start" leftIcon={<BookOpen className="w-4 h-4" />}>
-        User Guide
-      </Button>
-      <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><Activity className="w-3 h-3" /> v{__APP_VERSION__}</div>
-    </div>
-  </aside>
-);
+      <div className="mt-auto p-4 border-t border-slate-800 space-y-2">
+        {!isAdmin && appState === AppState.SUCCESS && (
+          <Button onClick={resetApp} variant="ghost" size="sm" className="w-full justify-start" leftIcon={<LogOut className="w-4 h-4" />}>
+            Reset Context
+          </Button>
+        )}
+        {!isAdmin && (
+          <Button onClick={onGuideClick} variant="ghost" size="sm" className="w-full justify-start" leftIcon={<BookOpen className="w-4 h-4" />}>
+            User Guide
+          </Button>
+        )}
+        <div className="flex items-center gap-3 px-3 py-2 text-slate-500 text-xs mt-2 font-mono"><Activity className="w-3 h-3" /> v{__APP_VERSION__}</div>
+      </div>
+    </aside>
+  );
+};
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, 'data-tour': dataTour }: any) => (
   <button

@@ -194,6 +194,7 @@ export enum ActiveTab {
   LIVE = 'LIVE',
   HISTORY = 'HISTORY',
   CODE_MAP = 'CODE_MAP',
+  ADMIN = 'ADMIN',
 }
 
 export interface RepoConfig {

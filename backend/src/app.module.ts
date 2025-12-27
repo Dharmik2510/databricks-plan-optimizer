@@ -14,6 +14,7 @@ import { HealthModule } from './health/health.module';
 
 import { RepositoryModule } from './modules/repository/repository.module';
 import { AgentModule } from './modules/agent/agent.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { AgentModule } from './modules/agent/agent.module';
     PricingModule,
     RepositoryModule,
     AgentModule,
+    AdminModule,
 
     // Integration modules
     GeminiModule,

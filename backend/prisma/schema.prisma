@@ -20,31 +20,43 @@ model User {
   passwordHash  String
   name          String
   avatar        String?
-  
+
+  // Role-based access control
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)  // For account suspension
+
   // Password Reset
   resetToken          String?   @unique
   resetTokenExpiry    DateTime?
-  
+
   // User preferences as flexible JSON
   settings      Json      @default("{}")
   // Example: { "theme": "dark", "emailNotifications": true }
-  
+
   // Usage tracking (for rate limiting / quotas)
   analysisCount Int       @default(0)
   lastAnalysisAt DateTime?
-  
+  quotaLimit    Int       @default(100)  // Monthly analysis quota
+
   // Relations
   analyses      Analysis[]
   chatSessions  ChatSession[]
   refreshTokens RefreshToken[]
-  
+
   // Timestamps
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
-  
+
   @@index([email])
+  @@index([role])
   @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -1,0 +1,10 @@
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN', 'SUPER_ADMIN');
+
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "quotaLimit" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "role" "UserRole" NOT NULL DEFAULT 'USER';
+
+-- CreateIndex
+CREATE INDEX "users_role_idx" ON "users"("role");

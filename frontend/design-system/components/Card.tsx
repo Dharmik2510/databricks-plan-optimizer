@@ -141,4 +141,11 @@ export const CardFooter = ({
 
 CardFooter.displayName = 'CardFooter';
 
+// Attach sub-components to the Card component
+(Card as any).Header = CardHeader;
+(Card as any).Title = CardTitle;
+(Card as any).Description = CardDescription;
+(Card as any).Content = CardContent;
+(Card as any).Footer = CardFooter;
+
 export default Card;

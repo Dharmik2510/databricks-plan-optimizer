@@ -8,6 +8,8 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
+  role?: 'USER' | 'ADMIN' | 'SUPER_ADMIN';
+  isActive?: boolean;
   settings?: Record<string, any>;
   analysisCount?: number;
   createdAt?: string;
