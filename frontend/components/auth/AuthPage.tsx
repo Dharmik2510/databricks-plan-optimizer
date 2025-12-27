@@ -17,7 +17,6 @@ import {
   AlertCircle,
   Loader2,
   Github,
-  Chrome,
   ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
@@ -26,9 +25,10 @@ import { authApi } from '../../api';
 
 interface AuthPageProps {
   onAuthSuccess?: () => void;
+  onBack?: () => void;
 }
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => {
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD' | 'RESET_PASSWORD'>('LOGIN');
   const [showPassword, setShowPassword] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -130,7 +130,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       {/* 3D Animated Background */}
-      <ThreeBackground showGrids={true} />
+      <ThreeBackground showGrids={false} />
 
       {/* Main Container */}
       <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl shadow-black/50 z-10">
@@ -204,6 +204,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             </div>
             <span className="text-xl font-bold text-white">BrickOptima</span>
           </div>
+
+          {/* Back Button */}
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute top-8 right-8 flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Home
+            </button>
+          )}
 
           {/* Form Header */}
           <div className={`transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
@@ -372,36 +382,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               )}
             </button>
 
-            {/* Divider */}
-            {mode !== 'FORGOT_PASSWORD' && mode !== 'RESET_PASSWORD' && (
-              <>
-                <div className="relative my-8">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-700" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-slate-900/80 text-slate-500 font-medium">Or continue with</span>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
-                  >
-                    <Github className="w-5 h-5" />
-                    <span>GitHub</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl text-slate-300 font-medium transition-all hover:shadow-lg hover:shadow-black/20"
-                  >
-                    <Chrome className="w-5 h-5" />
-                    <span>Google</span>
-                  </button>
-                </div>
-              </>
-            )}
           </form>
 
           {/* Toggle auth mode */}

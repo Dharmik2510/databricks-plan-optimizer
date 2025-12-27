@@ -34,6 +34,7 @@ import Onboarding from './components/Onboarding';
 import CommandPalette from './components/CommandPalette';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
+import { LandingPage } from './components/LandingPage';
 
 const DEMO_REPO_FILES: RepoFile[] = [
   {
@@ -58,6 +59,7 @@ function AppContent() {
   const [repoConfig, setRepoConfig] = useState<RepoConfig>({ url: '', branch: 'main', token: '' });
   const [repoFiles, setRepoFiles] = useState<RepoFile[]>([]);
   const [isFetchingRepo, setIsFetchingRepo] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
   // Cluster Context State
   const [clusterContext, setClusterContext] = useState<ClusterContext>({
@@ -363,7 +365,16 @@ function AppContent() {
 
   // Auth Checks after all hooks
   if (isLoading) return <AnalysisLoadingState currentStep={0} estimatedTime={3000} />;
-  if (!isAuthenticated) return <AuthPage />;
+
+  // Show Landing Page for unauthenticated users first
+  if (!isAuthenticated && !showAuth) {
+    return <LandingPage onLoginClick={() => setShowAuth(true)} onGetStartedClick={() => setShowAuth(true)} />;
+  }
+
+  // Show Auth Page if user clicked "Login" or "Get Started"
+  if (!isAuthenticated && showAuth) {
+    return <AuthPage onBack={() => setShowAuth(false)} />;
+  }
 
   return (
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
