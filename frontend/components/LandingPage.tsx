@@ -16,6 +16,7 @@ import {
     Sun,
     Heart
 } from 'lucide-react';
+import { AnalysisShowcase } from './AnalysisShowcase';
 import { ThreeBackground } from './ThreeBackground';
 import { PrivacyPolicy } from './legal/PrivacyPolicy';
 import { TermsOfService } from './legal/TermsOfService';
@@ -235,6 +236,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         <span className="mr-4">No credit card required</span>
                         <Check className="w-4 h-4" />
                         <span>SOC2 Compliant</span>
+                    </div>
+                </div>
+            </section>
+
+            {/* Analysis Showcase Section */}
+            <section className="py-10 pb-24 px-6 relative z-20 -mt-10">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-12 animate-fade-in delay-500">
+                        <p className={`text-sm font-bold uppercase tracking-widest mb-3 ${darkMode ? 'text-orange-500' : 'text-orange-600'}`}>
+                            Intelligent Plan Analysis
+                        </p>
+                        <h2 className={`text-3xl md:text-4xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                            See What BrickOptima Sees In Your Code
+                        </h2>
+                        <p className={`text-lg max-w-2xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                            Our engine parses your Spark execution plans to identify critical bottlenecks, data skew, and cost-saving opportunities instantly.
+                        </p>
+                    </div>
+                    <div className="animate-fade-in-up delay-700">
+                        <AnalysisShowcase darkMode={darkMode} />
                     </div>
                 </div>
             </section>

@@ -161,8 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (data: LoginData) => {
     dispatch({ type: 'LOGIN_START' });
     try {
-      const response = await authApi.login(data);
-      dispatch({ type: 'LOGIN_SUCCESS', payload: response.user });
+      await authApi.login(data);
+      // Fetch full user details (including role) immediately to ensure UI sync
+      const { user } = await authApi.getCurrentUser();
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed';
       dispatch({ type: 'LOGIN_FAILURE', payload: message });
@@ -173,8 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async (data: RegisterData) => {
     dispatch({ type: 'REGISTER_START' });
     try {
-      const response = await authApi.register(data);
-      dispatch({ type: 'REGISTER_SUCCESS', payload: response.user });
+      await authApi.register(data);
+      // Fetch full user details immediately
+      const { user } = await authApi.getCurrentUser();
+      dispatch({ type: 'REGISTER_SUCCESS', payload: user });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Registration failed';
       dispatch({ type: 'REGISTER_FAILURE', payload: message });
