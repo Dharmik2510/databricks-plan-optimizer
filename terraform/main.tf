@@ -182,6 +182,12 @@ resource "google_secret_manager_secret_iam_member" "frontend_url_access" {
   member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
+resource "google_secret_manager_secret_iam_member" "sentry_dsn_access" {
+  secret_id = google_secret_manager_secret.sentry_dsn.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
 # Optional: Grant GitHub Actions service account access
 resource "google_secret_manager_secret_iam_member" "github_actions_access" {
   for_each = {
