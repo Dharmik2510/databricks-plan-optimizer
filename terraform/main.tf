@@ -126,6 +126,22 @@ resource "google_secret_manager_secret_version" "frontend_url" {
   secret_data = var.frontend_url
 }
 
+# Sentry DSN
+resource "google_secret_manager_secret" "sentry_dsn" {
+  secret_id = "sentry-dsn"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.secret_manager]
+}
+
+resource "google_secret_manager_secret_version" "sentry_dsn" {
+  secret      = google_secret_manager_secret.sentry_dsn.id
+  secret_data = var.sentry_dsn
+}
+
 # Get the default Compute Engine service account
 data "google_project" "project" {}
 
@@ -175,6 +191,7 @@ resource "google_secret_manager_secret_iam_member" "github_actions_access" {
     "smtp_pass"      = google_secret_manager_secret.smtp_pass.id
     "smtp_user"      = google_secret_manager_secret.smtp_user.id
     "frontend_url"   = google_secret_manager_secret.frontend_url.id
+    "sentry_dsn"     = google_secret_manager_secret.sentry_dsn.id
   }
 
   secret_id = each.value

@@ -42,6 +42,12 @@ variable "smtp_user" {
   default     = "brickoptima@gmail.com"
 }
 
+variable "sentry_dsn" {
+  description = "Sentry DSN for error tracking"
+  type        = string
+  sensitive   = true
+}
+
 variable "frontend_url" {
   description = "Frontend application URL"
   type        = string

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, RequestMethod, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -11,6 +11,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { GeminiModule } from './integrations/gemini/gemini.module';
 import { HealthModule } from './health/health.module';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
 import { RepositoryModule } from './modules/repository/repository.module';
 import { AgentModule } from './modules/agent/agent.module';
@@ -61,4 +62,10 @@ import { AdminModule } from './modules/admin/admin.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(CorrelationIdMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}
