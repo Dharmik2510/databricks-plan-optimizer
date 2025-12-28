@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.17.0...v1.18.0) (2025-12-28)
+
+
+### Features
+
+* add AnalysisShowcase component and ensure complete user data fetching after authentication. ([2f78103](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2f78103b2766872c0b0281207a65354d3c99e020))
+
 # [1.17.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.16.0...v1.17.0) (2025-12-27)
 
 
