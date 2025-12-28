@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.19.0...v1.20.0) (2025-12-28)
+
+
+### Features
+
+* Grant compute service account access to Sentry DSN secret in Secret Manager. ([d728dfb](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/d728dfb87bca3b7eda52cb37fc82679ba5cd2937))
+
 # [1.19.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.18.0...v1.19.0) (2025-12-28)
 
 
