@@ -83,7 +83,7 @@ function AppContent() {
   } = useUIStore();
 
   // Analysis Store
-  const { result, appState, setAppState, resetAnalysis, textContent } = useAnalysisStore();
+  const { result, appState, setAppState, reset: resetAnalysis, textContent } = useAnalysisStore();
 
   // Repository Store
   const { repoConfig, reset: resetRepository } = useRepositoryStore();
