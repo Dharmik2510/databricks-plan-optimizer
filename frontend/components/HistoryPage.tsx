@@ -147,8 +147,8 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNewAnalys
     const handleView = async (id: string) => {
         try {
             const fullAnalysis = await client.get(`/analyses/${id}`);
-            if (fullAnalysis && fullAnalysis.result) {
-                onSelectAnalysis(id, fullAnalysis.result);
+            if (fullAnalysis && (fullAnalysis as any).result) {
+                onSelectAnalysis(id, (fullAnalysis as any).result);
             } else {
                 console.error("Analysis result is empty");
             }
@@ -291,10 +291,12 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNewAnalys
 
                             {/* Virtualized List - Refactored for v2 API */}
                             <List
-                                height={500}
+                                style={{
+                                    height: '500px',
+                                    width: '100%'
+                                }}
                                 rowCount={history.length}
                                 rowHeight={80}
-                                width="100%"
                                 className="divide-y divide-slate-100 dark:divide-slate-800"
                                 rowComponent={HistoryRow}
                                 rowProps={{
