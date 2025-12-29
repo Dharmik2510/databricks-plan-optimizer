@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.22.0...v1.23.0) (2025-12-29)
+
+
+### Features
+
+* Introduce an enhanced cluster instance selection UI with cloud provider options and detailed instance metadata. ([43f2cf7](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/43f2cf7b9567493cf8ecf8d09676fb63c4a55ed1))
+
 # [1.22.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.21.0...v1.22.0) (2025-12-29)
 
 
