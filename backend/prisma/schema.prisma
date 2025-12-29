@@ -24,6 +24,8 @@ model User {
   // Role-based access control
   role          UserRole  @default(USER)
   isActive      Boolean   @default(true)  // For account suspension
+  isVerified    Boolean   @default(false)
+  verificationToken String? @unique
 
   // Password Reset
   resetToken          String?   @unique

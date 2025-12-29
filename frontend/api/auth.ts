@@ -22,6 +22,12 @@ export interface AuthResponse {
   expiresIn: number;
 }
 
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  user: User;
+}
+
 export interface RegisterData {
   email: string;
   password: string;
@@ -34,14 +40,8 @@ export interface LoginData {
 }
 
 export const authApi = {
-  register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/register', data);
-
-    // Store tokens
-    apiClient.setAccessToken(response.accessToken);
-    localStorage.setItem('refreshToken', response.refreshToken);
-
-    return response;
+  register: async (data: RegisterData): Promise<RegisterResponse> => {
+    return apiClient.post<RegisterResponse>('/auth/register', data);
   },
 
   login: async (data: LoginData): Promise<AuthResponse> => {
@@ -88,6 +88,10 @@ export const authApi = {
 
   resetPassword: async (token: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.post('/auth/reset-password', { token, newPassword });
+  },
+
+  verifyEmail: async (token: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.get(`/auth/verify-email?token=${token}`);
   },
 };
 

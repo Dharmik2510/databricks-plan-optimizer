@@ -114,7 +114,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 // Context types
 interface AuthContextType extends AuthState {
   login: (data: LoginData) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  register: (data: RegisterData) => Promise<any>;
   logout: () => Promise<void>;
   clearError: () => void;
   updateUser: (data: Partial<User>) => void;
@@ -175,10 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async (data: RegisterData) => {
     dispatch({ type: 'REGISTER_START' });
     try {
-      await authApi.register(data);
-      // Fetch full user details immediately
-      const { user } = await authApi.getCurrentUser();
-      dispatch({ type: 'REGISTER_SUCCESS', payload: user });
+      const response = await authApi.register(data);
+      // Do not fetch user details or set state as verified
+      // Registration now requires email verification
+      return response;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Registration failed';
       dispatch({ type: 'REGISTER_FAILURE', payload: message });

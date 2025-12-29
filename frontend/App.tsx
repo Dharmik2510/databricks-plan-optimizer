@@ -41,6 +41,7 @@ const HistoryPage = lazy(() => import('./components/HistoryPage'));
 const UserGuideModal = lazy(() => import('./components/guide/UserGuideModal').then(m => ({ default: m.UserGuideModal })));
 const ComingSoonModal = lazy(() => import('./components/common/ComingSoonModal').then(m => ({ default: m.ComingSoonModal })));
 const AuthPage = lazy(() => import('./components/auth/AuthPage').then(m => ({ default: m.AuthPage })));
+const VerifyEmail = lazy(() => import('./components/auth/VerifyEmail').then(m => ({ default: m.VerifyEmail })));
 const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 const Onboarding = lazy(() => import('./components/Onboarding'));
 const CommandPalette = lazy(() => import('./components/CommandPalette'));
@@ -200,6 +201,15 @@ function AppContent() {
 
   // Auth checks
   if (isLoading) return <LoadingScreen />;
+
+  // Public Routes that don't require auth
+  if (window.location.pathname === '/verify-email') {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <VerifyEmail />
+      </Suspense>
+    );
+  }
 
   if (!isAuthenticated && !showAuth) {
     return (

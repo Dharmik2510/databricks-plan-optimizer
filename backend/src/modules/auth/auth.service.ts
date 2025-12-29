@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -77,6 +78,29 @@ export class AuthService {
     return { success: true, message: 'Password has been reset successfully' };
   }
 
+
+  async verifyEmail(token: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { verificationToken: token },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification token');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: true,
+        verificationToken: null,
+      },
+    });
+
+    this.logger.log(`User verified email: ${user.email}`);
+
+    return { success: true, message: 'Email verified successfully' };
+  }
+
   async register(dto: RegisterDto) {
     const email = dto.email.toLowerCase().trim();
 
@@ -93,11 +117,16 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     // Create user
+    // Create user with verification token
+    const verificationToken = randomBytes(32).toString('hex');
+
     const user = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
         name: dto.name.trim(),
+        verificationToken,
+        isVerified: false,
       },
       select: {
         id: true,
@@ -110,12 +139,13 @@ export class AuthService {
 
     this.logger.log(`New user registered: ${user.email}`);
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
+    // Send verification email
+    await this.emailService.sendVerificationEmail(user.email, verificationToken);
 
     return {
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
       user,
-      ...tokens,
     };
   }
 
@@ -136,6 +166,11 @@ export class AuthService {
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.isVerified) {
+      // Check if they need a new token? Maybe later.
+      throw new UnauthorizedException('Email not verified. Please check your inbox.');
     }
 
     // Update last login timestamp

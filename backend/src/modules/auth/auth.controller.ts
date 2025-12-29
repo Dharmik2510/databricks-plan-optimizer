@@ -9,6 +9,7 @@ import {
   Req,
   Delete,
   Param,
+  Query,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -28,6 +29,15 @@ export class AuthController {
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
+  /**
+   * Verify email address
+   * GET /api/v1/auth/verify-email
+   */
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
 
   /**
    * Login with email and password

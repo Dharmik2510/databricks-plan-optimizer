@@ -44,6 +44,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => 
   // Password validation state
   const [passwordFocus, setPasswordFocus] = useState(false);
 
+  // Verification state
+  const [verificationRequired, setVerificationRequired] = useState(false);
+
   const { login, register, isLoading, error, clearError } = useAuth();
 
   // Check for reset token in URL on mount
@@ -104,8 +107,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => 
       } else if (mode === 'REGISTER') {
         if (!email || !password || !name) throw new Error('Please fill in all fields');
         if (!allRequirementsMet) throw new Error('Please meet all password requirements');
-        await register({ email, password, name });
-        onAuthSuccess?.();
+        const response = await register({ email, password, name });
+        // Start verification flow
+        setVerificationRequired(true);
+        // Do not call onAuthSuccess immediately as they need to verify
+        // onAuthSuccess?.();
       } else if (mode === 'FORGOT_PASSWORD') {
         if (!email) throw new Error('Please enter your email');
         const res = await authApi.forgotPassword(email);
@@ -218,185 +224,220 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => 
           {/* Form Header */}
           <div className={`transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
             <h2 className="text-3xl font-bold text-white mb-2">
-              {mode === 'LOGIN' ? 'Welcome back' : mode === 'REGISTER' ? 'Create account' : mode === 'FORGOT_PASSWORD' ? 'Reset Password' : 'New Password'}
+              {verificationRequired
+                ? 'Check your inbox'
+                : mode === 'LOGIN' ? 'Welcome back' : mode === 'REGISTER' ? 'Create account' : mode === 'FORGOT_PASSWORD' ? 'Reset Password' : 'New Password'}
             </h2>
             <p className="text-slate-400 mb-8">
-              {mode === 'LOGIN'
-                ? 'Enter your credentials to access your dashboard'
-                : mode === 'REGISTER'
-                  ? 'Start optimizing your Spark workloads today'
-                  : mode === 'FORGOT_PASSWORD'
-                    ? 'Enter your email to receive a reset link'
-                    : 'Enter your new password below'}
+              {verificationRequired
+                ? `We've sent a verification link to ${email}. Please verify your email to continue.`
+                : mode === 'LOGIN'
+                  ? 'Enter your credentials to access your dashboard'
+                  : mode === 'REGISTER'
+                    ? 'Start optimizing your Spark workloads today'
+                    : mode === 'FORGOT_PASSWORD'
+                      ? 'Enter your email to receive a reset link'
+                      : 'Enter your new password below'}
             </p>
           </div>
 
-          {/* Error Message */}
-          {displayError && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-shake">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <span className="text-red-400 text-sm font-medium">{displayError}</span>
+          {verificationRequired && (
+            <div className="animate-fade-in space-y-6">
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-6 text-center">
+                <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-8 h-8 text-orange-500" />
+                </div>
+                <h3 className="text-white font-semibold text-lg mb-2">Verification Email Sent</h3>
+                <p className="text-slate-400 text-sm">
+                  Click the link in the email to activate your account.
+                  <br />
+                  Check your spam folder if it doesn't appear.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setVerificationRequired(false);
+                  switchMode('LOGIN');
+                }}
+                className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl transition-colors border border-slate-700"
+              >
+                Return to Login
+              </button>
             </div>
           )}
 
-          {/* Success Message */}
-          {successMessage && (
-            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3 animate-fade-in">
-              <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-              <span className="text-emerald-400 text-sm font-medium">{successMessage}</span>
-            </div>
-          )}
+          {!verificationRequired && (
+            <>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className={`space-y-5 transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-
-            {/* Name field (register only) */}
-            {mode === 'REGISTER' && (
-              <div className="space-y-2 animate-fade-in">
-                <label className="block text-sm font-medium text-slate-300">
-                  Full Name
-                </label>
-                <div className="relative group">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
-                  />
+              {/* Error Message */}
+              {displayError && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 animate-shake">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <span className="text-red-400 text-sm font-medium">{displayError}</span>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Email field */}
-            {mode !== 'RESET_PASSWORD' && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-300">
-                  Email Address
-                </label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
-                  />
+              {/* Success Message */}
+              {successMessage && (
+                <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3 animate-fade-in">
+                  <Check className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span className="text-emerald-400 text-sm font-medium">{successMessage}</span>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Password field */}
-            {mode !== 'FORGOT_PASSWORD' && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-300">
-                  {mode === 'RESET_PASSWORD' ? 'New Password' : 'Password'}
-                </label>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setPasswordFocus(true)}
-                    onBlur={() => setPasswordFocus(false)}
-                    placeholder="••••••••"
-                    className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
+              {/* Form */}
+              <form onSubmit={handleSubmit} className={`space-y-5 transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
 
-                {/* Password requirements (register/reset only) */}
-                {(mode === 'REGISTER' || mode === 'RESET_PASSWORD') && (passwordFocus || password.length > 0) && (
-                  <div className="mt-3 p-3 bg-slate-800/50 rounded-xl space-y-2 animate-fade-in border border-slate-700/50">
-                    {passwordRequirements.map((req, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex items-center gap-2 text-sm transition-colors ${req.met ? 'text-emerald-400' : 'text-slate-500'
-                          }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${req.met ? 'bg-emerald-500/20' : 'bg-slate-700'
-                          }`}>
-                          {req.met && <Check className="w-3 h-3" />}
-                        </div>
-                        <span className="font-medium">{req.label}</span>
-                      </div>
-                    ))}
+                {/* Name field (register only) */}
+                {mode === 'REGISTER' && (
+                  <div className="space-y-2 animate-fade-in">
+                    <label className="block text-sm font-medium text-slate-300">
+                      Full Name
+                    </label>
+                    <div className="relative group">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="John Doe"
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
+                      />
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Forgot password link */}
-            {mode === 'LOGIN' && (
-              <div className="flex justify-end">
+                {/* Email field */}
+                {mode !== 'RESET_PASSWORD' && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-300">
+                      Email Address
+                    </label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Password field */}
+                {mode !== 'FORGOT_PASSWORD' && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-300">
+                      {mode === 'RESET_PASSWORD' ? 'New Password' : 'Password'}
+                    </label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-orange-500 transition-colors" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onFocus={() => setPasswordFocus(true)}
+                        onBlur={() => setPasswordFocus(false)}
+                        placeholder="••••••••"
+                        className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all hover:bg-slate-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+
+                    {/* Password requirements (register/reset only) */}
+                    {(mode === 'REGISTER' || mode === 'RESET_PASSWORD') && (passwordFocus || password.length > 0) && (
+                      <div className="mt-3 p-3 bg-slate-800/50 rounded-xl space-y-2 animate-fade-in border border-slate-700/50">
+                        {passwordRequirements.map((req, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex items-center gap-2 text-sm transition-colors ${req.met ? 'text-emerald-400' : 'text-slate-500'
+                              }`}
+                          >
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${req.met ? 'bg-emerald-500/20' : 'bg-slate-700'
+                              }`}>
+                              {req.met && <Check className="w-3 h-3" />}
+                            </div>
+                            <span className="font-medium">{req.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Forgot password link */}
+                {mode === 'LOGIN' && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => switchMode('FORGOT_PASSWORD')}
+                      className="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+
+                {/* Actions for Forgot Password mode */}
+                {mode === 'FORGOT_PASSWORD' && (
+                  <button
+                    type="button"
+                    onClick={() => switchMode('LOGIN')}
+                    className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors mb-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back to Login
+                  </button>
+                )}
+
+                {/* Submit button */}
                 <button
-                  type="button"
-                  onClick={() => switchMode('FORGOT_PASSWORD')}
-                  className="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors"
+                  type="submit"
+                  disabled={isSubmitting || (successMessage !== null && mode === 'FORGOT_PASSWORD')}
+                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group border border-orange-400/20"
                 >
-                  Forgot password?
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        {mode === 'LOGIN' ? 'Sign In' :
+                          mode === 'REGISTER' ? 'Create Account' :
+                            mode === 'FORGOT_PASSWORD' ? 'Send Reset Link' : 'Reset Password'}
+                      </span>
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </button>
-              </div>
-            )}
 
-            {/* Actions for Forgot Password mode */}
-            {mode === 'FORGOT_PASSWORD' && (
-              <button
-                type="button"
-                onClick={() => switchMode('LOGIN')}
-                className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors mb-2"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back to Login
-              </button>
-            )}
 
-            {/* Submit button */}
-            <button
-              type="submit"
-              disabled={isSubmitting || (successMessage !== null && mode === 'FORGOT_PASSWORD')}
-              className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group border border-orange-400/20"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <span>
-                    {mode === 'LOGIN' ? 'Sign In' :
-                      mode === 'REGISTER' ? 'Create Account' :
-                        mode === 'FORGOT_PASSWORD' ? 'Send Reset Link' : 'Reset Password'}
-                  </span>
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
+              </form>
+
+              {/* Toggle auth mode */}
+              {(mode === 'LOGIN' || mode === 'REGISTER') && (
+                <p className="mt-8 text-center text-slate-400">
+                  {mode === 'LOGIN' ? "Don't have an account?" : 'Already have an account?'}
+                  <button
+                    type="button"
+                    onClick={() => switchMode(mode === 'LOGIN' ? 'REGISTER' : 'LOGIN')}
+                    className="ml-2 text-orange-400 hover:text-orange-300 font-semibold transition-colors"
+                  >
+                    {mode === 'LOGIN' ? 'Sign up' : 'Sign in'}
+                  </button>
+                </p>
               )}
-            </button>
-
-
-          </form>
-
-          {/* Toggle auth mode */}
-          {(mode === 'LOGIN' || mode === 'REGISTER') && (
-            <p className="mt-8 text-center text-slate-400">
-              {mode === 'LOGIN' ? "Don't have an account?" : 'Already have an account?'}
-              <button
-                type="button"
-                onClick={() => switchMode(mode === 'LOGIN' ? 'REGISTER' : 'LOGIN')}
-                className="ml-2 text-orange-400 hover:text-orange-300 font-semibold transition-colors"
-              >
-                {mode === 'LOGIN' ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
+            </>
           )}
         </div>
       </div>
