@@ -277,6 +277,8 @@ export interface CloudInstance {
   dbuPricePerHour?: number; // NEW - Databricks Unit cost
   totalPricePerHour?: number; // NEW - Compute + DBU
   lastUpdated?: string; // NEW - ISO timestamp
+  architecture?: string; // NEW - e.g. x86_64, arm64
+  family?: string; // NEW - e.g. m5, c6g
 }
 
 export interface PricingMetadata {

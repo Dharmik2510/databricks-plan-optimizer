@@ -13,7 +13,9 @@ import {
   Check,
   PlayCircle,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
+import { ClusterFinder } from '../components/inputs/ClusterFinder';
 import { EnhancedDagVisualizer } from '../components/EnhancedDagVisualizer';
 import { OptimizationPanel } from '../components/optimizations/OptimizationPanel';
 import { PredictivePanel } from '../components/PredictivePanel';
@@ -252,8 +254,8 @@ export const DashboardRoute: React.FC = () => {
                     key={mode}
                     onClick={() => setInputMode(mode as any)}
                     className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode
-                        ? 'text-orange-700 dark:text-orange-400 bg-white dark:bg-slate-900 border-b-2 border-orange-500 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
+                      ? 'text-orange-700 dark:text-orange-400 bg-white dark:bg-slate-900 border-b-2 border-orange-500 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                   >
                     {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
@@ -305,9 +307,6 @@ export const DashboardRoute: React.FC = () => {
               setAnalysisTitle={setAnalysisTitle}
               clusterContext={clusterContext}
               setClusterContext={setClusterContext}
-              repoConfig={repoConfig}
-              setRepoConfig={setRepoConfig}
-              repoFiles={repoFiles}
               handleAnalyze={handleAnalyze}
               textContent={textContent}
             />
@@ -376,18 +375,27 @@ const AnalysisConfigPanel: React.FC<any> = ({
   setAnalysisTitle,
   clusterContext,
   setClusterContext,
-  repoConfig,
-  setRepoConfig,
-  repoFiles,
   handleAnalyze,
   textContent,
 }) => {
-  const { availableInstances, loadingInstances, availableRegions, loadingRegions } = useClusterStore();
+  const {
+    availableInstances,
+    loadingInstances,
+    availableRegions,
+    loadingRegions,
+    cloudProvider,
+    setCloudProvider
+  } = useClusterStore();
+
+  const [isFinderOpen, setIsFinderOpen] = React.useState(false);
+
+  // Find current instance object for display
+  const currentInstance = availableInstances.find(i => i.id === clusterContext.clusterType);
 
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 flex flex-col h-full transition-colors">
       <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-3">
-        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-800">
+        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-200 dark:border-emerald-800">
           <Server className="w-5 h-5" />
         </div>
         <div>
@@ -397,17 +405,42 @@ const AnalysisConfigPanel: React.FC<any> = ({
           </p>
         </div>
       </div>
-      <div className="p-6 space-y-6 flex-1 bg-white dark:bg-slate-900">
+      <div className="p-6 space-y-6 flex-1 bg-white dark:bg-slate-900 overflow-y-auto">
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">
             Analysis Title
           </label>
           <input
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
             placeholder="e.g. Q4 Revenue Query Optimization"
             value={analysisTitle}
             onChange={(e) => setAnalysisTitle(e.target.value)}
           />
+        </div>
+
+        {/* Cloud Provider Selection */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">
+            Cloud Provider
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {['aws', 'azure', 'gcp'].map((provider) => (
+              <button
+                key={provider}
+                disabled={provider !== 'aws'}
+                title={provider !== 'aws' ? 'Coming Soon' : undefined}
+                onClick={() => setCloudProvider(provider as any)}
+                className={`py-2 px-3 rounded-lg border text-sm font-bold transition-all ${cloudProvider === provider
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105'
+                    : provider !== 'aws'
+                      ? 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-70'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-700'
+                  }`}
+              >
+                {{ aws: 'AWS', azure: 'Azure', gcp: 'GCP' }[provider]}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -416,7 +449,7 @@ const AnalysisConfigPanel: React.FC<any> = ({
           </label>
           <div className="relative">
             <select
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none disabled:opacity-50"
               value={clusterContext.region}
               onChange={(e) => setClusterContext({ ...clusterContext, region: e.target.value })}
               disabled={loadingRegions}
@@ -441,27 +474,39 @@ const AnalysisConfigPanel: React.FC<any> = ({
           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">
             Cluster Type
           </label>
-          <div className="relative">
-            <select
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none disabled:opacity-50"
-              value={clusterContext.clusterType}
-              onChange={(e) => setClusterContext({ ...clusterContext, clusterType: e.target.value })}
-              disabled={loadingInstances}
-            >
+
+          <button
+            onClick={() => setIsFinderOpen(true)}
+            disabled={loadingInstances}
+            className="w-full text-left px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold flex items-center justify-between hover:border-emerald-500 transition-colors group min-w-0"
+          >
+            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
               {loadingInstances ? (
-                <option>Loading instance types...</option>
+                <span className="text-slate-500 text-sm">Loading instances...</span>
               ) : (
-                availableInstances.map((inst) => (
-                  <option key={inst.id} value={inst.id}>
-                    {inst.displayName}
-                  </option>
-                ))
+                <>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 truncate">
+                    {currentInstance?.name || clusterContext.clusterType || 'Select Instance'}
+                  </span>
+                  {currentInstance && (
+                    <span className="text-xs text-slate-500 font-normal whitespace-nowrap hidden sm:inline-block">
+                      ({currentInstance.vCPUs}v / {currentInstance.memoryGB}GiB)
+                    </span>
+                  )}
+                </>
               )}
-            </select>
-            <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
-              <Cpu className="w-4 h-4" />
             </div>
-          </div>
+            <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 flex-shrink-0" />
+          </button>
+
+          <ClusterFinder
+            isOpen={isFinderOpen}
+            onClose={() => setIsFinderOpen(false)}
+            onSelect={(inst) => setClusterContext({ ...clusterContext, clusterType: inst.id })}
+            instances={availableInstances}
+            loading={loadingInstances}
+            currentInstance={currentInstance}
+          />
         </div>
 
         <div>
@@ -470,7 +515,7 @@ const AnalysisConfigPanel: React.FC<any> = ({
           </label>
           <div className="relative">
             <select
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
               value={clusterContext.dbrVersion}
               onChange={(e) => setClusterContext({ ...clusterContext, dbrVersion: e.target.value })}
             >
@@ -491,46 +536,14 @@ const AnalysisConfigPanel: React.FC<any> = ({
             Extra Spark Properties
           </label>
           <textarea
-            className="w-full flex-1 min-h-[150px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-xs font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none resize-none placeholder-slate-400 dark:placeholder-slate-600"
+            className="w-full flex-1 min-h-[150px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-xs font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none placeholder-slate-400 dark:placeholder-slate-600"
             placeholder="spark.sql.shuffle.partitions=200&#10;spark.executor.memory=8g..."
             value={clusterContext.sparkConf}
             onChange={(e) => setClusterContext({ ...clusterContext, sparkConf: e.target.value })}
           ></textarea>
         </div>
 
-        <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">
-            Repository Context{' '}
-            <span className="text-xs font-normal text-slate-400 lowercase">(optional)</span>
-          </label>
-          <div className="flex gap-2 mb-2">
-            <div className="relative flex-1">
-              <input
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                placeholder="https://github.com/org/repo"
-                value={repoConfig.url}
-                onChange={(e) => setRepoConfig({ ...repoConfig, url: e.target.value })}
-              />
-              <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
-                <GitBranch className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-          {repoConfig.url && (
-            <input
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none mb-2"
-              placeholder="Personal Access Token (for private repos)"
-              type="password"
-              value={repoConfig.token}
-              onChange={(e) => setRepoConfig({ ...repoConfig, token: e.target.value })}
-            />
-          )}
-          {repoFiles.length > 0 && (
-            <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-              <Check className="w-3 h-3" /> {repoFiles.length} files linked
-            </div>
-          )}
-        </div>
+
       </div>
       <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
         <button

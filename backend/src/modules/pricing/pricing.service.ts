@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CloudProvider } from './dto';
 // AWS SDK import removed as we now use runs-on.com API via axios
 import axios from 'axios';
-import { CloudCatalogClient } from '@google-cloud/billing';
+// import { CloudCatalogClient } from '@google-cloud/billing';
 import { ConfigService } from '@nestjs/config';
 
 export interface CloudInstance {
@@ -19,6 +19,8 @@ export interface CloudInstance {
     dbuPricePerHour?: number;
     totalPricePerHour?: number;
     lastUpdated?: string;
+    architecture?: string;
+    family?: string;
 }
 
 export interface PricingMetadata {
@@ -64,7 +66,9 @@ export class PricingService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly configService: ConfigService,
-    ) { }
+    ) {
+        this.logger.log('PricingService initialized');
+    }
 
     /**
      * Get cloud instance pricing with caching
@@ -163,12 +167,14 @@ export class PricingService {
                     id: item.instanceType,
                     name: item.instanceType,
                     displayName: `${item.instanceFamily} ${item.instanceType} (${item.vcpus} vCPU, ${item.memoryGiB} GB)`,
-                    category: this.mapInstanceCategory(item.instanceFamily),
+                    category: this.mapInstanceCategory(item.instanceFamily || ''),
                     vCPUs: item.vcpus,
                     memoryGB: item.memoryGiB,
                     pricePerHour: item.avgOnDemandPrice || 0, // Use average on-demand price
                     region: region,
                     cloudProvider: 'aws',
+                    architecture: item.architecture || 'x86_64',
+                    family: item.instanceFamily || 'unknown',
                 });
             }
 
@@ -186,7 +192,8 @@ export class PricingService {
 
 
 
-    private mapInstanceCategory(family: string): 'General' | 'Memory' | 'Compute' | 'Storage' | 'GPU' {
+    private mapInstanceCategory(family: string | undefined): 'General' | 'Memory' | 'Compute' | 'Storage' | 'GPU' {
+        if (!family) return 'General';
         if (family.startsWith('c')) return 'Compute';
         if (family.startsWith('r') || family.startsWith('x')) return 'Memory';
         if (family.startsWith('i') || family.startsWith('d')) return 'Storage';
@@ -286,7 +293,7 @@ export class PricingService {
             // WARNING: The CloudCatalogClient requires authentication (ADC or key file).
             // If the user hasn't set this up, it will throw. We catch and fallback.
 
-            const client = new CloudCatalogClient();
+            // const client = new CloudCatalogClient();
 
             // We'll proceed with fallback for now as setting up the full SKU traversal for GCP in this snippet
             // might be too risky/complex without verified credentials and takes a long time (paginating thousands of SKUs).
@@ -408,6 +415,8 @@ export class PricingService {
                 pricePerHour: 0.2,
                 region,
                 cloudProvider,
+                architecture: 'x86_64',
+                family: 'fallback',
             },
             {
                 id: 'fallback-large',
@@ -419,6 +428,8 @@ export class PricingService {
                 pricePerHour: 0.4,
                 region,
                 cloudProvider,
+                architecture: 'x86_64',
+                family: 'fallback',
             },
         ];
     }
@@ -559,15 +570,20 @@ export class PricingService {
         ];
 
         if (cloudProvider) {
-            switch (cloudProvider) {
-                case CloudProvider.AWS:
-                    return { regions: awsRegions, cloudProvider: 'aws' };
-                case CloudProvider.AZURE:
-                    return { regions: azureRegions, cloudProvider: 'azure' };
-                case CloudProvider.GCP:
-                    return { regions: gcpRegions, cloudProvider: 'gcp' };
-                default:
-                    return { regions: awsRegions, cloudProvider: 'aws' };
+            try {
+                switch (cloudProvider) {
+                    case CloudProvider.AWS:
+                        return { regions: awsRegions, cloudProvider: 'aws' };
+                    case CloudProvider.AZURE:
+                        return { regions: azureRegions, cloudProvider: 'azure' };
+                    case CloudProvider.GCP:
+                        return { regions: gcpRegions, cloudProvider: 'gcp' };
+                    default:
+                        return { regions: awsRegions, cloudProvider: 'aws' };
+                }
+            } catch (e) {
+                this.logger.error(`Error in getAvailableRegions: ${e.message}`, e.stack);
+                return { regions: awsRegions, cloudProvider: 'aws' };
             }
         }
 

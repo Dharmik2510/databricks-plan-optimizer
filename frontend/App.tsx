@@ -280,6 +280,7 @@ function AppContent() {
                     availableRegions={availableRegions}
                     cloudProvider={cloudProvider}
                     onCloudProviderChange={setCloudProvider}
+                    analysisResult={result}
                     onRegionChange={(r) =>
                       useClusterStore.getState().setClusterContext({ ...clusterContext, region: r })
                     }

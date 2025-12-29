@@ -5,6 +5,7 @@ import {
   Sparkles, Info, ChevronDown, Globe
 } from 'lucide-react';
 import { CloudInstance } from '../../shared/types';
+import { ClusterFinder } from './inputs/ClusterFinder';
 
 interface Props {
   estimatedDurationMin?: number;
@@ -14,6 +15,7 @@ interface Props {
   cloudProvider?: 'aws' | 'azure' | 'gcp';
   onCloudProviderChange?: (provider: 'aws' | 'azure' | 'gcp') => void;
   onRegionChange?: (region: string) => void;
+  analysisResult?: any; // Using any to avoid circular deps or complex imports for now, will cast inside
 }
 
 const FREQUENCIES = [
@@ -30,31 +32,45 @@ export const CostEstimator: React.FC<Props> = ({
   availableRegions = [],
   cloudProvider = 'aws',
   onCloudProviderChange,
-  onRegionChange
+  onRegionChange,
+  analysisResult
 }) => {
   const [numNodes, setNumNodes] = useState(8);
   const [instanceType, setInstanceType] = useState<CloudInstance | null>(null);
   const [duration, setDuration] = useState(estimatedDurationMin);
   const [frequency, setFrequency] = useState('daily');
-  const [optimizationFactor, setOptimizationFactor] = useState(0.4); // 40% savings
+
+  const [isFinderOpen, setIsFinderOpen] = useState(false);
 
   // Set initial instance type when instances load
   useEffect(() => {
     if (instances.length > 0 && !instanceType) {
+      // If analysis has a recommended instance type, try to find it
+      const recommendedType = analysisResult?.clusterRecommendation?.recommended?.type;
+      if (recommendedType) {
+        const found = instances.find(i => i.name === recommendedType);
+        if (found) {
+          setInstanceType(found);
+          if (analysisResult?.clusterRecommendation?.recommended?.nodes) {
+            setNumNodes(analysisResult.clusterRecommendation.recommended.nodes);
+          }
+          return;
+        }
+      }
+
       setInstanceType(instances[0]);
     } else if (instances.length > 0 && instanceType) {
       // If reloaded with different region, try to find same type or default
       const match = instances.find(i => i.name === instanceType.name);
       setInstanceType(match || instances[0]);
     }
-  }, [instances, instanceType]);
+  }, [instances, instanceType, analysisResult]);
 
   // Calculate costs with DBU pricing
   const costs = useMemo(() => {
     if (!instanceType) return {
-      currentCostPerRun: 0, optimizedCostPerRun: 0, savingsPerRun: 0,
-      currentAnnualCost: 0, optimizedAnnualCost: 0, annualSavings: 0, savingsPercent: 0,
-      computeCostPerRun: 0, dbuCostPerRun: 0
+      currentCostPerRun: 0,
+      currentAnnualCost: 0,
     };
 
     const durationHours = duration / 60;
@@ -62,34 +78,17 @@ export const CostEstimator: React.FC<Props> = ({
     // Use totalPricePerHour if available (includes DBU), otherwise just compute
     const pricePerHour = instanceType.totalPricePerHour || instanceType.pricePerHour;
     const currentCostPerRun = numNodes * pricePerHour * durationHours;
-    const optimizedCostPerRun = currentCostPerRun * (1 - optimizationFactor);
-    const savingsPerRun = currentCostPerRun - optimizedCostPerRun;
-
-    // Calculate separate compute and DBU costs
-    const computeCostPerRun = numNodes * instanceType.pricePerHour * durationHours;
-    const dbuCostPerRun = instanceType.dbuPricePerHour
-      ? numNodes * instanceType.dbuPricePerHour * durationHours
-      : 0;
 
     const frequencyData = FREQUENCIES.find(f => f.value === frequency);
     const multiplier = frequencyData?.multiplier || 365;
 
     const currentAnnualCost = currentCostPerRun * multiplier;
-    const optimizedAnnualCost = optimizedCostPerRun * multiplier;
-    const annualSavings = savingsPerRun * multiplier;
 
     return {
       currentCostPerRun,
-      optimizedCostPerRun,
-      savingsPerRun,
       currentAnnualCost,
-      optimizedAnnualCost,
-      annualSavings,
-      savingsPercent: optimizationFactor * 100,
-      computeCostPerRun,
-      dbuCostPerRun,
     };
-  }, [numNodes, instanceType, duration, frequency, optimizationFactor]);
+  }, [numNodes, instanceType, duration, frequency]);
 
   useEffect(() => {
     if (estimatedDurationMin) {
@@ -112,381 +111,248 @@ export const CostEstimator: React.FC<Props> = ({
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header Card */}
-      <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 rounded-2xl p-6 text-white relative overflow-hidden shadow-xl shadow-emerald-500/20">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+    <div className="relative w-full max-w-6xl mx-auto pb-20">
+      {/* Background Decorators */}
+      <div className="absolute -top-20 -left-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute top-40 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[96px] pointer-events-none" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <DollarSign className="w-6 h-6" />
+      <div className="relative z-10 space-y-8 animate-fade-in-up">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+              <div className="relative p-3.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/20 rounded-2xl shadow-xl transition-colors">
+                <Calculator className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              </div>
             </div>
             <div>
-              <h2 className="text-xl font-bold">Cloud Cost Calculator</h2>
-              <p className="text-emerald-100 text-sm font-medium">Estimate your Databricks compute costs in {region}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-              <div className="text-xs font-semibold text-emerald-200 uppercase tracking-wider mb-1">Current / Run</div>
-              <div className="text-2xl font-bold">{formatCurrency(costs.currentCostPerRun)}</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-              <div className="text-xs font-semibold text-emerald-200 uppercase tracking-wider mb-1">Optimized / Run</div>
-              <div className="text-2xl font-bold text-emerald-200">{formatCurrency(costs.optimizedCostPerRun)}</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-              <div className="text-xs font-semibold text-emerald-200 uppercase tracking-wider mb-1">Savings / Run</div>
-              <div className="text-2xl font-bold flex items-center gap-2">
-                <TrendingDown className="w-5 h-5" />
-                {formatCurrency(costs.savingsPerRun)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Configuration Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg overflow-hidden transition-colors">
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-          <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-            Configuration
-          </h3>
-        </div>
-
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            {/* Cloud Provider */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Cloud Provider
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
-                  value={cloudProvider}
-                  onChange={(e) => onCloudProviderChange?.(e.target.value as 'aws' | 'azure' | 'gcp')}
-                >
-                  <option value="aws" className="bg-white dark:bg-slate-800">AWS</option>
-                  <option value="azure" className="bg-white dark:bg-slate-800">Azure</option>
-                  <option value="gcp" className="bg-white dark:bg-slate-800">GCP</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Cloud Region */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Cloud Region
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
-                  value={region}
-                  onChange={(e) => onRegionChange?.(e.target.value)}
-                >
-                  {availableRegions.length > 0 ? availableRegions.map(r => (
-                    <option key={r.id} value={r.id} className="bg-white dark:bg-slate-800">
-                      {r.name}
-                    </option>
-                  )) : <option value={region} className="bg-white dark:bg-slate-800">{region}</option>}
-                </select>
-                <Globe className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Cluster Size */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Cluster Size
-              </label>
-              <div className="relative">
-                <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <input
-                  type="number"
-                  value={numNodes}
-                  onChange={(e) => setNumNodes(Math.max(1, Number(e.target.value)))}
-                  className="w-full pl-11 pr-16 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                  min={1}
-                  max={100}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Workers
-                </span>
-              </div>
-            </div>
-
-            {/* Job Duration */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Job Duration
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <input
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))}
-                  className="w-full pl-11 pr-12 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                  min={1}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  min
-                </span>
-              </div>
-            </div>
-
-            {/* Instance Type */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Instance Type
-              </label>
-              <div className="relative">
-                <select
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all pr-10"
-                  onChange={(e) => {
-                    const selected = instances.find(t => t.id === e.target.value);
-                    if (selected) setInstanceType(selected);
-                  }}
-                  value={instanceType?.id || ''}
-                >
-                  {instances.map(t => (
-                    <option key={t.id} value={t.id} className="bg-white dark:bg-slate-800">
-                      {t.displayName}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Frequency */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                Run Frequency
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
-                <select
-                  className="w-full pl-11 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                >
-                  {FREQUENCIES.map(f => (
-                    <option key={f.value} value={f.value} className="bg-white dark:bg-slate-800">
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* Instance Details with DBU Breakdown */}
-          {instanceType && (
-            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-2 mb-3">
-                <Info className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Instance Details ({cloudProvider.toUpperCase()} - {region})</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Category</div>
-                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.category}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">vCPUs</div>
-                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.vCPUs} cores</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Memory</div>
-                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{instanceType.memoryGB} GB</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Compute</div>
-                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">${instanceType.pricePerHour.toFixed(3)}/hr</div>
-                </div>
-                {instanceType.dbuPricePerHour && (
-                  <div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">DBU Cost</div>
-                    <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">${instanceType.dbuPricePerHour.toFixed(3)}/hr</div>
-                  </div>
-                )}
-                <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Total</div>
-                  <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">${(instanceType.totalPricePerHour || instanceType.pricePerHour).toFixed(3)}/hr</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Optimization Slider */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                Expected Optimization Savings
-              </label>
-              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                {Math.round(optimizationFactor * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="80"
-              value={optimizationFactor * 100}
-              onChange={(e) => setOptimizationFactor(Number(e.target.value) / 100)}
-              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
-            />
-            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-              <span>0%</span>
-              <span>Conservative (20%)</span>
-              <span>Aggressive (60%)</span>
-              <span>80%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Results Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Current Annual Cost */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-lg transition-colors">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-              <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-            </div>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Current Annual Cost
-            </span>
-          </div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-            {formatCurrency(costs.currentAnnualCost)}
-          </div>
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {FREQUENCIES.find(f => f.value === frequency)?.label} execution
-          </div>
-        </div>
-
-        {/* Optimized Annual Cost */}
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800 p-6 shadow-lg transition-colors">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
-              <Zap className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-              Optimized Annual Cost
-            </span>
-          </div>
-          <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400 mb-1">
-            {formatCurrency(costs.optimizedAnnualCost)}
-          </div>
-          <div className="text-sm text-emerald-600 dark:text-emerald-500 font-medium">
-            After applying optimizations
-          </div>
-        </div>
-
-        {/* Annual Savings */}
-        <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-2xl p-6 shadow-xl shadow-orange-500/20 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
-                <TrendingDown className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-bold text-amber-100 uppercase tracking-wider">
-                Annual Savings
-              </span>
-            </div>
-            <div className="text-4xl font-bold mb-1">
-              {formatCurrency(costs.annualSavings)}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-amber-100">
-              <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">
-                {Math.round(costs.savingsPercent)}% reduction
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Cost Comparison Visual */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-lg transition-colors">
-        <h3 className="font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-          <PieChart className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-          Cost Comparison
-        </h3>
-
-        <div className="space-y-4">
-          {/* Current Cost Bar */}
-          <div>
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-600 dark:text-slate-400 font-medium">Current Cost</span>
-              <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(costs.currentAnnualCost)}</span>
-            </div>
-            <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-lg flex items-center justify-end pr-3"
-                style={{ width: '100%' }}
-              >
-                <span className="text-xs font-bold text-white">100%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Arrow */}
-          <div className="flex justify-center">
-            <ArrowRight className="w-6 h-6 text-slate-400 dark:text-slate-500 rotate-90" />
-          </div>
-
-          {/* Optimized Cost Bar */}
-          <div>
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">Optimized Cost</span>
-              <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(costs.optimizedAnnualCost)}</span>
-            </div>
-            <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-end pr-3 transition-all duration-500"
-                style={{ width: `${100 - costs.savingsPercent}%` }}
-              >
-                <span className="text-xs font-bold text-white">{Math.round(100 - costs.savingsPercent)}%</span>
-              </div>
-              {/* Savings portion */}
-              <div
-                className="absolute top-0 right-0 h-full bg-gradient-to-r from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/30 rounded-r-lg flex items-center justify-center border-l-2 border-dashed border-amber-400 dark:border-amber-600 transition-all duration-500"
-                style={{ width: `${costs.savingsPercent}%` }}
-              >
-                <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                  -{Math.round(costs.savingsPercent)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 mb-1">
-                Projected Impact
-              </div>
-              <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                By applying the recommended optimizations, you could save approximately{' '}
-                <span className="font-bold">{formatCurrency(costs.annualSavings)}</span> annually
-                ({Math.round(costs.savingsPercent)}% reduction). This translates to{' '}
-                <span className="font-bold">{formatCurrency(costs.savingsPerRun)}</span> per execution.
+              <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-800 to-indigo-900 dark:from-white dark:via-indigo-200 dark:to-indigo-100 tracking-tight">
+                Cloud Cost Calculator
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 transition-colors">
+                Estimate raw runtime costs for your Databricks workloads
               </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+
+          {/* Configuration Panel - Glassmorphism */}
+          <div className="xl:col-span-8 relative group">
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-200/50 to-white/20 dark:from-white/5 dark:to-transparent rounded-[2.5rem] pointer-events-none" />
+            <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-8 lg:p-10 shadow-xl dark:shadow-2xl relative overflow-hidden transition-colors">
+
+              {/* Subtle Grid Pattern */}
+              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none mix-blend-overlay"></div>
+
+              <div className="relative z-10 hidden md:block">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 dark:via-white/10 to-transparent" />
+                  <span className="text-xs font-bold text-indigo-500 dark:text-indigo-400/80 uppercase tracking-[0.2em] transition-colors">Configuration</span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 dark:via-white/10 to-transparent" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+                {/* Cloud Provider */}
+                <div className="space-y-4">
+                  <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 flex items-center gap-2 transition-colors">
+                    Cloud Provider
+                  </label>
+                  <div className="grid grid-cols-3 gap-3 p-1.5 bg-slate-100 dark:bg-black/20 rounded-2xl border border-slate-200 dark:border-white/5 transition-colors">
+                    {['aws', 'azure', 'gcp'].map((provider) => (
+                      <button
+                        key={provider}
+                        disabled={provider !== 'aws'}
+                        title={provider !== 'aws' ? 'Coming Soon' : undefined}
+                        onClick={() => onCloudProviderChange?.(provider as any)}
+                        className={`relative py-3 rounded-xl text-sm font-bold transition-all duration-300 overflow-hidden group/btn ${cloudProvider === provider
+                          ? 'text-white shadow-lg'
+                          : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                          }`}
+                      >
+                        {cloudProvider === provider && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-500 dark:from-indigo-600 dark:to-purple-600 rounded-xl animate-pulse-slow" />
+                        )}
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          {{ aws: 'AWS', azure: 'Azure', gcp: 'GCP' }[provider]}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cloud Region */}
+                <div className="space-y-4">
+                  <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 transition-colors">Region</label>
+                  <div className="relative group/input">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-sm opacity-0 group-hover/input:opacity-100 transition-opacity duration-300" />
+                    <select
+                      className="relative w-full px-5 py-4 bg-white dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-slate-900/80 border border-slate-200 dark:border-white/10 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 rounded-2xl text-slate-900 dark:text-slate-200 font-medium appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all duration-300 shadow-sm dark:shadow-inner"
+                      value={region}
+                      onChange={(e) => onRegionChange?.(e.target.value)}
+                    >
+                      {availableRegions.length > 0 ? availableRegions.map(r => (
+                        <option key={r.id} value={r.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+                          {r.name}
+                        </option>
+                      )) : <option value={region} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">{region}</option>}
+                    </select>
+                    <Globe className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400 dark:text-indigo-400/50 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Instance Type */}
+                <div className="space-y-4 md:col-span-2">
+                  <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 transition-colors">Instance Type</label>
+                  <button
+                    onClick={() => setIsFinderOpen(true)}
+                    className="relative w-full group/card text-left"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 to-purple-600/10 rounded-2xl blur-md opacity-0 group-hover/card:opacity-100 transition-opacity duration-500" />
+                    <div className="relative px-5 py-4 bg-white dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-slate-900/80 border border-slate-200 dark:border-white/10 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 rounded-2xl flex items-center justify-between transition-all duration-300 shadow-sm hover:shadow dark:shadow-lg group-hover/card:shadow-indigo-500/10">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-indigo-50 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:to-purple-500/20 rounded-xl border border-indigo-100 dark:border-indigo-500/20 group-hover/card:scale-110 transition-transform duration-300">
+                          <Server className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-base text-slate-900 dark:text-indigo-100 font-bold tracking-wide transition-colors">
+                            {instanceType?.name || 'Select Instance'}
+                          </span>
+                          {instanceType && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5 transition-colors">
+                              {instanceType.vCPUs} vCPUs • {instanceType.memoryGB} GiB Memory
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronDown className="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover/card:text-indigo-500 dark:group-hover/card:text-indigo-400 transition-colors" />
+                    </div>
+                  </button>
+                  <ClusterFinder
+                    isOpen={isFinderOpen}
+                    onClose={() => setIsFinderOpen(false)}
+                    onSelect={setInstanceType}
+                    instances={instances}
+                    loading={instances.length === 0}
+                    currentInstance={instanceType || undefined}
+                  />
+                </div>
+
+                {/* Cluster Size */}
+                <div className="space-y-4">
+                  <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 transition-colors">Cluster Workers</label>
+                  <div className="relative group/input">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/5 transition-colors">
+                      <Server className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                    </div>
+                    <input
+                      type="number"
+                      value={numNodes}
+                      onChange={(e) => setNumNodes(Math.max(1, Number(e.target.value)))}
+                      className="w-full pl-14 pr-4 py-4 bg-white dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-slate-900/80 border border-slate-200 dark:border-white/10 focus:border-indigo-500/50 rounded-2xl text-slate-900 dark:text-white font-bold text-lg focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-300 tabular-nums shadow-sm dark:shadow-none"
+                      min={1}
+                      max={100}
+                    />
+                  </div>
+                </div>
+
+                {/* Job Duration */}
+                <div className="space-y-4">
+                  <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 transition-colors">Avg. Duration (min)</label>
+                  <div className="relative group/input">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-slate-100 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-white/5 transition-colors">
+                      <Clock className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                    </div>
+                    <input
+                      type="number"
+                      value={duration}
+                      onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))}
+                      className="w-full pl-14 pr-4 py-4 bg-white dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-slate-900/80 border border-slate-200 dark:border-white/10 focus:border-indigo-500/50 rounded-2xl text-slate-900 dark:text-white font-bold text-lg focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all duration-300 tabular-nums shadow-sm dark:shadow-none"
+                      min={1}
+                    />
+                  </div>
+                </div>
+
+                {/* Frequency - Custom Selector */}
+                <div className="space-y-4 md:col-span-2">
+                  <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 transition-colors">Execution Schedule</label>
+                  <div className="grid grid-cols-4 gap-3 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5 transition-colors">
+                    {FREQUENCIES.map((f) => {
+                      const isSelected = frequency === f.value;
+                      return (
+                        <button
+                          key={f.value}
+                          onClick={() => setFrequency(f.value)}
+                          className={`py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${isSelected
+                            ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-md dark:shadow-lg ring-1 ring-black/5 dark:ring-white/10'
+                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-white/50 dark:hover:bg-white/5'
+                            }`}
+                        >
+                          {f.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Panel - Floating Card Style */}
+          <div className="xl:col-span-4 space-y-6">
+            <div className="relative bg-gradient-to-b from-indigo-900 via-slate-900 to-black rounded-[2.5rem] p-8 border border-white/10 shadow-[0_20px_60px_-15px_rgba(79,70,229,0.3)] overflow-hidden h-full flex flex-col justify-between group">
+
+              {/* Animated Glow Effects */}
+              <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-indigo-600/30 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/40 transition-colors duration-1000" />
+              <div className="absolute bottom-0 left-0 w-[250px] h-[250px] bg-purple-600/20 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2" />
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-8 opacity-70">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  <span className="text-xs font-bold tracking-widest uppercase text-indigo-300">Live Estimates</span>
+                </div>
+
+                <div className="space-y-10">
+                  {/* Cost Per Run */}
+                  <div className="space-y-1">
+                    <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">Cost Per Run</span>
+                    <div className="flex items-baseline gap-1 break-words">
+                      <span className="text-5xl md:text-6xl font-extrabold text-white tracking-tighter tabular-nums drop-shadow-2xl">
+                        {formatCurrency(costs.currentCostPerRun)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-indigo-200/60 text-sm font-mono bg-white/5 w-fit px-3 py-1 rounded-lg border border-white/5">
+                      <span>{numNodes} Nodes</span>
+                      <span>•</span>
+                      <span>{duration}m Duration</span>
+                    </div>
+                  </div>
+
+                  {/* Annual Cost */}
+                  <div className="space-y-2 pt-8 border-t border-white/10">
+                    <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">Projected Annual</span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-indigo-100/90 tracking-tight tabular-nums">
+                        {formatCurrency(costs.currentAnnualCost)}
+                      </span>
+                    </div>
+                    <p className="text-indigo-300/50 text-xs">
+                      {FREQUENCIES.find(f => f.value === frequency)?.label.toLowerCase()} schedule ({FREQUENCIES.find(f => f.value === frequency)?.multiplier} runs/yr)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Footer */}
+              <div className="relative z-10 mt-12 pt-6 border-t border-white/5">
+                <div className="flex justify-between items-center text-xs font-mono text-indigo-300/40 uppercase tracking-wider">
+                  <span>Unit: ${instanceType?.pricePerHour.toFixed(3)}/hr</span>
+                  <span>(DBU Inc.)</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
