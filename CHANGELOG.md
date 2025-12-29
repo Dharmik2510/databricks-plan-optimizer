@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.20.0...v1.21.0) (2025-12-28)
+
+
+### Features
+
+* complete backend observability and monitoring stack documentation and add Google Analytics to the frontend. ([dc3947d](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/dc3947db2a23fcf17f6f9e3c9333818ea9439286))
+
 # [1.20.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.19.0...v1.20.0) (2025-12-28)
 
 
