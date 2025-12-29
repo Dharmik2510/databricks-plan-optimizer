@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.21.0...v1.22.0) (2025-12-29)
+
+
+### Features
+
+* implement comprehensive frontend performance optimizations including PWA, code splitting, virtual scrolling, D3 tree-shaking, and web workers. ([2435261](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2435261ad2d328b75f5fb2c518d5f9dd385a7e84))
+
 # [1.21.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.20.0...v1.21.0) (2025-12-28)
 
 
