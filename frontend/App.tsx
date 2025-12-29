@@ -1,7 +1,7 @@
 // frontend/App.tsx
 // Main application component - Refactored with Zustand and React Query
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
   Activity,
@@ -9,7 +9,6 @@ import {
   DollarSign,
   LogOut,
   BookOpen,
-  PlayCircle,
   MessageSquare,
   Plus,
   FileClock,
@@ -23,27 +22,29 @@ import {
   Sun,
 } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import AdminPanel from './components/admin/AdminPanel';
-import { ChatInterface } from './components/ChatInterface';
-import { CostEstimator } from './components/CostEstimator';
-import { LiveMonitor } from './components/LiveMonitor';
-import { PlanCodeMapper } from './components/agent/PlanCodeMapper';
-import { AdvancedInsights } from './components/AdvancedInsights';
-import { HistoryPage } from './components/HistoryPage';
-import { UserGuideModal } from './components/guide/UserGuideModal';
-import { ComingSoonModal } from './components/common/ComingSoonModal';
 import { ThemeProvider, useTheme } from './ThemeContext';
 import { useAuth } from './store/AuthContext';
-import { AuthPage } from './components/auth/AuthPage';
 import { UserMenu } from './components/auth/UserMenu';
 import { ToastProvider, Button } from './design-system/components';
-import Onboarding from './components/Onboarding';
-import CommandPalette from './components/CommandPalette';
-import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
-import { LandingPage } from './components/LandingPage';
-import AnalysisLoadingState from './components/AnalysisLoadingState';
+import { LoadingScreen } from './components/LoadingScreen';
 import { ActiveTab, AppState, PerformancePrediction } from '../shared/types';
+
+// Lazy-loaded components for code splitting
+const AdminPanel = lazy(() => import('./components/admin/AdminPanel'));
+const ChatInterface = lazy(() => import('./components/ChatInterface').then(m => ({ default: m.ChatInterface })));
+const CostEstimator = lazy(() => import('./components/CostEstimator').then(m => ({ default: m.CostEstimator })));
+const LiveMonitor = lazy(() => import('./components/LiveMonitor').then(m => ({ default: m.LiveMonitor })));
+const PlanCodeMapper = lazy(() => import('./components/agent/PlanCodeMapper').then(m => ({ default: m.PlanCodeMapper })));
+const AdvancedInsights = lazy(() => import('./components/AdvancedInsights').then(m => ({ default: m.AdvancedInsights })));
+const HistoryPage = lazy(() => import('./components/HistoryPage'));
+const UserGuideModal = lazy(() => import('./components/guide/UserGuideModal').then(m => ({ default: m.UserGuideModal })));
+const ComingSoonModal = lazy(() => import('./components/common/ComingSoonModal').then(m => ({ default: m.ComingSoonModal })));
+const AuthPage = lazy(() => import('./components/auth/AuthPage').then(m => ({ default: m.AuthPage })));
+const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
+const Onboarding = lazy(() => import('./components/Onboarding'));
+const CommandPalette = lazy(() => import('./components/CommandPalette'));
+const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal'));
 
 // Routes
 import { HomeRoute } from './routes/HomeRoute';
@@ -58,6 +59,7 @@ import { useUIStore } from './store/useUIStore';
 
 // React Query
 import { queryClient } from './lib/queryClient';
+import { useCloudInstances, useCloudRegions } from './hooks/useCloudQueries';
 
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -81,10 +83,10 @@ function AppContent() {
   } = useUIStore();
 
   // Analysis Store
-  const { appState, result, setAppState, reset: resetAnalysis } = useAnalysisStore();
+  const { result, appState, setAppState, resetAnalysis, textContent } = useAnalysisStore();
 
   // Repository Store
-  const { repoConfig, textContent, reset: resetRepository } = useRepositoryStore();
+  const { repoConfig, reset: resetRepository } = useRepositoryStore();
 
   // Prediction Store
   const { prediction } = usePredictionStore();
@@ -92,6 +94,10 @@ function AppContent() {
   // Cluster Store
   const { clusterContext, availableInstances, availableRegions, cloudProvider, setCloudProvider } =
     useClusterStore();
+
+  // Fetch cloud data globally
+  useCloudRegions(cloudProvider);
+  useCloudInstances(clusterContext.region, cloudProvider);
 
   const resetApp = () => {
     resetAnalysis();
@@ -193,19 +199,25 @@ function AppContent() {
   useKeyboardShortcuts({ shortcuts, enabled: isAuthenticated });
 
   // Auth checks
-  if (isLoading) return <AnalysisLoadingState currentStep={0} estimatedTime={3000} />;
+  if (isLoading) return <LoadingScreen />;
 
   if (!isAuthenticated && !showAuth) {
     return (
-      <LandingPage
-        onLoginClick={() => setShowAuth(true)}
-        onGetStartedClick={() => setShowAuth(true)}
-      />
+      <Suspense fallback={<LoadingScreen />}>
+        <LandingPage
+          onLoginClick={() => setShowAuth(true)}
+          onGetStartedClick={() => setShowAuth(true)}
+        />
+      </Suspense>
     );
   }
 
   if (!isAuthenticated && showAuth) {
-    return <AuthPage onBack={() => setShowAuth(false)} />;
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <AuthPage onBack={() => setShowAuth(false)} />
+      </Suspense>
+    );
   }
 
   return (
@@ -224,102 +236,106 @@ function AppContent() {
         />
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
-            {activeTab === ActiveTab.HOME && <HomeRoute />}
-            {activeTab === ActiveTab.DASHBOARD && <DashboardRoute />}
-            {activeTab === ActiveTab.INSIGHTS && (
-              <div className="max-w-5xl mx-auto pb-20">
-                {result ? (
-                  <AdvancedInsights
-                    clusterRec={result.clusterRecommendation}
-                    configRec={result.sparkConfigRecommendation}
-                    rewrites={result.queryRewrites}
+            <Suspense fallback={<LoadingScreen />}>
+              {activeTab === ActiveTab.HOME && <HomeRoute />}
+              {activeTab === ActiveTab.DASHBOARD && <DashboardRoute />}
+              {activeTab === ActiveTab.INSIGHTS && (
+                <div className="max-w-5xl mx-auto pb-20">
+                  {result ? (
+                    <AdvancedInsights
+                      clusterRec={result.clusterRecommendation}
+                      configRec={result.sparkConfigRecommendation}
+                      rewrites={result.queryRewrites}
+                    />
+                  ) : (
+                    <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+                      <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                        No Insights Available
+                      </h3>
+                      <p className="text-slate-600 dark:text-slate-400">
+                        Run an analysis first to generate advanced insights.
+                      </p>
+                      <button
+                        onClick={goToNewAnalysis}
+                        className="mt-6 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold"
+                      >
+                        Go to Analyzer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === ActiveTab.LIVE && (
+                <div className="h-full w-full">
+                  <LiveMonitor />
+                </div>
+              )}
+              {activeTab === ActiveTab.COST && (
+                <div className="max-w-4xl mx-auto">
+                  <CostEstimator
+                    estimatedDurationMin={result?.estimatedDurationMin}
+                    instances={availableInstances}
+                    region={clusterContext.region}
+                    availableRegions={availableRegions}
+                    cloudProvider={cloudProvider}
+                    onCloudProviderChange={setCloudProvider}
+                    onRegionChange={(r) =>
+                      useClusterStore.getState().setClusterContext({ ...clusterContext, region: r })
+                    }
                   />
-                ) : (
-                  <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
-                    <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                      No Insights Available
-                    </h3>
-                    <p className="text-slate-600 dark:text-slate-400">
-                      Run an analysis first to generate advanced insights.
-                    </p>
-                    <button
-                      onClick={goToNewAnalysis}
-                      className="mt-6 px-6 py-2 bg-orange-600 text-white rounded-lg font-bold"
-                    >
-                      Go to Analyzer
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            {activeTab === ActiveTab.LIVE && (
-              <div className="h-full w-full">
-                <LiveMonitor />
-              </div>
-            )}
-            {activeTab === ActiveTab.COST && (
-              <div className="max-w-4xl mx-auto">
-                <CostEstimator
-                  estimatedDurationMin={result?.estimatedDurationMin}
-                  instances={availableInstances}
-                  region={clusterContext.region}
-                  availableRegions={availableRegions}
-                  cloudProvider={cloudProvider}
-                  onCloudProviderChange={setCloudProvider}
-                  onRegionChange={(r) =>
-                    useClusterStore.getState().setClusterContext({ ...clusterContext, region: r })
-                  }
+                </div>
+              )}
+              {activeTab === ActiveTab.HISTORY && (
+                <HistoryPage
+                  onNewAnalysis={goToNewAnalysis}
+                  onSelectAnalysis={(_id, data) => {
+                    useAnalysisStore.getState().setResult(data);
+                    setAppState(AppState.SUCCESS);
+                    setActiveTab(ActiveTab.DASHBOARD);
+                  }}
                 />
-              </div>
-            )}
-            {activeTab === ActiveTab.HISTORY && (
-              <HistoryPage
-                onNewAnalysis={goToNewAnalysis}
-                onSelectAnalysis={(id, data) => {
-                  useAnalysisStore.getState().setResult(data);
-                  setAppState(AppState.SUCCESS);
-                  setActiveTab(ActiveTab.DASHBOARD);
-                }}
-              />
-            )}
-            {activeTab === ActiveTab.CHAT && (
-              <div className="max-w-4xl mx-auto h-full">
-                <ChatInterface analysisResult={result} />
-              </div>
-            )}
-            {activeTab === ActiveTab.CODE_MAP && (
-              <PlanCodeMapper
-                onBack={() => setActiveTab(ActiveTab.HOME)}
-                initialPlanContent={textContent}
-                initialRepoConfig={repoConfig}
-                initialDagStages={result?.dagNodes}
-              />
-            )}
-            {activeTab === ActiveTab.ADMIN && <AdminPanel />}
+              )}
+              {activeTab === ActiveTab.CHAT && (
+                <div className="max-w-4xl mx-auto h-full">
+                  <ChatInterface analysisResult={result} />
+                </div>
+              )}
+              {activeTab === ActiveTab.CODE_MAP && (
+                <PlanCodeMapper
+                  onBack={() => setActiveTab(ActiveTab.HOME)}
+                  initialPlanContent={textContent}
+                  initialRepoConfig={repoConfig}
+                  initialDagStages={result?.dagNodes}
+                />
+              )}
+              {activeTab === ActiveTab.ADMIN && <AdminPanel />}
+            </Suspense>
           </div>
         </main>
-        <UserGuideModal isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
-        <ComingSoonModal
-          isOpen={showComingSoon}
-          onClose={() => setShowComingSoon(false)}
-          featureName={comingSoonFeature}
-        />
+        <Suspense fallback={null}>
+          <UserGuideModal isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
+          <ComingSoonModal
+            isOpen={showComingSoon}
+            onClose={() => setShowComingSoon(false)}
+            featureName={comingSoonFeature}
+          />
 
-        <Onboarding
-          onAnalyzeExample={handleAnalyzeExample}
-          onComplete={() => console.log('Onboarding completed')}
-        />
-        <CommandPalette
-          open={showCommandPalette}
-          onOpenChange={setShowCommandPalette}
-          commands={commands}
-        />
-        <KeyboardShortcutsModal
-          open={showShortcutsHelp}
-          onOpenChange={setShowShortcutsHelp}
-          shortcuts={shortcuts}
-        />
+          <Onboarding
+            onAnalyzeExample={handleAnalyzeExample}
+            onComplete={() => console.log('Onboarding completed')}
+          />
+          <CommandPalette
+            open={showCommandPalette}
+            onOpenChange={setShowCommandPalette}
+            commands={commands}
+          />
+          <KeyboardShortcutsModal
+            open={showShortcutsHelp}
+            onOpenChange={setShowShortcutsHelp}
+            shortcuts={shortcuts}
+          />
+        </Suspense>
       </div>
     </div>
   );
@@ -545,24 +561,20 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, 'data-tour': dataTour
     className="w-full relative group p-[1px] rounded-lg overflow-hidden transition-all duration-300 mb-1 focus:outline-none"
   >
     <span
-      className={`absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 transition-opacity duration-300 ${
-        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-      }`}
+      className={`absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
     ></span>
     <span
-      className={`relative flex items-center gap-3 px-3 py-2 rounded-[7px] w-full transition-colors duration-300 ${
-        active ? 'bg-slate-800' : 'bg-slate-900 group-hover:bg-slate-900/90'
-      }`}
+      className={`relative flex items-center gap-3 px-3 py-2 rounded-[7px] w-full transition-colors duration-300 ${active ? 'bg-slate-800' : 'bg-slate-900 group-hover:bg-slate-900/90'
+        }`}
     >
       <Icon
-        className={`w-4 h-4 transition-colors duration-300 ${
-          active ? 'text-orange-400' : 'text-slate-400 group-hover:text-white'
-        }`}
+        className={`w-4 h-4 transition-colors duration-300 ${active ? 'text-orange-400' : 'text-slate-400 group-hover:text-white'
+          }`}
       />
       <span
-        className={`text-sm font-medium transition-colors duration-300 ${
-          active ? 'text-white' : 'text-slate-400 group-hover:text-white'
-        }`}
+        className={`text-sm font-medium transition-colors duration-300 ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'
+          }`}
       >
         {label}
       </span>

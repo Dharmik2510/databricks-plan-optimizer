@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { AuthProvider } from './store/AuthContext';
+import { registerServiceWorker } from './registerSW';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -17,3 +18,8 @@ root.render(
     </AuthProvider>
   </React.StrictMode>
 );
+
+// Register Service Worker for offline support and caching
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+}

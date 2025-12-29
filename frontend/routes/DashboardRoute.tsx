@@ -27,7 +27,7 @@ import { usePredictionStore } from '../store/usePredictionStore';
 import { useRepositoryStore } from '../store/useRepositoryStore';
 import { useClusterStore } from '../store/useClusterStore';
 import { useUIStore } from '../store/useUIStore';
-import { useCloudInstances, useCloudRegions } from '../hooks/useCloudQueries';
+
 
 export const DashboardRoute: React.FC = () => {
   const { addToast } = useToast();
@@ -74,9 +74,7 @@ export const DashboardRoute: React.FC = () => {
   const { dagExpanded, selectedNodeId, setDagExpanded, setSelectedNodeId, setActiveTab } =
     useUIStore();
 
-  // React Query - Fetch cloud data
-  useCloudRegions(cloudProvider);
-  useCloudInstances(clusterContext.region, cloudProvider);
+
 
   const isValidGitHubUrl = (url: string): boolean => {
     try {
@@ -167,9 +165,8 @@ export const DashboardRoute: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Analysis Complete',
-        description: `Found ${data.optimizations.length} optimization${
-          data.optimizations.length !== 1 ? 's' : ''
-        }`,
+        description: `Found ${data.optimizations.length} optimization${data.optimizations.length !== 1 ? 's' : ''
+          }`,
       });
     } catch (e: any) {
       setError(`Analysis Failed: ${e.message}`);
@@ -254,11 +251,10 @@ export const DashboardRoute: React.FC = () => {
                   <button
                     key={mode}
                     onClick={() => setInputMode(mode as any)}
-                    className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                      inputMode === mode
+                    className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode
                         ? 'text-orange-700 dark:text-orange-400 bg-white dark:bg-slate-900 border-b-2 border-orange-500 shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
                     {mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}

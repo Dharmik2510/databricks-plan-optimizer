@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import * as d3 from 'd3';
+import { select } from 'd3-selection';
+import { zoom, zoomIdentity, ZoomBehavior } from 'd3-zoom';
 import { DAGNode } from './DAGNode';
 import { DAGLink } from './DAGLink';
 import { DAGMinimap } from './DAGMinimap';
@@ -55,26 +56,26 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
     };
 
     // D3 Zoom Behavior setup
-    const zoomRef = useRef<any>(null);
+    const zoomRef = useRef<ZoomBehavior<HTMLDivElement, unknown> | null>(null);
 
     useEffect(() => {
         if (!containerRef.current) return;
-        const zoom = d3.zoom()
+        const zoomBehavior = zoom<HTMLDivElement, unknown>()
             .scaleExtent([0.1, 4])
             .on('zoom', (e) => {
                 setTransform(e.transform);
             });
 
-        zoomRef.current = zoom;
-        d3.select(containerRef.current).call(zoom as any);
+        zoomRef.current = zoomBehavior;
+        select(containerRef.current).call(zoomBehavior);
 
         // Restore transform if available, otherwise fit
         if (internalTransform.k !== 1 || internalTransform.x !== 0 || internalTransform.y !== 0) {
-            d3.select(containerRef.current).call(zoom.transform as any, d3.zoomIdentity.translate(internalTransform.x, internalTransform.y).scale(internalTransform.k));
+            select(containerRef.current).call(zoomBehavior.transform, zoomIdentity.translate(internalTransform.x, internalTransform.y).scale(internalTransform.k));
         } else if (layout.width > 0) {
             // Initial Zoom to fit
             const initialScale = Math.min(0.8, containerRef.current.clientWidth / layout.width);
-            d3.select(containerRef.current).call(zoom.transform as any, d3.zoomIdentity.translate(50, 50).scale(initialScale));
+            select(containerRef.current).call(zoomBehavior.transform, zoomIdentity.translate(50, 50).scale(initialScale));
         }
     }, [layout.width, isExpanded]); // Re-run if layout size changes significantly
 
@@ -93,10 +94,10 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
                     const x = -node.x * scale + (containerRef.current.clientWidth / 2);
                     const y = -node.y * scale + (containerRef.current.clientHeight / 2);
 
-                    d3.select(containerRef.current)
+                    select(containerRef.current)
                         .transition()
                         .duration(750)
-                        .call(zoomRef.current.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+                        .call(zoomRef.current.transform, zoomIdentity.translate(x, y).scale(scale));
                 }
             }, 100);
             return () => clearTimeout(timer);
@@ -105,20 +106,20 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
 
     const handleZoomIn = () => {
         if (containerRef.current && zoomRef.current) {
-            d3.select(containerRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.2);
+            select(containerRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.2);
         }
     };
 
     const handleZoomOut = () => {
         if (containerRef.current && zoomRef.current) {
-            d3.select(containerRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.8);
+            select(containerRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.8);
         }
     };
 
     const handleReset = () => {
         if (containerRef.current && zoomRef.current) {
             const initialScale = Math.min(0.8, containerRef.current.clientWidth / layout.width);
-            d3.select(containerRef.current).transition().duration(500).call(zoomRef.current.transform, d3.zoomIdentity.translate(50, 50).scale(initialScale));
+            select(containerRef.current).transition().duration(500).call(zoomRef.current.transform, zoomIdentity.translate(50, 50).scale(initialScale));
         }
     };
 

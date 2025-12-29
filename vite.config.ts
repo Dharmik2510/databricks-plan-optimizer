@@ -26,7 +26,62 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+        'use-sync-external-store/shim/with-selector.js': path.resolve(__dirname, 'node_modules/use-sync-external-store/shim/with-selector.js'),
+        'react-reconciler/constants': path.resolve(__dirname, 'node_modules/react-reconciler/constants.js'),
+        'react-reconciler': path.resolve(__dirname, 'node_modules/react-reconciler/index.js'),
+        'scheduler': path.resolve(__dirname, 'node_modules/scheduler/index.js'),
+        'stats.js': path.resolve(__dirname, 'node_modules/stats.js/build/stats.min.js'),
       }
-    }
+    },
+    build: {
+      // Performance optimizations
+      target: 'es2015',
+      minify: 'esbuild',
+      cssMinify: true,
+      rollupOptions: {
+        output: {
+          // Manual chunk splitting for better caching
+          manualChunks: {
+            // Vendor chunks
+            'react-vendor': ['react', 'react-dom'],
+            'query-vendor': ['@tanstack/react-query'],
+            'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+            'd3-vendor': ['d3-selection', 'd3-zoom'],
+            'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
+            // App chunks
+            'dag-components': [
+              './frontend/components/dag/DAGCanvas',
+              './frontend/components/dag/DAGNode',
+              './frontend/components/dag/DAGLink',
+              './frontend/components/dag/DAGMinimap',
+            ],
+          },
+          // Optimize chunk size
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
+        },
+      },
+      // Increase chunk size warning limit (for analytics)
+      chunkSizeWarningLimit: 600,
+      // Sourcemaps only for dev
+      sourcemap: mode === 'development',
+    },
+    // Optimize dependencies
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        '@tanstack/react-query',
+        'd3-selection',
+        'd3-zoom',
+        'zustand',
+      ],
+      exclude: [
+        '@react-three/fiber',
+        '@react-three/drei',
+        'three',
+      ],
+    },
   };
 });

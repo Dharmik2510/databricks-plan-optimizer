@@ -1,14 +1,81 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Search, Calendar, Filter, Download, Trash2, Eye, ChevronLeft, ChevronRight, Activity, Clock, Edit2 } from 'lucide-react';
+import { List } from 'react-window';
+import { Search, Calendar, Trash2, ChevronLeft, ChevronRight, Activity, Edit2 } from 'lucide-react';
 import { client } from '../api';
-import { ActiveTab, Severity } from '../../shared/types';
+
+const HistoryRow = ({ index, style, history, editingId, editTitle, setEditTitle, handleSaveRename, setEditingId, handleView, handleDelete, handleStartRename }: any) => {
+    const item = history[index];
+    if (!item) return null;
+
+    return (
+        <div
+            style={style}
+            className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center"
+        >
+            <div className="px-8 py-5 w-[40%]">
+                {editingId === item.id ? (
+                    <div className="flex items-center gap-2">
+                        <input
+                            autoFocus
+                            className="bg-white dark:bg-slate-900 border border-blue-500 rounded px-2 py-1 text-sm w-full outline-none"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSaveRename()}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <button onClick={(e) => { e.stopPropagation(); handleSaveRename(); }} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Save</button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingId(null); }} className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded">Cancel</button>
+                    </div>
+                ) : (
+                    <div className="cursor-pointer" onClick={() => handleView(item.id)}>
+                        <div className="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {item.title || 'Untitled Analysis'}
+                        </div>
+                    </div>
+                )}
+            </div>
+            <div className="px-6 py-5 w-[12%]">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700">
+                    {item.inputType === 'SPARK_PLAN' ? 'Plan' : 'Paste'}
+                </span>
+            </div>
+            <div className="px-6 py-5 w-[15%] text-sm font-medium text-slate-600 dark:text-slate-400">
+                {new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </div>
+            <div className="px-6 py-5 w-[10%] font-mono text-sm text-slate-500">
+                {item.processingMs ? `${item.processingMs}ms` : '-'}
+            </div>
+            <div className="px-6 py-5 w-[10%]">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase ${item.severity === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-900/30' :
+                    item.severity === 'HIGH' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30' :
+                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30'
+                    }`}>
+                    {item.severity || 'None'}
+                </span>
+            </div>
+            <div className="px-8 py-5 w-[13%]">
+                <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); handleStartRename(item); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="Rename">
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" title="Delete">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleView(item.id); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="View Details">
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 interface HistoryPageProps {
     onSelectAnalysis: (id: string, result: any) => void;
     onNewAnalysis: () => void;
 }
 
-export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNewAnalysis }) => {
+const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNewAnalysis }) => {
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
@@ -209,82 +276,39 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNe
                             <p className="text-sm">Try adjusting your filters or create a new analysis.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-xs uppercase font-bold text-slate-500 dark:text-slate-400">
-                                        <th className="px-8 py-5 w-[40%]">Analysis Name</th>
-                                        <th className="px-6 py-5">Source</th>
-                                        <th className="px-6 py-5">Date</th>
-                                        <th className="px-6 py-5">Duration</th>
-                                        <th className="px-6 py-5">Severity</th>
-                                        <th className="px-8 py-5 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {history.map((item) => (
-                                        <tr key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-8 py-5">
-                                                {editingId === item.id ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            autoFocus
-                                                            className="bg-white dark:bg-slate-900 border border-blue-500 rounded px-2 py-1 text-sm w-full outline-none"
-                                                            value={editTitle}
-                                                            onChange={(e) => setEditTitle(e.target.value)}
-                                                            onKeyDown={(e) => e.key === 'Enter' && handleSaveRename()}
-                                                        />
-                                                        <button onClick={handleSaveRename} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Save</button>
-                                                        <button onClick={() => setEditingId(null)} className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded">Cancel</button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="cursor-pointer" onClick={() => handleView(item.id)}>
-                                                        <div className="font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-2">
-                                                            {item.title || 'Untitled Analysis'}
-                                                        </div>
+                        <div className="flex flex-col flex-1">
+                            {/* Table Header */}
+                            <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                                <div className="flex text-xs uppercase font-bold text-slate-500 dark:text-slate-400">
+                                    <div className="px-8 py-5 w-[40%]">Analysis Name</div>
+                                    <div className="px-6 py-5 w-[12%]">Source</div>
+                                    <div className="px-6 py-5 w-[15%]">Date</div>
+                                    <div className="px-6 py-5 w-[10%]">Duration</div>
+                                    <div className="px-6 py-5 w-[10%]">Severity</div>
+                                    <div className="px-8 py-5 w-[13%] text-right">Actions</div>
+                                </div>
+                            </div>
 
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700">
-                                                    {item.inputType === 'SPARK_PLAN' ? 'Plan' : 'Paste'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-5 text-sm font-medium text-slate-600 dark:text-slate-400">
-                                                {new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                            </td>
-                                            <td className="px-6 py-5 font-mono text-sm text-slate-500">
-                                                {item.processingMs ? `${item.processingMs}ms` : '-'}
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase ${item.severity === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-900/30' :
-                                                    item.severity === 'HIGH' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30' :
-                                                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30'
-                                                    }`}>
-                                                    {item.severity || 'None'}
-                                                </span>
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-
-                                                    <button onClick={() => handleStartRename(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="Rename">
-                                                        <Edit2 className="w-4 h-4" />
-                                                    </button>
-
-                                                    <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" title="Delete">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-
-                                                    <button onClick={() => handleView(item.id)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="View Details">
-                                                        <ChevronRight className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            {/* Virtualized List - Refactored for v2 API */}
+                            <List
+                                height={500}
+                                rowCount={history.length}
+                                rowHeight={80}
+                                width="100%"
+                                className="divide-y divide-slate-100 dark:divide-slate-800"
+                                rowComponent={HistoryRow}
+                                rowProps={{
+                                    history,
+                                    editingId,
+                                    editTitle,
+                                    setEditTitle,
+                                    handleSaveRename,
+                                    setEditingId,
+                                    handleView,
+                                    handleDelete,
+                                    handleStartRename
+                                }}
+                            />
                         </div>
                     )}
 
@@ -315,3 +339,5 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNe
         </div>
     );
 };
+
+export default HistoryPage;
