@@ -97,6 +97,14 @@ export const DashboardRoute: React.FC = () => {
       });
       return;
     }
+    if (!analysisTitle.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Title Required',
+        description: 'Please provide a name for this analysis',
+      });
+      return;
+    }
     setAppState(AppState.ANALYZING);
     setError(null);
     setPrediction(null);
@@ -408,7 +416,7 @@ const AnalysisConfigPanel: React.FC<any> = ({
       <div className="p-6 space-y-6 flex-1 bg-white dark:bg-slate-900 overflow-y-auto">
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">
-            Analysis Title
+            Analysis Title <span className="text-red-500">*</span>
           </label>
           <input
             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
@@ -431,10 +439,10 @@ const AnalysisConfigPanel: React.FC<any> = ({
                 title={provider !== 'aws' ? 'Coming Soon' : undefined}
                 onClick={() => setCloudProvider(provider as any)}
                 className={`py-2 px-3 rounded-lg border text-sm font-bold transition-all ${cloudProvider === provider
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105'
-                    : provider !== 'aws'
-                      ? 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-70'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-700'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105'
+                  : provider !== 'aws'
+                    ? 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-70'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-700'
                   }`}
               >
                 {{ aws: 'AWS', azure: 'Azure', gcp: 'GCP' }[provider]}
@@ -549,7 +557,7 @@ const AnalysisConfigPanel: React.FC<any> = ({
         <button
           data-tour="new-analysis"
           onClick={handleAnalyze}
-          disabled={!textContent.trim()}
+          disabled={!textContent.trim() || !analysisTitle.trim()}
           className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           <PlayCircle className="w-6 h-6" /> Analyze Plan

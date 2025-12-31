@@ -5,6 +5,15 @@ import * as os from 'os';
 import simpleGit from 'simple-git';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Repository Crawler Service
+ *
+ * IMPORTANT: This service scans repositories and extracts ONLY source code files
+ * for code mapping analysis. Config files, package files, and other non-source
+ * files should be EXCLUDED to prevent LLM hallucination and inaccurate mappings.
+ *
+ * Only include files that contain actual executable code (.py, .java, .scala, etc.)
+ */
 export class RepositoryCrawlerService {
     constructor(private onLog?: (log: AgentLog) => void) { }
 
@@ -61,12 +70,51 @@ export class RepositoryCrawlerService {
 
     private shouldIncludeFile(filename: string, config: RepositoryConfig): boolean {
         const basename = path.basename(filename).toLowerCase();
-        if (['package.json', 'package-lock.json', 'yarn.lock', 'tsconfig.json', 'requirements.txt', 'pom.xml', 'build.gradle'].includes(basename)) {
+
+        // Exclude all config and package management files
+        const excludedFiles = [
+            'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+            'tsconfig.json', 'jsconfig.json', 'webpack.config.js', 'vite.config.js',
+            'requirements.txt', 'pipfile', 'pipfile.lock', 'poetry.lock',
+            'pom.xml', 'build.gradle', 'build.gradle.kts', 'settings.gradle',
+            'cargo.toml', 'cargo.lock', 'gemfile', 'gemfile.lock',
+            '.env', '.env.local', '.env.production', '.gitignore', '.dockerignore',
+            'dockerfile', 'docker-compose.yml', 'docker-compose.yaml',
+            'makefile', 'rakefile', 'cmakelists.txt',
+            '.eslintrc', '.prettierrc', '.editorconfig', '.babelrc'
+        ];
+
+        if (excludedFiles.includes(basename)) {
             return false;
         }
+
+        // Only include source code files - NO config files (.json, .yaml, .yml, .toml, .xml, .properties)
         const ext = path.extname(filename).toLowerCase();
-        const validExts = ['.py', '.scala', '.sql', '.java', '.yaml', '.yml', '.json', '.ipynb'];
-        return validExts.includes(ext);
+        const validSourceCodeExts = [
+            '.py',      // Python
+            '.java',    // Java
+            '.scala',   // Scala
+            '.sql',     // SQL
+            '.ipynb',   // Jupyter Notebooks
+            '.js',      // JavaScript (data pipelines)
+            '.ts',      // TypeScript (data pipelines)
+            '.kt',      // Kotlin
+            '.groovy',  // Groovy
+            '.r',       // R
+            '.jl',      // Julia
+            '.go',      // Go
+            '.rs',      // Rust
+            '.cpp',     // C++
+            '.c',       // C
+            '.cs',      // C#
+            '.rb',      // Ruby
+            '.php',     // PHP
+            '.sh',      // Shell scripts
+            '.bash',    // Bash scripts
+            '.zsh'      // Zsh scripts
+        ];
+
+        return validSourceCodeExts.includes(ext);
     }
 
     private detectLanguage(filename: string): SupportedLanguage {

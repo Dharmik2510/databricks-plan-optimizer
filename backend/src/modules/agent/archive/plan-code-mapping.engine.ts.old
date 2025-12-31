@@ -1,6 +1,11 @@
 /**
  * Plan-to-Code Mapping Engine
  * Intelligent mapping of execution plan stages to source code
+ *
+ * CRITICAL: This engine relies on accurate source code analysis.
+ * Ensure that only relevant source code files (.py, .java, .scala, .sql, etc.)
+ * are passed to this engine. Config files (.json, .yaml, .xml, requirements.txt, etc.)
+ * should be filtered out by the RepositoryCrawlerService to prevent inaccurate mappings.
  */
 
 import {
@@ -18,6 +23,7 @@ import {
     AgentLog,
     TableReference,
 } from './agent-types';
+import { SemanticMatchingService } from './semantic-matching.service';
 import { v4 as uuidv4 } from 'uuid';
 
 interface MappingCandidate {
@@ -34,7 +40,8 @@ export class PlanCodeMappingEngine {
 
     constructor(
         private config: AgentConfig,
-        onProgressCallback?: (log: AgentLog) => void
+        onProgressCallback?: (log: AgentLog) => void,
+        private semanticMatching?: SemanticMatchingService
     ) {
         this.onProgress = onProgressCallback;
     }
@@ -114,6 +121,15 @@ export class PlanCodeMappingEngine {
         indices: ReturnType<typeof this.buildIndices>
     ): Promise<PlanCodeMapping> {
         const candidates: MappingCandidate[] = [];
+
+        // Strategy 0: Semantic Matching (AI-powered) - HIGHEST PRIORITY
+        if (this.config.enableSemanticAnalysis && this.semanticMatching) {
+            const semanticCandidates = await this.findSemanticMatches(stage, files);
+            candidates.push(...semanticCandidates);
+            if (semanticCandidates.length > 0) {
+                this.log('info', `  ✓ Found ${semanticCandidates.length} semantic matches for "${stage.name}"`);
+            }
+        }
 
         // strategy 1: Table Matches
         candidates.push(...this.findTableMatches(stage, indices.tableIndex));
@@ -307,6 +323,68 @@ export class PlanCodeMappingEngine {
                     });
                 }
             }
+        }
+
+        return candidates;
+    }
+
+    private async findSemanticMatches(stage: ExecutionPlanStage, files: AnalyzedFile[]): Promise<MappingCandidate[]> {
+        const candidates: MappingCandidate[] = [];
+
+        if (!this.semanticMatching) {
+            this.log('warn', 'Semantic matching service not available');
+            return candidates;
+        }
+
+        try {
+            // Get top 5 semantic matches from ChromaDB
+            // The service builds the query internally from the stage
+            const semanticMatches = await this.semanticMatching.findSemanticMatches(stage, 5);
+
+            if (semanticMatches.length === 0) {
+                this.log('info', `No semantic matches found for stage "${stage.name}"`);
+                return candidates;
+            }
+
+            // Convert semantic matches to mapping candidates
+            for (const match of semanticMatches) {
+                // Find the corresponding file
+                const file = files.find(f => f.path === match.filePath);
+                if (!file) {
+                    this.log('warn', `File not found for semantic match: ${match.filePath}`);
+                    continue;
+                }
+
+                // Build evidence from semantic match
+                const evidence: EvidenceFactor[] = [{
+                    type: 'semantic',
+                    description: `AI-powered semantic match: ${match.functionName} (${(match.confidence).toFixed(0)}% confidence)`,
+                    weight: match.semanticSimilarity * 0.95, // Scale similarity (0-1) to weight (0-0.95)
+                    details: {
+                        semanticSimilarity: match.semanticSimilarity,
+                        confidence: match.confidence,
+                        functionName: match.functionName,
+                        matchedContent: match.snippet.slice(0, 100) + '...',
+                        dataOperations: match.metadata.dataOperations,
+                        tables: match.metadata.tables
+                    }
+                }];
+
+                candidates.push({
+                    file,
+                    lineStart: match.startLine,
+                    lineEnd: match.endLine,
+                    evidence,
+                    totalScore: match.semanticSimilarity * 95 // Convert similarity to score (0-95)
+                });
+            }
+
+            this.log('info', `🔮 Found ${candidates.length} semantic match candidates with avg confidence ${
+                (semanticMatches.reduce((sum, m) => sum + m.confidence, 0) / semanticMatches.length).toFixed(1)
+            }%`);
+
+        } catch (error) {
+            this.log('error', `Error finding semantic matches: ${error instanceof Error ? error.message : 'Unknown error'}`, { error });
         }
 
         return candidates;

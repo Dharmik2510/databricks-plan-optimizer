@@ -8,10 +8,9 @@ import {
 import { InputType } from '@prisma/client';
 
 export class CreateAnalysisDto {
-  @IsOptional()
   @IsString()
   @MaxLength(200)
-  title?: string;
+  title: string;
 
   @IsEnum(InputType)
   inputType: InputType;
