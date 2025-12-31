@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.23.0...v1.24.0) (2025-12-31)
+
+
+### Features
+
+* Introduce semantic matching, data flow analysis, and other agent services with comprehensive production setup and documentation. ([eed69b8](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/eed69b815269697781980fa9afdfabe975050000))
+
 # [1.23.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.22.0...v1.23.0) (2025-12-29)
 
 
