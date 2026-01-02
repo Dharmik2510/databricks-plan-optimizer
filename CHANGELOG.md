@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.30.0...v1.31.0) (2026-01-02)
+
+
+### Features
+
+* Introduce user feedback functionality with dedicated backend, frontend UI, and infrastructure. ([e58aa95](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/e58aa95fc48b2ae42660f7e8427c6feaa02b7ee4))
+
 # [1.30.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.29.0...v1.30.0) (2026-01-02)
 
 
