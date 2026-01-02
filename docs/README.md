@@ -16,6 +16,12 @@
   - Configuration
   - Testing & debugging
   - Performance & costs
+- **[Phase 2: Workflow Observability](./PHASE_2_WORKFLOW_OBSERVABILITY.md)** - LangGraph workflow tracking
+  - Automatic workflow run tracking
+  - Per-node event logging
+  - Workflow metrics and health monitoring
+  - Debugging and error analysis
+  - Production-ready implementation
 
 ## 🎯 Phase 1 Overview
 
@@ -227,13 +233,15 @@ const userBData = await prisma.analysis.findMany(); // User B's data only
 
 ## 🗺️ Roadmap
 
-### Phase 2: Workflow Observability (Next)
-- [ ] WorkflowLoggerService
-- [ ] LangGraph node logging decorator
-- [ ] Workflow event persistence
-- [ ] Timeline visualization
+### ✅ Phase 2: Workflow Observability (COMPLETED)
+- [x] WorkflowLoggerService
+- [x] LangGraph node logging decorator
+- [x] Workflow event persistence
+- [x] Workflow metrics service
+- [x] Timeline query utilities
+- [x] Complete documentation
 
-### Phase 3: User Feedback System
+### Phase 3: User Feedback System (Next)
 - [ ] Feedback API endpoints
 - [ ] Frontend feedback widget
 - [ ] Auto-context capture
@@ -361,24 +369,35 @@ WHERE lastActivityAt >= NOW() - INTERVAL '15 minutes';
 
 ## 📝 Changelog
 
+### Version 2.0.0 (January 2, 2026)
+- ✅ **Phase 2: Workflow Observability**
+- ✅ WorkflowLoggerService for LangGraph tracking
+- ✅ Automatic workflow run tracking
+- ✅ Per-node event logging with timing
+- ✅ Workflow metrics and health monitoring
+- ✅ @WorkflowNode decorator for automatic tracking
+- ✅ Workflow timeline and error analysis
+- ✅ Production-ready non-blocking design
+- ✅ Complete Phase 2 documentation
+
 ### Version 1.0.0 (January 2, 2026)
-- ✅ Initial Phase 1 implementation
+- ✅ **Phase 1: Core Observability**
 - ✅ Structured logging with Winston
 - ✅ Request auditing with sampling
 - ✅ User session tracking
 - ✅ OpenTelemetry tracing
 - ✅ Multi-user data isolation
 - ✅ Production-ready error handling
-- ✅ Complete documentation
+- ✅ Complete Phase 1 documentation
 
-### Coming Soon (Phase 2)
-- 🔄 Workflow observability
-- 🔄 LangGraph node logging
-- 🔄 Workflow timeline visualization
+### Coming Soon (Phase 3)
+- 🔄 User feedback system
+- 🔄 Frontend feedback widget
+- 🔄 Auto-context capture
 
 ---
 
 **Status**: Production Ready ✅
-**Version**: 1.0.0
+**Version**: 2.0.0
 **Last Updated**: January 2, 2026
 **Maintainer**: BrickOptima Team

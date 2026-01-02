@@ -25,6 +25,9 @@ import { reasoningAgentNode } from '../nodes/reasoning-agent.node';
 import { confidenceGateNode, routeByConfidence } from '../nodes/confidence-gate.node';
 import { finalMappingNode } from '../nodes/final-mapping.node';
 import { Logger } from '@nestjs/common';
+import { WorkflowLoggerService } from '../../../../common/logging/workflow-logger.service';
+import { PrismaService } from '../../../../prisma/prisma.service';
+import { AppLoggerService } from '../../../../common/logging/app-logger.service';
 
 // ============================================================================
 // Graph Builder
@@ -164,6 +167,11 @@ export function compileGraph(options?: {
 
 /**
  * Invoke graph with error handling and logging
+ *
+ * Enhanced with Phase 2 workflow observability:
+ * - Creates workflow_runs record
+ * - Tracks workflow execution (start, complete, error)
+ * - Persists workflow metadata to database
  */
 export async function invokeGraph(
   graph: any,
@@ -171,11 +179,39 @@ export async function invokeGraph(
 ): Promise<MappingState> {
   const logger = new Logger('InvokeGraph');
 
+  // Initialize workflow logger
+  const appLogger = new AppLoggerService();
+  const prisma = new PrismaService();
+  const workflowLogger = new WorkflowLoggerService(appLogger, prisma);
+
+  let workflowRunId: string | undefined;
+
   try {
     logger.log(`Invoking graph for job: ${initialState.jobId}`);
 
+    // Start workflow tracking
+    workflowRunId = await workflowLogger.startWorkflow({
+      workflowName: 'dag-to-code-mapping',
+      workflowVersion: '1.0',
+      input: {
+        jobId: initialState.jobId,
+        analysisId: initialState.analysisId,
+        dagNodeId: initialState.currentDagNode?.id,
+        repoUrl: initialState.repoUrl,
+      },
+      tags: ['mapping', 'langgraph'],
+      analysisId: initialState.analysisId,
+      jobId: initialState.jobId,
+    });
+
+    // Add workflowRunId to state for node tracking
+    const stateWithWorkflowId = {
+      ...initialState,
+      workflowRunId,
+    };
+
     // Invoke with thread_id for checkpointing
-    const result = await graph.invoke(initialState, {
+    const result = await graph.invoke(stateWithWorkflowId, {
       configurable: {
         thread_id: initialState.jobId, // Use jobId as thread_id
       },
@@ -183,9 +219,26 @@ export async function invokeGraph(
 
     logger.log(`Graph execution completed for job: ${initialState.jobId}`);
 
+    // Complete workflow tracking
+    await workflowLogger.completeWorkflow(workflowRunId, {
+      mappingOutput: result.mappingOutput,
+      confidence: result.confidence,
+    }, {
+      dagNodeId: initialState.currentDagNode?.id,
+      status: result.status,
+    });
+
     return result as MappingState;
   } catch (error) {
     logger.error('Graph execution failed', error);
+
+    // Record workflow failure
+    if (workflowRunId) {
+      await workflowLogger.failWorkflow(workflowRunId, error as Error, {
+        dagNodeId: initialState.currentDagNode?.id,
+      });
+    }
+
     throw error;
   }
 }
@@ -194,6 +247,7 @@ export async function invokeGraph(
  * Stream graph execution with partial results
  *
  * Emits state after each node completion
+ * Enhanced with Phase 2 workflow observability
  */
 export async function* streamGraph(
   graph: any,
@@ -201,14 +255,68 @@ export async function* streamGraph(
 ): AsyncGenerator<{ node: string; state: Partial<MappingState> }> {
   const logger = new Logger('StreamGraph');
 
+  // Initialize workflow logger
+  const appLogger = new AppLoggerService();
+  const prisma = new PrismaService();
+  const workflowLogger = new WorkflowLoggerService(appLogger, prisma);
+
+  let workflowRunId: string | undefined;
+
   try {
     logger.log(`Streaming graph for job: ${initialState.jobId}`);
 
-    for await (const chunk of graph.stream(initialState)) {
+    // Start workflow tracking
+    workflowRunId = await workflowLogger.startWorkflow({
+      workflowName: 'dag-to-code-mapping',
+      workflowVersion: '1.0',
+      input: {
+        jobId: initialState.jobId,
+        analysisId: initialState.analysisId,
+        dagNodeId: initialState.currentDagNode?.id,
+        repoUrl: initialState.repoUrl,
+      },
+      tags: ['mapping', 'langgraph', 'streaming'],
+      analysisId: initialState.analysisId,
+      jobId: initialState.jobId,
+    });
+
+    // Add workflowRunId to state
+    const stateWithWorkflowId = {
+      ...initialState,
+      workflowRunId,
+    };
+
+    // Track node execution times
+    const nodeStartTimes = new Map<string, number>();
+
+    for await (const chunk of graph.stream(stateWithWorkflowId)) {
       const nodeName = Object.keys(chunk)[0];
       const nodeState = chunk[nodeName];
 
       logger.log(`Node completed: ${nodeName}`);
+
+      // Log node completion (if we tracked start time)
+      const startTime = nodeStartTimes.get(nodeName);
+      if (startTime) {
+        const durationMs = Date.now() - startTime;
+        await workflowLogger.logNodeComplete(
+          workflowRunId!,
+          nodeName,
+          nodeName,
+          'langgraph_node',
+          nodeState,
+          startTime,
+        );
+      } else {
+        // Log as completed without start time
+        await workflowLogger.logNodeComplete(
+          workflowRunId!,
+          nodeName,
+          nodeName,
+          'langgraph_node',
+          nodeState,
+        );
+      }
 
       yield {
         node: nodeName,
@@ -217,8 +325,25 @@ export async function* streamGraph(
     }
 
     logger.log(`Graph streaming completed for job: ${initialState.jobId}`);
+
+    // Complete workflow
+    if (workflowRunId) {
+      await workflowLogger.completeWorkflow(workflowRunId, undefined, {
+        dagNodeId: initialState.currentDagNode?.id,
+        streaming: true,
+      });
+    }
   } catch (error) {
     logger.error('Graph streaming failed', error);
+
+    // Record workflow failure
+    if (workflowRunId) {
+      await workflowLogger.failWorkflow(workflowRunId, error as Error, {
+        dagNodeId: initialState.currentDagNode?.id,
+        streaming: true,
+      });
+    }
+
     throw error;
   }
 }

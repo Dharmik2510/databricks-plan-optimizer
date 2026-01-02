@@ -23,7 +23,7 @@ export class LoggingInterceptor implements NestInterceptor {
   constructor(
     private readonly logger: AppLoggerService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -109,8 +109,10 @@ export class LoggingInterceptor implements NestInterceptor {
     }
 
     try {
-      await this.prisma.requestAudit.create({
-        data: {
+      await this.prisma.requestAudit.upsert({
+        where: { requestId: ctx.requestId },
+        update: {}, // Ignore duplicates (idempotent)
+        create: {
           requestId: ctx.requestId,
           correlationId: ctx.correlationId,
           traceId: ctx.traceId,
