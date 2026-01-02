@@ -76,6 +76,9 @@ jobs:
     needs: build-push-backend
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
