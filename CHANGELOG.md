@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.26.0...v1.27.0) (2026-01-02)
+
+
+### Features
+
+* Copy public directory to frontend and ensure Modal title element is always rendered for accessibility. ([2813282](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2813282d1570e143630f84f51ac6de262e12579d))
+
 # [1.26.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.25.0...v1.26.0) (2026-01-02)
 
 
