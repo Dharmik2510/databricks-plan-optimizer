@@ -86,8 +86,23 @@ export const authApi = {
     return apiClient.post('/auth/forgot-password', { email });
   },
 
+
   resetPassword: async (token: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.post('/auth/reset-password', { token, newPassword });
+  },
+
+  verifyEmail: async (token: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.get(`/auth/verify-email?token=${token}`);
+  },
+
+  loginWithGoogle: async (idToken: string): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>('/auth/google', { idToken });
+
+    // Store tokens
+    apiClient.setAccessToken(response.accessToken);
+    localStorage.setItem('refreshToken', response.refreshToken);
+
+    return response;
   },
 };
 

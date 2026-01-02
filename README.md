@@ -25,6 +25,7 @@
 *   **Predictive Analytics**: Forecast performance at 10x/100x scale and detect regressions.
 *   **Code Traceability**: Map execution plan nodes directly to your GitHub source code.
 *   **Live Monitor**: Simulate real-time cluster telemetry (Throughput, GC, Shuffle).
+*   **Google OAuth & Email Verification**: Secure sign-in with Google or email/password with verification flow.
 
 ---
 
@@ -380,7 +381,13 @@ Type-safe contracts between frontend and backend:
     GEMINI_API_KEY=your_key_here
     DATABASE_URL="file:./dev.db"
     JWT_SECRET=your_secret
+    GOOGLE_CLIENT_ID=your_google_client_id
     ```
+
+    > **Why `GOOGLE_CLIENT_ID`?**
+    > This ID is required to enable "Sign in with Google". It identifies your application to Google's OAuth 2.0 servers, allowing them to verify your app's identity and request user permission to access their profile (email, name, avatar). Without this, the secure token exchange cannot happen.
+    >
+    > You can obtain one by creating a project in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 
 4.  **Run the Application**
     To run both Frontend and Backend concurrently:

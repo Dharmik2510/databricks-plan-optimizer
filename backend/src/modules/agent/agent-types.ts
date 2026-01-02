@@ -332,6 +332,8 @@ export interface AgentJob {
     createdAt: Date;
     startedAt?: Date;
     completedAt?: Date;
+    isPaused?: boolean;
+    langGraphJobId?: string;
 }
 
 export type AgentJobStatus =

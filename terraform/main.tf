@@ -201,6 +201,7 @@ resource "google_secret_manager_secret_iam_member" "github_actions_access" {
 
     "openai_api_key" = google_secret_manager_secret.openai_api_key.id
     "chroma_api_key" = google_secret_manager_secret.chroma_api_key.id
+    "google_client_id" = google_secret_manager_secret.google_client_id.id
   }
 
   secret_id = each.value
@@ -240,6 +241,22 @@ resource "google_secret_manager_secret_version" "chroma_api_key" {
   secret_data = var.chroma_api_key
 }
 
+# Google Client ID
+resource "google_secret_manager_secret" "google_client_id" {
+  secret_id = "google-client-id"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.secret_manager]
+}
+
+resource "google_secret_manager_secret_version" "google_client_id" {
+  secret      = google_secret_manager_secret.google_client_id.id
+  secret_data = var.google_client_id
+}
+
 resource "google_secret_manager_secret_iam_member" "openai_api_key_access" {
   secret_id = google_secret_manager_secret.openai_api_key.id
   role      = "roles/secretmanager.secretAccessor"
@@ -248,6 +265,12 @@ resource "google_secret_manager_secret_iam_member" "openai_api_key_access" {
 
 resource "google_secret_manager_secret_iam_member" "chroma_api_key_access" {
   secret_id = google_secret_manager_secret.chroma_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "google_client_id_access" {
+  secret_id = google_secret_manager_secret.google_client_id.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }

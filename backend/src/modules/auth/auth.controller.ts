@@ -9,6 +9,7 @@ import {
   Req,
   Delete,
   Param,
+  Query,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -27,6 +28,30 @@ export class AuthController {
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  /**
+   * Verify email
+   * GET /api/v1/auth/verify-email
+   */
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    if (!token) {
+      throw new Error('Token is required');
+    }
+    return this.authService.verifyEmail(token);
+  }
+
+  /**
+   * Login with Google
+   * POST /api/v1/auth/google
+   */
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async loginWithGoogle(@Body('idToken') idToken: string, @Req() req: Request) {
+    const userAgent = req.headers['user-agent'];
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    return this.authService.loginWithGoogle(idToken, userAgent, ipAddress);
   }
 
   /**

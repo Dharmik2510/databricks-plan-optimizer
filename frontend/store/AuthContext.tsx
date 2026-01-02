@@ -118,6 +118,7 @@ interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
   updateUser: (data: Partial<User>) => void;
+  loginWithGoogle: (idToken: string) => Promise<void>;
 }
 
 // Create context
@@ -186,6 +187,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    dispatch({ type: 'LOGIN_START' });
+    try {
+      await authApi.loginWithGoogle(idToken);
+      // Fetch full user details immediately
+      const { user } = await authApi.getCurrentUser();
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Google Login failed';
+      dispatch({ type: 'LOGIN_FAILURE', payload: message });
+      throw error;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -209,6 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     clearError,
     updateUser,
+    loginWithGoogle,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

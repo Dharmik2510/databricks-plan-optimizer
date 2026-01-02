@@ -20,9 +20,12 @@ import {
   jobEventEmitter,
   createJobStartedEvent,
   createStageStartedEvent,
+  createStageProgressEvent,
   createStageCompletedEvent,
   createJobCompletedEvent,
   createErrorEvent,
+  createPausedEvent,
+  createResumedEvent,
 } from '../events';
 
 // ============================================================================
@@ -51,6 +54,7 @@ export interface CreateMappingJobRequest {
 export interface JobStatus {
   jobId: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
+  isPaused?: boolean;
   progress: {
     totalNodes: number;
     completedNodes: number;
@@ -179,6 +183,42 @@ export class MappingOrchestrator {
       error: 'Job cancelled by user',
       endTime: new Date(),
     });
+  }
+
+  /**
+   * Pause running job
+   */
+  async pauseJob(jobId: string): Promise<boolean> {
+    const job = this.jobs.get(jobId);
+    if (!job || job.status !== 'running') {
+      return false;
+    }
+
+    this.logger.log(`Pausing job: ${jobId}`);
+    this.updateJobStatus(jobId, { isPaused: true });
+
+    // Emit paused event
+    jobEventEmitter.emitJobEvent(jobId, createPausedEvent(jobId));
+
+    return true;
+  }
+
+  /**
+   * Resume paused job
+   */
+  async resumeJob(jobId: string): Promise<boolean> {
+    const job = this.jobs.get(jobId);
+    if (!job || !job.isPaused) {
+      return false;
+    }
+
+    this.logger.log(`Resuming job: ${jobId}`);
+    this.updateJobStatus(jobId, { isPaused: false });
+
+    // Emit resumed event
+    jobEventEmitter.emitJobEvent(jobId, createResumedEvent(jobId));
+
+    return true;
   }
 
   // ==========================================================================
@@ -353,6 +393,16 @@ export class MappingOrchestrator {
         `Processing batch ${Math.floor(i / CONFIG.MAX_PARALLEL_NODES) + 1}: ${batch.length} nodes`,
       );
 
+      // Check for pause
+      while (this.jobs.get(jobId)?.isPaused) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Check if job was cancelled while paused
+        if (this.jobs.get(jobId)?.status === 'failed') break;
+      }
+
+      // Check for cancellation
+      if (this.jobs.get(jobId)?.status === 'failed') break;
+
       // Process batch in parallel
       const batchPromises = batch.map((dagNode) =>
         this.processSingleDAGNode(jobId, dagNode, baseState),
@@ -471,8 +521,21 @@ export class MappingOrchestrator {
 
     this.jobs.set(jobId, updatedStatus);
 
-    // TODO: Emit event for WebSocket streaming
-    // eventEmitter.emit('job_updated', updatedStatus);
+    // Emit progress event if progress fields changed
+    if (updates.progress) {
+      const percentage = updatedStatus.progress.totalNodes > 0
+        ? Math.round((updatedStatus.progress.completedNodes / updatedStatus.progress.totalNodes) * 100)
+        : 0;
+
+      jobEventEmitter.emitJobEvent(jobId, createStageProgressEvent({
+        jobId,
+        stage: 'reasoning_agent', // Generic stage for mapping progress
+        nodeId: updatedStatus.progress.currentNode,
+        progress: percentage,
+        message: `Processed ${updatedStatus.progress.completedNodes}/${updatedStatus.progress.totalNodes} nodes`,
+        elapsedMs: Date.now() - updatedStatus.startTime.getTime(),
+      }));
+    }
   }
 
   /**

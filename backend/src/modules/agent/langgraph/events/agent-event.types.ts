@@ -19,6 +19,8 @@ export type AgentEventType =
     | 'artifact_produced'
     | 'candidate_retrieved'
     | 'mapping_finalized'
+    | 'paused'
+    | 'resumed'
     | 'error'
     | 'job_completed';
 
@@ -141,7 +143,10 @@ export interface AgentEvent {
     | StageCompletedData
     | ArtifactProducedData
     | CandidateRetrievedData
+    | CandidateRetrievedData
     | MappingFinalizedData
+    | { jobId: string } // PausedData
+    | { jobId: string } // ResumedData
     | ErrorData
     | JobCompletedData;
 }
@@ -239,5 +244,21 @@ export function createJobCompletedEvent(data: JobCompletedData): AgentEvent {
         type: 'job_completed',
         timestamp: new Date().toISOString(),
         data,
+    };
+}
+
+export function createPausedEvent(jobId: string): AgentEvent {
+    return {
+        type: 'paused',
+        timestamp: new Date().toISOString(),
+        data: { jobId },
+    };
+}
+
+export function createResumedEvent(jobId: string): AgentEvent {
+    return {
+        type: 'resumed',
+        timestamp: new Date().toISOString(),
+        data: { jobId },
     };
 }

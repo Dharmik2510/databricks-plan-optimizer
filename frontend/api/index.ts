@@ -80,6 +80,19 @@ export const client = {
     }
   },
 
+  fetchBranches: async (url: string, token?: string): Promise<string[]> => {
+    try {
+      // client.post already returns data.data if it exists (see client.ts:128)
+      // So we should expect the array directly here.
+      const response = await apiClient.post('/repository/branches', { url, token }) as any;
+      return response || [];
+    } catch (error) {
+      console.error("Branch fetch failed:", error);
+      // Return empty array on failure so UI doesn't crash
+      return [];
+    }
+  },
+
   analyzeDag: async (content: string, repoFiles: any[], options: any, clusterContext: any) => {
     let analysis = await analysisApi.create({
       content,

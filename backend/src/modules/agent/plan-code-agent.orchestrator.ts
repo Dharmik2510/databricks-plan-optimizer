@@ -131,8 +131,14 @@ export class PlanCodeAgentOrchestrator {
             return false;
         }
 
-        (job as any).isPaused = true;
+        job.isPaused = true;
         this.addLog(job, 'info', '⏸️ Job paused by user');
+
+        // Propagate to LangGraph orchestrator if running
+        if (job.langGraphJobId) {
+            this.mappingOrchestrator.pauseJob(job.langGraphJobId);
+        }
+
         return true;
     }
 
@@ -145,8 +151,14 @@ export class PlanCodeAgentOrchestrator {
             return false;
         }
 
-        (job as any).isPaused = false;
+        job.isPaused = false;
         this.addLog(job, 'info', '▶️ Job resumed');
+
+        // Propagate to LangGraph orchestrator if running
+        if (job.langGraphJobId) {
+            this.mappingOrchestrator.resumeJob(job.langGraphJobId);
+        }
+
         return true;
     }
 
@@ -164,6 +176,7 @@ export class PlanCodeAgentOrchestrator {
         try {
             // Phase 1: Load Repository / Parse Execution Plan
             const loadRepoStart = Date.now();
+            await this.waitForResume(job);
             this.updateJobStatus(job, 'fetching_repo', 'Initializing LangGraph AI agent...');
             this.emitEvent({ type: 'stage_started', data: { stage: 'load_repo', message: 'Cloning repository...' } });
 
@@ -194,6 +207,7 @@ export class PlanCodeAgentOrchestrator {
 
             // Phase 2: Parse AST / Convert to DagNodes
             const parseAstStart = Date.now();
+            await this.waitForResume(job);
             this.updateJobStatus(job, 'analyzing_files', 'Preparing DAG nodes...');
             this.emitEvent({ type: 'stage_started', data: { stage: 'parse_ast', message: 'Analyzing code structure' } });
 
@@ -221,6 +235,7 @@ export class PlanCodeAgentOrchestrator {
 
             // Phase 3: Execute LangGraph Workflow (Extract Semantics)
             const langGraphStart = Date.now();
+            await this.waitForResume(job);
             this.updateJobStatus(job, 'mapping_stages', 'Executing LangGraph workflow...');
             this.emitEvent({ type: 'stage_started', data: { stage: 'langgraph_execution', message: `Processing ${dagNodes.length} nodes` } });
             this.addLog(job, 'info', '🚀 Starting LangGraph mapping workflow:');
@@ -241,6 +256,7 @@ export class PlanCodeAgentOrchestrator {
                 dagNodes,
             });
 
+            job.langGraphJobId = langGraphJobId;
             this.addLog(job, 'info', `✓ LangGraph job created: ${langGraphJobId}`);
 
             // Poll for completion
@@ -249,6 +265,7 @@ export class PlanCodeAgentOrchestrator {
             const maxPolls = 120; // 10 minutes max (5 second intervals)
 
             while (langGraphStatus && langGraphStatus.status !== 'completed' && langGraphStatus.status !== 'failed' && pollCount < maxPolls) {
+                await this.waitForResume(job);
                 await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
                 langGraphStatus = await this.mappingOrchestrator.getJobStatus(langGraphJobId);
                 pollCount++;
@@ -288,6 +305,7 @@ export class PlanCodeAgentOrchestrator {
 
             // Phase 4: Retrieve Candidates (quick phase)
             const retrieveStart = Date.now();
+            await this.waitForResume(job);
             this.emitEvent({ type: 'stage_started', data: { stage: 'retrieve_candidates', message: 'Searching code embeddings' } });
 
             await this.delay(800); // Artificial delay for UX
@@ -313,6 +331,7 @@ export class PlanCodeAgentOrchestrator {
 
             // Phase 6: Finalize Analysis
             const finalizeStart = Date.now();
+            await this.waitForResume(job);
             this.emitEvent({ type: 'stage_started', data: { stage: 'finalize_analysis', message: 'Generating results' } });
 
             await this.delay(600); // Artificial delay for UX
@@ -633,5 +652,15 @@ export class PlanCodeAgentOrchestrator {
      */
     private emitEvent(event: AgentWebSocketEvent): void {
         this.eventEmitter?.(event);
+    }
+
+    /**
+     * Wait for job resume if paused
+     */
+    private async waitForResume(job: AgentJob): Promise<void> {
+        while (job.isPaused) {
+            await this.delay(1000);
+            if (job.status === 'cancelled') return;
+        }
     }
 }

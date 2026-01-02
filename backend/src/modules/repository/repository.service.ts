@@ -87,4 +87,41 @@ export class RepositoryService {
         };
         return map[ext] || 'plaintext';
     }
+    async listBranches(url: string, token?: string): Promise<string[]> {
+        try {
+            this.logger.log(`Listing branches for: ${url}`);
+
+            // 1. Prepare Auth URL
+            let authUrl = url;
+            if (token && url.startsWith('https://')) {
+                authUrl = url.replace('https://', `https://oauth2:${token}@`);
+            }
+
+            // 2. Use git ls-remote to list heads
+            const remoteInfo = await simpleGit.default().listRemote(['--heads', authUrl]);
+
+            // 3. Parse output
+            if (!remoteInfo) return [];
+
+            // remoteInfo is a string with "hash\trefs/heads/branchName\n"
+            const branches = remoteInfo
+                .split('\n')
+                .filter(line => line.trim().length > 0)
+                .map(line => {
+                    const parts = line.split('\t');
+                    if (parts.length < 2) return null;
+                    const ref = parts[1];
+                    return ref.replace('refs/heads/', '');
+                })
+                .filter(Boolean) as string[];
+
+            this.logger.log(`Found ${branches.length} branches.`);
+            return branches;
+        } catch (error) {
+            this.logger.error(`Failed to list branches: ${error.message}`);
+            // Return empty array instead of throwing to avoid breaking UI if listing fails (e.g. auth error)
+            // But maybe better to throw so UI knows? Let's throw for now so we can show error.
+            throw new Error(`Failed to list branches: ${error.message}`);
+        }
+    }
 }

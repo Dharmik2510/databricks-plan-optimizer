@@ -44,4 +44,24 @@ export class RepositoryController {
             return false;
         }
     }
+    @Post('branches')
+    async getBranches(@Body() body: { url: string; token?: string }) {
+        if (!body.url) {
+            throw new HttpException('Repository URL is required', HttpStatus.BAD_REQUEST);
+        }
+
+        if (!this.isValidGitHubUrl(body.url)) {
+            throw new HttpException('Invalid URL. Please enter a valid GitHub repository URL.', HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            const branches = await this.repositoryService.listBranches(body.url, body.token);
+            return {
+                success: true,
+                data: branches
+            };
+        } catch (error) {
+            throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

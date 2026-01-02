@@ -65,3 +65,9 @@ variable "chroma_api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "google_client_id" {
+  description = "Google OAuth Client ID"
+  type        = string
+  sensitive   = true
+}

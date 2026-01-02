@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import { AuthProvider } from './store/AuthContext';
 import { registerServiceWorker } from './registerSW';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,11 +12,14 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </GoogleOAuthProvider>
   </React.StrictMode>
 );
 

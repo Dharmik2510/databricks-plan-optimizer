@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,115 +7,211 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// USER - Simple authentication, no organizations
-// ═══════════════════════════════════════════════════════════════
-
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String
-  name          String
-  avatar        String?
-
-  // Role-based access control
-  role          UserRole  @default(USER)
-  isActive      Boolean   @default(true)  // For account suspension
-
-  // Password Reset
-  resetToken          String?   @unique
-  resetTokenExpiry    DateTime?
-
-  // User preferences as flexible JSON
-  settings      Json      @default("{}")
-  // Example: { "theme": "dark", "emailNotifications": true }
-
-  // Usage tracking (for rate limiting / quotas)
-  analysisCount Int       @default(0)
-  lastAnalysisAt DateTime?
-  quotaLimit    Int       @default(100)  // Monthly analysis quota
-
-  // Relations
-  analyses      Analysis[]
-  repositories  Repository[]
-  chatSessions  ChatSession[]
-  refreshTokens RefreshToken[]
-
-  // Timestamps
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  lastLoginAt   DateTime?
+  id               String         @id @default(cuid())
+  email            String         @unique
+  passwordHash     String
+  name             String
+  avatar           String?
+  settings         Json           @default("{}")
+  analysisCount    Int            @default(0)
+  lastAnalysisAt   DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  lastLoginAt      DateTime?
+  resetToken       String?        @unique
+  resetTokenExpiry DateTime?
+  isActive         Boolean        @default(true)
+  
+  // Authentication
+  googleId      String?   @unique
+  isVerified    Boolean   @default(false)
+  verificationToken String?
+  quotaLimit       Int            @default(100)
+  role             UserRole       @default(USER)
+  analyses         Analysis[]
+  chatSessions     ChatSession[]
+  refreshTokens    RefreshToken[]
+  repositories     Repository[]
 
   @@index([email])
   @@index([role])
   @@map("users")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-  SUPER_ADMIN
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ANALYSIS - Core feature for DAG analysis
-// ═══════════════════════════════════════════════════════════════
-
 model Analysis {
-  id            String         @id @default(cuid())
-  userId        String
-  
-  // Input
-  title         String?        // Optional, auto-generated if empty
-  inputType     InputType      @default(SPARK_PLAN)
-  inputContent  String         @db.Text
-  inputHash     String         // SHA-256 for caching/deduplication
-  
-  // Status
-  status        AnalysisStatus @default(PENDING)
-  errorMessage  String?
-  
-  // Results stored as JSONB (flexible & queryable)
-  result        Json?
-  // Structure: {
-  //   summary: string,
-  //   dagNodes: DagNode[],
-  //   dagLinks: DagLink[],
-  //   resourceMetrics: ResourceMetric[],
-  //   optimizations: OptimizationTip[],
-  //   codeMappings?: CodeSnippet[],
-  //   estimatedDurationMin?: number
-  // }
-  
-  // Extracted fields for filtering (denormalized from result)
+  id                String         @id @default(cuid())
+  userId            String
+  title             String?
+  inputType         InputType      @default(SPARK_PLAN)
+  inputContent      String
+  inputHash         String
+  status            AnalysisStatus @default(PENDING)
+  errorMessage      String?
+  result            Json?
   severity          Severity?
   optimizationCount Int?
   dagNodeCount      Int?
-  
-  // Processing metadata
   processingMs      Int?
   aiModel           String?
-  
-  // Context
-  snapshotId    String?
-  snapshot      RepoSnapshot?  @relation(fields: [snapshotId], references: [id])
-  
-  repoId        String?
-  repo          Repository?    @relation("RepoAnalyses", fields: [repoId], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  repoId            String?
+  snapshotId        String?
+  repo              Repository?    @relation("RepoAnalyses", fields: [repoId], references: [id])
+  snapshot          RepoSnapshot?  @relation(fields: [snapshotId], references: [id])
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatSessions      ChatSession[]
 
-  // Relations
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chatSessions  ChatSession[]
-  
-  // Timestamps
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  
   @@index([userId])
   @@index([userId, createdAt])
   @@index([inputHash])
   @@index([status])
   @@map("analyses")
+}
+
+model ChatSession {
+  id           String        @id @default(cuid())
+  userId       String
+  analysisId   String?
+  title        String?
+  messageCount Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  messages     ChatMessage[]
+  analysis     Analysis?     @relation(fields: [analysisId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([analysisId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  sessionId  String
+  role       MessageRole
+  content    String
+  tokensUsed Int?
+  createdAt  DateTime    @default(now())
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PricingCache {
+  id            String   @id @default(cuid())
+  cacheKey      String   @unique
+  data          Json
+  cloudProvider String
+  region        String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([cloudProvider, region])
+  @@index([expiresAt])
+  @@map("pricing_cache")
+}
+
+model Repository {
+  id            String         @id @default(cuid())
+  userId        String
+  url           String
+  name          String
+  defaultBranch String         @default("main")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  analyses      Analysis[]     @relation("RepoAnalyses")
+  snapshots     RepoSnapshot[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("repositories")
+}
+
+model RepoSnapshot {
+  id             String      @id @default(cuid())
+  repoId         String
+  commitHash     String
+  branch         String      @default("main")
+  collectionName String
+  embeddingModel String
+  schemaVersion  Int         @default(1)
+  status         IndexStatus @default(PENDING)
+  indexedAt      DateTime?
+  lastUsedAt     DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  analyses       Analysis[]
+  repo           Repository  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId])
+  @@index([status])
+  @@map("repo_snapshots")
+}
+
+model checkpoint_blobs {
+  thread_id     String
+  checkpoint_ns String @default("")
+  channel       String
+  version       String
+  type          String
+  blob          Bytes?
+
+  @@id([thread_id, checkpoint_ns, channel, version])
+}
+
+model checkpoint_migrations {
+  v Int @id
+}
+
+model checkpoint_writes {
+  thread_id     String
+  checkpoint_ns String  @default("")
+  checkpoint_id String
+  task_id       String
+  idx           Int
+  channel       String
+  type          String?
+  blob          Bytes
+
+  @@id([thread_id, checkpoint_ns, checkpoint_id, task_id, idx])
+}
+
+model checkpoints {
+  thread_id            String
+  checkpoint_ns        String  @default("")
+  checkpoint_id        String
+  parent_checkpoint_id String?
+  type                 String?
+  checkpoint           Json
+  metadata             Json    @default("{}")
+
+  @@id([thread_id, checkpoint_ns, checkpoint_id])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
 }
 
 enum InputType {
@@ -141,158 +234,10 @@ enum Severity {
   CRITICAL
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CHAT - AI Consultant sessions
-// ═══════════════════════════════════════════════════════════════
-
-model ChatSession {
-  id            String    @id @default(cuid())
-  userId        String
-  analysisId    String?   // Can be linked to an analysis or standalone
-  
-  title         String?   // Auto-generated from first message
-  
-  // Relations
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analysis      Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
-  messages      ChatMessage[]
-  
-  // Usage tracking
-  messageCount  Int       @default(0)
-  
-  // Timestamps
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  @@index([userId])
-  @@index([analysisId])
-  @@map("chat_sessions")
-}
-
-model ChatMessage {
-  id            String      @id @default(cuid())
-  sessionId     String
-  
-  role          MessageRole
-  content       String      @db.Text
-  
-  // AI metadata
-  tokensUsed    Int?
-  
-  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  
-  createdAt     DateTime    @default(now())
-  
-  @@index([sessionId])
-  @@map("chat_messages")
-}
-
 enum MessageRole {
   USER
   ASSISTANT
   SYSTEM
-}
-
-// ═══════════════════════════════════════════════════════════════
-// REFRESH TOKENS - For JWT refresh token rotation
-// ═══════════════════════════════════════════════════════════════
-
-model RefreshToken {
-  id            String    @id @default(cuid())
-  userId        String
-  token         String    @unique
-  expiresAt     DateTime
-  
-  // Device info (optional, for "active sessions" feature)
-  userAgent     String?
-  ipAddress     String?
-  
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt     DateTime  @default(now())
-  
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("refresh_tokens")
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PRICING CACHE - Cache cloud provider pricing data
-// ═══════════════════════════════════════════════════════════════
-
-model PricingCache {
-  id            String   @id @default(cuid())
-  cacheKey      String   @unique // e.g., "aws-us-east-1-instances"
-  data          Json     // Cached pricing data
-  cloudProvider String   // aws, azure, gcp
-  region        String
-  expiresAt     DateTime
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@index([cloudProvider, region])
-  @@index([expiresAt])
-  @@map("pricing_cache")
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// REPOSITORIES & SNAPSHOTS - Versioned Code Indexing
-// ═══════════════════════════════════════════════════════════════
-
-model Repository {
-  id            String         @id @default(cuid())
-  userId        String
-  url           String
-  name          String
-  
-  defaultBranch String         @default("main")
-  
-  // Relations
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  snapshots     RepoSnapshot[]
-  analyses      Analysis[]     @relation("RepoAnalyses")
-
-  // Timestamps
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  @@index([userId])
-  @@map("repositories")
-}
-
-model RepoSnapshot {
-  id              String      @id @default(cuid())
-  repoId          String
-  
-  // Commit Identity
-  commitHash      String
-  branch          String      @default("main")
-  
-  // Indexing Configuration
-  collectionName  String 
-  embeddingModel  String 
-  schemaVersion   Int         @default(1)
-  
-  // Lifecycle
-  status          IndexStatus @default(PENDING) 
-  
-  indexedAt       DateTime?
-  lastUsedAt      DateTime    @default(now())
-
-  // Relations
-  repo            Repository  @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  analyses        Analysis[]
-
-  // Timestamps
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  
-  @@index([repoId])
-  @@index([status])
-  @@map("repo_snapshots")
 }
 
 enum IndexStatus {

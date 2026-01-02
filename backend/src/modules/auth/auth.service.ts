@@ -11,6 +11,7 @@ import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dt
 import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
@@ -92,12 +93,17 @@ export class AuthService {
     // Hash password with bcrypt
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
+    // Generate verification token
+    const verificationToken = randomBytes(32).toString('hex');
+
     // Create user
     const user = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
         name: dto.name.trim(),
+        verificationToken,
+        isVerified: false,
       },
       select: {
         id: true,
@@ -110,12 +116,21 @@ export class AuthService {
 
     this.logger.log(`New user registered: ${user.email}`);
 
+    // Send verification email
+    try {
+      await this.emailService.sendVerificationEmail(user.email, verificationToken);
+    } catch (error) {
+      this.logger.error(`Failed to send verification email to ${user.email}`);
+      // Continue anyway, user can request resend later (if we implemented that)
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email);
 
     return {
       user,
       ...tokens,
+      message: 'Registration successful. Please check your email to verify your account.',
     };
   }
 
@@ -163,6 +178,108 @@ export class AuthService {
       },
       ...tokens,
     };
+  }
+
+  async loginWithGoogle(idToken: string, userAgent?: string, ipAddress?: string) {
+    const client = new OAuth2Client(
+      this.configService.get<string>('GOOGLE_CLIENT_ID'),
+    );
+
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      });
+      const payload = ticket.getPayload();
+
+      if (!payload || !payload.email) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+
+      const { email, name, picture, sub: googleId } = payload;
+
+      // Find or create user
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        // Create new user
+        // Generate random password as placeholder
+        const randomPassword = randomBytes(16).toString('hex');
+        const passwordHash = await bcrypt.hash(randomPassword, 12);
+
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            name: name || 'Google User',
+            avatar: picture,
+            googleId,
+            isVerified: true, // Google emails are verified
+            passwordHash,
+          },
+        });
+        this.logger.log(`New user registered via Google: ${email}`);
+      } else {
+        // Link Google ID if not present
+        if (!user.googleId) {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { googleId, isVerified: true, avatar: user.avatar || picture },
+          });
+        }
+
+        // Update last login
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+      }
+
+      // Generate tokens
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        userAgent,
+        ipAddress,
+      );
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar,
+        },
+        ...tokens,
+      };
+
+    } catch (error) {
+      this.logger.error(`Google login failed: ${error.message}`);
+      throw new UnauthorizedException('Google authentication failed');
+    }
+  }
+
+  async verifyEmail(token: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        verificationToken: token,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid verification token');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isVerified: true,
+        verificationToken: null,
+      },
+    });
+
+    return { success: true, message: 'Email verified successfully' };
   }
 
   async refreshTokens(refreshToken: string) {

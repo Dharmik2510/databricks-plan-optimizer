@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../../store/AuthContext';
 import { ThreeBackground } from '../ThreeBackground';
 import { authApi } from '../../api';
+import { GoogleLogin } from '@react-oauth/google';
 
 interface AuthPageProps {
   onAuthSuccess?: () => void;
@@ -44,7 +45,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => 
   // Password validation state
   const [passwordFocus, setPasswordFocus] = useState(false);
 
-  const { login, register, isLoading, error, clearError } = useAuth();
+  const { login, register, loginWithGoogle, isLoading, error, clearError } = useAuth();
 
   // Check for reset token in URL on mount
   useEffect(() => {
@@ -120,6 +121,27 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => 
       }
     } catch (err: any) {
       setLocalError(err.message || 'An error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+
+
+  const handleGoogleLoginSuccess = async (response: any) => {
+    if (!response.credential) {
+      setLocalError('Google login failed: No credential received');
+      return;
+    }
+
+    setLocalError(null);
+    setIsSubmitting(true);
+
+    try {
+      await loginWithGoogle(response.credential);
+      onAuthSuccess?.();
+    } catch (err: any) {
+      setLocalError(err.message || 'Google login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -384,6 +406,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess, onBack }) => 
 
 
           </form>
+
+          {mode === 'LOGIN' && (
+            <div className="mt-6">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-slate-900 text-slate-400">Or continue with</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleLoginSuccess}
+                  onError={() => setLocalError('Google Login Failed')}
+                  theme="filled_black"
+                  shape="pill"
+                  width="100%"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Toggle auth mode */}
           {(mode === 'LOGIN' || mode === 'REGISTER') && (
