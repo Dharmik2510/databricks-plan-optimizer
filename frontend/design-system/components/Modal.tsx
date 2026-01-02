@@ -66,11 +66,9 @@ const Modal: React.FC<ModalProps> = ({
           {(title || description || showCloseButton) && (
             <div className="flex items-start justify-between p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex-1">
-                {title && (
-                  <DialogPrimitive.Title className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                    {title}
-                  </DialogPrimitive.Title>
-                )}
+                <DialogPrimitive.Title className={cn("text-2xl font-semibold text-gray-900 dark:text-gray-100", !title && "sr-only")}>
+                  {title || "Modal"}
+                </DialogPrimitive.Title>
                 {description && (
                   <DialogPrimitive.Description className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     {description}

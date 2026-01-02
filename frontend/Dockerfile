@@ -13,6 +13,7 @@ COPY shared ./shared/
 COPY vite.config.ts ./
 COPY tsconfig.json ./
 COPY index.html ./
+COPY public ./public/
 COPY types.ts ./
 
 # Install dependencies
