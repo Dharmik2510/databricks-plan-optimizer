@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.25.0...v1.26.0) (2026-01-02)
+
+
+### Features
+
+* Update Langchain dependencies and add override for Google Generative AI. ([b416ccb](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/b416ccb29aea6396dca6f360b43953bd855ae705))
+
 # [1.25.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.24.0...v1.25.0) (2026-01-02)
 
 
