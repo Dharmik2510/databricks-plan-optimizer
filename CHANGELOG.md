@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.24.0...v1.25.0) (2026-01-02)
+
+
+### Features
+
+* Reorganize documentation, introduce agent eventing, add repo snapshot migration, and enhance agent UI components. ([f99c195](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/f99c195506c83c3517bb2cb024957db67213a3be))
+
 # [1.24.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.23.0...v1.24.0) (2025-12-31)
 
 
