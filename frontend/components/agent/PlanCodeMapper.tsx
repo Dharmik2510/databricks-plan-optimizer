@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { AgentProgressTracker } from './AgentProgressTracker';
 import { MappingResultsView } from './MappingResultsView';
+import { AgentMappingWorkspace } from './AgentMappingWorkspace';
+import { useAgentMappingStore } from '../../store/useAgentMappingStore';
 import { AgentJob } from '../../../shared/agent-types';
 import { client } from '../../api';
 
@@ -37,7 +39,7 @@ interface PlanCodeMapperProps {
     initialDagStages?: any[];
 }
 
-type ViewMode = 'input' | 'processing' | 'results';
+type ViewMode = 'input' | 'processing' | 'agentic_workspace' | 'results';
 
 export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialPlanContent, initialRepoConfig, initialDagStages }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('input');
@@ -46,6 +48,7 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     const [planName, setPlanName] = useState('');
     const [repoUrl, setRepoUrl] = useState(initialRepoConfig?.url || '');
     const [branch, setBranch] = useState(initialRepoConfig?.branch || 'main');
+    const [commitHash, setCommitHash] = useState('');
     const [token, setToken] = useState(initialRepoConfig?.token || '');
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
@@ -53,6 +56,9 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     const [error, setError] = useState<string | null>(null);
     const [job, setJob] = useState<AgentJob | null>(null);
     const [urlError, setUrlError] = useState<string>('');
+
+    // Agent store for SSE connection
+    const { connectSSE, disconnectSSE, reset: resetAgentStore } = useAgentMappingStore(state => state.actions);
 
     const isValidGitHubUrl = (url: string): boolean => {
         if (!url) return true; // Empty is valid (no error shown)
@@ -115,41 +121,68 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
         setUrlError('');
 
         try {
-            const data = await client.post<AgentJob>('/agent/jobs', {
-                planContent,
-                planName: planName || 'Untitled Plan',
-                repositoryUrl: repoUrl,
-                branch,
+            // Use API client - backend is at /api/v1/agent/jobs
+            const response = await client.post<any>('/agent/jobs', {
+                // Match CreateAgentJobRequest interface
+                planContent: planContent || '', // Required by backend
+                planName: planName || 'Spark Execution Plan',
+                repositoryUrl: repoUrl, // Backend expects repositoryUrl, not repoUrl
+                branch: branch || 'main',
+                commitHash: commitHash || undefined,
                 token: token || undefined,
-                dagStages: initialDagStages,
-                options: {
-                    maxConcurrentFiles: 50,
-                }
+                dagStages: (initialDagStages || []).map((stage, idx) => ({
+                    id: stage.id || `dag_stage_${idx}`,
+                    name: stage.name,
+                    type: stage.type || 'Unknown',
+                    description: stage.description || stage.name,
+                })),
             });
 
-            setJob(data);
-            setViewMode('processing');
+            // Extract jobId from response (handle multiple formats)
+            const jobId = response?.jobId || response?.id || response?.data?.jobId || response?.data?.id;
+
+            if (!jobId) {
+                console.error('No jobId in response:', response);
+                throw new Error('No job ID returned from server');
+            }
+
+            console.log('[PlanCodeMapper] Job created:', jobId);
+
+            // Reset and connect to SSE stream
+            resetAgentStore();
+
+            // Get auth token from localStorage
+            const authToken = localStorage.getItem('accessToken') || '';
+
+            // Connect to SSE stream
+            connectSSE(jobId, authToken);
+
+            setViewMode('agentic_workspace');
         } catch (err: any) {
             setError(err.message || 'Failed to start mapping job');
         } finally {
             setIsLoading(false);
         }
-    }, [planContent, planName, repoUrl, branch, token]);
+    }, [planContent, planName, repoUrl, branch, commitHash, token, initialDagStages, connectSSE, resetAgentStore]);
 
-    const handleCancelJob = async () => {
-        if (job) {
-            try {
-                await client.post(`/agent/jobs/${job.id}/cancel`);
-                setJob({ ...job, status: 'cancelled' });
-            } catch (e) {
-                console.error(e);
-            }
-        }
+    const handleCancelJob = () => {
+        disconnectSSE();
+        resetAgentStore();
         setJob(null);
         setViewMode('input');
     };
 
-    // Case 1: Processing
+    const handleBackFromWorkspace = () => {
+        disconnectSSE();
+        setViewMode('input');
+    };
+
+    // Case 1: Agentic Workspace (new design)
+    if (viewMode === 'agentic_workspace') {
+        return <AgentMappingWorkspace onBack={handleBackFromWorkspace} />;
+    }
+
+    // Case 2: Processing (legacy)
     if (viewMode === 'processing' && job) {
         return (
             <div className="h-full bg-slate-50 dark:bg-slate-900 p-8 overflow-y-auto">
@@ -248,11 +281,10 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                                 placeholder="https://github.com/owner/repo"
                                 value={repoUrl}
                                 onChange={(e) => setRepoUrl(e.target.value)}
-                                className={`w-full bg-slate-50 dark:bg-slate-800/50 border ${
-                                    urlError
-                                        ? 'border-red-500 dark:border-red-500 focus:ring-red-500/20 focus:border-red-500'
-                                        : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500/20 focus:border-indigo-500'
-                                } rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium`}
+                                className={`w-full bg-slate-50 dark:bg-slate-800/50 border ${urlError
+                                    ? 'border-red-500 dark:border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                                    : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500/20 focus:border-indigo-500'
+                                    } rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium`}
                             />
                             {urlError && (
                                 <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs mt-2">
@@ -275,16 +307,29 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 block">
-                                    Access Token <span className="font-normal text-slate-400 lowercase">(optional)</span>
+                                    Commit Hash <span className="font-normal text-slate-400 lowercase">(optional)</span>
                                 </label>
                                 <input
-                                    type="password"
-                                    placeholder="ghp_xxxx"
-                                    value={token}
-                                    onChange={(e) => setToken(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                                    type="text"
+                                    placeholder="e.g. 7b3f1..."
+                                    value={commitHash}
+                                    onChange={(e) => setCommitHash(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium font-mono text-sm"
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 block">
+                                Access Token <span className="font-normal text-slate-400 lowercase">(optional)</span>
+                            </label>
+                            <input
+                                type="password"
+                                placeholder="ghp_xxxx"
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                            />
                         </div>
 
                         {/* Advanced Options Toggle */}

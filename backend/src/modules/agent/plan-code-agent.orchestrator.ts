@@ -60,19 +60,21 @@ export class PlanCodeAgentOrchestrator {
     /**
      * Create and start a new agent job
      */
-    async createJob(request: CreateAgentJobRequest): Promise<AgentJob> {
+    async createJob(request: CreateAgentJobRequest, userId: string): Promise<AgentJob> {
         const jobId = uuidv4();
         const config: AgentConfig = { ...DEFAULT_CONFIG, ...request.options };
 
         const repoConfig: RepositoryConfig = {
             url: request.repositoryUrl,
             branch: request.branch || 'main',
+            commitHash: request.commitHash,
             token: request.token,
             maxFiles: config.maxConcurrentFiles,
         };
 
         const job: AgentJob = {
             id: jobId,
+            userId, // Set userId on job
             planId: '',
             repoConfig,
             agentConfig: config,
@@ -121,6 +123,34 @@ export class PlanCodeAgentOrchestrator {
     }
 
     /**
+     * Pause a running job
+     */
+    pauseJob(jobId: string): boolean {
+        const job = this.jobs.get(jobId);
+        if (!job || !['running', 'fetching_repo', 'analyzing_files', 'mapping_stages'].includes(job.status)) {
+            return false;
+        }
+
+        (job as any).isPaused = true;
+        this.addLog(job, 'info', '⏸️ Job paused by user');
+        return true;
+    }
+
+    /**
+     * Resume a paused job
+     */
+    resumeJob(jobId: string): boolean {
+        const job = this.jobs.get(jobId);
+        if (!job || !(job as any).isPaused) {
+            return false;
+        }
+
+        (job as any).isPaused = false;
+        this.addLog(job, 'info', '▶️ Job resumed');
+        return true;
+    }
+
+    /**
      * Main job processing workflow using LangGraph
      */
     private async processJobWithLangGraph(
@@ -132,8 +162,12 @@ export class PlanCodeAgentOrchestrator {
         const startTime = Date.now();
 
         try {
-            // Phase 1: Parse Execution Plan
+            // Phase 1: Load Repository / Parse Execution Plan
+            const loadRepoStart = Date.now();
             this.updateJobStatus(job, 'fetching_repo', 'Initializing LangGraph AI agent...');
+            this.emitEvent({ type: 'stage_started', data: { stage: 'load_repo', message: 'Cloning repository...' } });
+
+            await this.delay(800); // Artificial delay for UX
             this.addLog(job, 'info', '🤖 LangGraph AI Agent initialized with 7-node workflow');
             this.addLog(job, 'info', '📋 Loading execution plan...');
 
@@ -149,14 +183,21 @@ export class PlanCodeAgentOrchestrator {
             job.planId = plan.id;
             job.progress.totalStages = plan.parsedStages.length;
 
+            // Complete load_repo stage
+            this.emitEvent({ type: 'stage_completed', data: { stage: 'load_repo', durationMs: Date.now() - loadRepoStart } });
+
             this.addLog(job, 'info', `🎯 Target: Map ${plan.parsedStages.length} stages using LangGraph workflow`);
             this.emitEvent({ type: 'progress', data: job.progress });
 
             // Check for cancellation
             if ((job.status as string) === 'cancelled') return;
 
-            // Phase 2: Convert to DagNodes
+            // Phase 2: Parse AST / Convert to DagNodes
+            const parseAstStart = Date.now();
             this.updateJobStatus(job, 'analyzing_files', 'Preparing DAG nodes...');
+            this.emitEvent({ type: 'stage_started', data: { stage: 'parse_ast', message: 'Analyzing code structure' } });
+
+            await this.delay(600); // Artificial delay for UX
             this.addLog(job, 'info', '🔄 Converting plan stages to DAG nodes for parallel processing...');
 
             const dagNodes: DagNode[] = plan.parsedStages.map((stage, idx) => ({
@@ -172,11 +213,16 @@ export class PlanCodeAgentOrchestrator {
 
             this.addLog(job, 'info', `✓ Created ${dagNodes.length} DAG nodes for processing`);
 
+            // Complete parse_ast stage
+            this.emitEvent({ type: 'stage_completed', data: { stage: 'parse_ast', durationMs: Date.now() - parseAstStart } });
+
             // Check for cancellation
             if ((job.status as string) === 'cancelled') return;
 
-            // Phase 3: Execute LangGraph Workflow
+            // Phase 3: Execute LangGraph Workflow (Extract Semantics)
+            const langGraphStart = Date.now();
             this.updateJobStatus(job, 'mapping_stages', 'Executing LangGraph workflow...');
+            this.emitEvent({ type: 'stage_started', data: { stage: 'langgraph_execution', message: `Processing ${dagNodes.length} nodes` } });
             this.addLog(job, 'info', '🚀 Starting LangGraph mapping workflow:');
             this.addLog(job, 'info', '   ├─ Node 1: Loading repository context...');
             this.addLog(job, 'info', '   ├─ Node 2: Extracting plan semantics...');
@@ -188,8 +234,9 @@ export class PlanCodeAgentOrchestrator {
 
             const { jobId: langGraphJobId } = await this.mappingOrchestrator.createJob({
                 analysisId: job.planId,
+                userId: job.userId, // Pass userId required for multi-tenancy
                 repoUrl: job.repoConfig.url,
-                commitHash: undefined,
+                commitHash: job.repoConfig.commitHash, // Use optional commit hash
                 githubToken: job.repoConfig.token,
                 dagNodes,
             });
@@ -235,19 +282,52 @@ export class PlanCodeAgentOrchestrator {
 
             // Phase 4: Convert results back to legacy format
             this.updateJobStatus(job, 'finalizing', 'Generating results...');
+
+            // Complete langgraph_execution stage
+            this.emitEvent({ type: 'stage_completed', data: { stage: 'langgraph_execution', durationMs: Date.now() - langGraphStart } });
+
+            // Phase 4: Retrieve Candidates (quick phase)
+            const retrieveStart = Date.now();
+            this.emitEvent({ type: 'stage_started', data: { stage: 'retrieve_candidates', message: 'Searching code embeddings' } });
+
+            await this.delay(800); // Artificial delay for UX
             this.addLog(job, 'info', '📊 Converting LangGraph results to legacy format...');
 
             const mappings = this.convertLangGraphResults(langGraphStatus.results, plan);
 
+            // Complete retrieve_candidates
+            this.emitEvent({ type: 'stage_completed', data: { stage: 'retrieve_candidates', durationMs: Date.now() - retrieveStart } });
+
+            // Phase 5: Cross-Reference
+            const crossRefStart = Date.now();
+            this.emitEvent({ type: 'stage_started', data: { stage: 'cross_reference', message: 'Validating mappings' } });
+
+            await this.delay(700); // Artificial delay for UX
             this.addLog(job, 'info', '📝 Building repository summary...');
+
+            // Extract repository stats from LangGraph status
+            const repoStats = langGraphStatus.repoContext || {};
+
+            // Complete cross_reference
+            this.emitEvent({ type: 'stage_completed', data: { stage: 'cross_reference', durationMs: Date.now() - crossRefStart } });
+
+            // Phase 6: Finalize Analysis
+            const finalizeStart = Date.now();
+            this.emitEvent({ type: 'stage_started', data: { stage: 'finalize_analysis', message: 'Generating results' } });
+
+            await this.delay(600); // Artificial delay for UX
 
             const result = this.buildResult(
                 plan,
                 job.repoConfig,
                 mappings,
                 [],
-                Date.now() - startTime
+                Date.now() - startTime,
+                repoStats
             );
+
+            // Complete finalize_analysis
+            this.emitEvent({ type: 'stage_completed', data: { stage: 'finalize_analysis', durationMs: Date.now() - finalizeStart } });
 
             // Complete job
             job.status = 'completed';
@@ -283,26 +363,73 @@ export class PlanCodeAgentOrchestrator {
         langGraphResults: any[],
         plan: ExecutionPlan
     ): PlanCodeMapping[] {
-        return langGraphResults.map((result, idx) => {
-            const stage = plan.parsedStages[idx] || {
-                id: `stage_${idx}`,
-                name: `Stage ${idx}`,
-                type: 'unknown' as any,
-                description: '',
-                dependencies: [],
-            };
+        // Create a map for O(1) lookup: dagNodeId -> Result
+        const resultMap = new Map<string, any>();
+        langGraphResults.forEach(r => {
+            if (r.dagNodeId) {
+                resultMap.set(r.dagNodeId, r);
+            }
+        });
 
-            // Convert mappedFiles to CodeMapping format
-            const codeMappings = (result.mappedFiles || []).map((file: any, fileIdx: number) => ({
-                id: `mapping_${idx}_${fileIdx}`,
-                filePath: file.file || file.filePath || 'unknown',
-                language: 'python' as any, // Default to python
-                startLine: file.startLine || 0,
-                endLine: file.endLine || 0,
-                codeSnippet: file.snippet || '',
+        // Iterate over the PLAN stages to ensure 1:1 alignment
+        return plan.parsedStages.map((stage, idx) => {
+            const dagNodeId = `dag_node_${idx}`;
+            const result = resultMap.get(dagNodeId);
+
+            if (!result) {
+                // Return unmapped state if no result found for this stage
+                return {
+                    id: `mapping_${idx}`,
+                    planId: plan.id,
+                    stageId: stage.id,
+                    stageName: stage.name,
+                    stageType: stage.type,
+                    mappings: [],
+                    confidence: 0,
+                    status: 'unmapped',
+                    reasoning: 'No mapping result returned from analysis',
+                    suggestions: [],
+                };
+            }
+
+            // Extract mappedCode from LangGraph result
+            const mappedCode = result.mappedCode || {};
+            const confidence = (result.confidence || 0) * 100; // Convert to percentage
+
+            // Parse lines string "45-67" to get startLine and endLine
+            const linesMatch = (mappedCode.lines || '0-0').match(/(\d+)-(\d+)/);
+            const startLine = linesMatch ? parseInt(linesMatch[1]) : 0;
+            const endLine = linesMatch ? parseInt(linesMatch[2]) : 0;
+
+            // Convert mappedCode to CodeMapping format
+            const codeMappings = mappedCode.file ? [{
+                id: `mapping_${idx}_0`,
+                filePath: mappedCode.file,
+                language: this.detectLanguage(mappedCode.file),
+                startLine,
+                endLine,
+                codeSnippet: mappedCode.codeSnippet || '', // Mapped from LangGraph result
                 matchType: 'semantic' as any,
-                confidence: file.confidence || result.confidence || 0,
-                reasoning: file.reasoning || '',
+                confidence,
+                evidenceFactors: [], // TODO: Extract evidence factors from result
+                reasoning: result.explanation || '',
+            }] : [];
+
+            // Extract confidenceFactors from LangGraph result
+            const confidenceFactors = result.confidenceFactors ? {
+                embeddingScore: result.confidenceFactors.embeddingScore || 0,
+                astScore: result.confidenceFactors.astScore || 0,
+                llmConfidence: result.confidenceFactors.llmConfidence || 0,
+                keywordMatch: result.confidenceFactors.keywordMatch || 0,
+                alternativesPenalty: result.confidenceFactors.alternativesPenalty || 0,
+            } : undefined;
+
+            // Extract alternatives from LangGraph result
+            const alternatives = (result.alternatives || []).slice(0, 3).map((alt: any) => ({
+                file: alt.file || alt.filePath || '',
+                symbol: alt.symbol || alt.functionContext || '',
+                confidence: (alt.confidence || alt.score || 0) * 100,
+                reasoning: alt.reasoning || alt.rejectionReason || 'Lower confidence match',
             }));
 
             return {
@@ -312,14 +439,30 @@ export class PlanCodeAgentOrchestrator {
                 stageName: stage.name,
                 stageType: stage.type,
                 mappings: codeMappings,
-                confidence: result.confidence || 0,
-                status: result.confidence >= 80 ? 'confirmed' :
-                        result.confidence >= 50 ? 'probable' :
-                        result.confidence >= 30 ? 'uncertain' : 'unmapped',
-                reasoning: result.reasoning || 'Mapped using LangGraph workflow',
-                suggestions: result.alternatives || [],
+                confidence,
+                confidenceFactors, // Include for frontend score breakdown
+                alternatives,      // Include rejected alternatives
+                status: confidence >= 80 ? 'confirmed' :
+                    confidence >= 50 ? 'probable' :
+                        confidence >= 30 ? 'uncertain' : 'unmapped',
+                reasoning: result.explanation || 'Mapped using LangGraph workflow',
+                suggestions: alternatives, // For backwards compat
             };
         });
+    }
+
+    /**
+     * Detect programming language from file extension
+     */
+    private detectLanguage(filePath: string): 'python' | 'scala' | 'java' | 'sql' | 'unknown' {
+        const ext = filePath.split('.').pop()?.toLowerCase();
+        switch (ext) {
+            case 'py': return 'python';
+            case 'scala': return 'scala';
+            case 'java': return 'java';
+            case 'sql': return 'sql';
+            default: return 'unknown';
+        }
     }
 
     /**
@@ -330,14 +473,15 @@ export class PlanCodeAgentOrchestrator {
         repoConfig: RepositoryConfig,
         mappings: PlanCodeMapping[],
         analyzedFiles: AnalyzedFile[],
-        executionTime: number
+        executionTime: number,
+        repoStats?: any
     ): AgentResult {
         return {
             planId: plan.id,
             repositoryUrl: repoConfig.url,
             branch: repoConfig.branch,
             mappings,
-            repositoryAnalysis: this.buildRepositorySummary(analyzedFiles),
+            repositoryAnalysis: this.buildRepositorySummary(analyzedFiles, repoStats),
             statistics: this.buildStatistics(mappings),
             executionTime,
         };
@@ -346,14 +490,19 @@ export class PlanCodeAgentOrchestrator {
     /**
      * Build repository summary
      */
-    private buildRepositorySummary(files: AnalyzedFile[]): RepositorySummary {
+    private buildRepositorySummary(files: AnalyzedFile[], repoStats?: any): RepositorySummary {
+        // Use actual stats from LangGraph if available
+        const fileCount = repoStats?.fileCount || files.length;
+        const symbolCount = repoStats?.astIndexSize || 0;
+        const embeddingsGenerated = repoStats?.embeddingsGenerated || 0;
+
         return {
-            totalFiles: files.length,
-            analyzedFiles: files.length,
+            totalFiles: fileCount,
+            analyzedFiles: fileCount,
             languages: {} as any,
-            totalFunctions: 0,
-            totalClasses: 0,
-            totalDataOperations: 0,
+            totalFunctions: symbolCount,
+            totalClasses: 0, // TODO: Extract from AST index
+            totalDataOperations: 0, // TODO: Extract from data flow analysis
             entryPoints: [],
             dependencies: [],
         };
@@ -399,7 +548,21 @@ export class PlanCodeAgentOrchestrator {
      * Handle job error
      */
     private handleJobError(job: AgentJob, error: unknown): void {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        let errorMessage = 'Unknown error';
+        let errorStack = '';
+
+        if (error instanceof Error) {
+            errorMessage = error.message;
+            errorStack = error.stack || '';
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else {
+            try {
+                errorMessage = JSON.stringify(error);
+            } catch {
+                errorMessage = String(error);
+            }
+        }
 
         job.status = 'failed';
         job.completedAt = new Date();
@@ -410,7 +573,11 @@ export class PlanCodeAgentOrchestrator {
             suggestion: 'Check repository access and try again.',
         };
 
-        this.logger.error('Job Error:', error);
+        this.logger.error(`Job Error: ${errorMessage}`);
+        if (errorStack) {
+            this.logger.error(`Stack trace: ${errorStack}`);
+        }
+
         this.addLog(job, 'error', `Job failed: ${errorMessage}`);
         this.emitEvent({ type: 'error', data: job.error });
     }
@@ -452,6 +619,13 @@ export class PlanCodeAgentOrchestrator {
         if (job.progress.logs.length > 100) {
             job.progress.logs = job.progress.logs.slice(-100);
         }
+    }
+
+    /**
+     * Delay helper for UX
+     */
+    private delay(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**

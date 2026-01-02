@@ -21,8 +21,45 @@ import {
     DataOperation,
     TableReference,
     ParameterInfo,
-    ComplexityMetrics
+    ComplexityMetrics,
+    SparkTransformation,
+    CodeChunk
 } from './agent-types';
+
+const SPARK_OP_ALIASES: Record<string, string[]> = {
+    // Sort operations
+    'Sort': ['orderBy', 'sort', 'sortWithinPartitions'],
+    'SortAggregate': ['groupBy', 'agg', 'aggregate'],
+
+    // Filter operations
+    'Filter': ['filter', 'where'],
+
+    // Join operations
+    'BroadcastHashJoin': ['join', 'broadcast'],
+    'BroadcastNestedLoopJoin': ['join', 'broadcast'],
+    'SortMergeJoin': ['join'],
+
+    // Aggregation
+    'HashAggregate': ['groupBy', 'agg', 'count', 'sum', 'avg', 'max', 'min'],
+
+    // Data sources
+    'FileScan': ['read', 'load', 'parquet', 'csv', 'json', 'table'],
+
+    // Shuffle
+    'Exchange': ['repartition', 'coalesce', 'partitionBy'],
+
+    // Projection
+    'Project': ['select', 'withColumn', 'alias', 'drop'],
+
+    // Limit
+    'Limit': ['limit', 'take'],
+
+    // Union
+    'Union': ['union', 'unionByName'],
+
+    // Transformation
+    'Transformation': ['transform']
+};
 
 export interface ASTAnalysisResult {
     functions: EnhancedFunctionInfo[];
@@ -33,6 +70,7 @@ export interface ASTAnalysisResult {
     dataFlowGraph: DataFlowNode[];
     callGraph: CallGraphEdge[];
     complexity: ComplexityMetrics;
+    codeChunks: CodeChunk[];
 }
 
 export interface EnhancedFunctionInfo extends FunctionInfo {
@@ -48,12 +86,7 @@ export interface EnhancedClassInfo extends ClassInfo {
     hasDataOperations?: boolean;
 }
 
-export interface SparkTransformation {
-    type: 'read' | 'write' | 'filter' | 'select' | 'join' | 'groupBy' | 'agg' | 'withColumn' | 'transform';
-    line: number;
-    code: string;
-    variable?: string;
-}
+
 
 export interface TableAccess {
     tableName: string;
@@ -122,6 +155,9 @@ export class ASTParserService {
                     result = this.parseGeneric(content, filePath);
             }
 
+            // ENHANCEMENT: Map extracted operations to their high-level Spark Plan equivalents
+            this.enrichWithPlanOperators(result);
+
             const duration = Date.now() - startTime;
             this.logger.debug(
                 `Parsed ${filePath}: ${result.functions.length} functions, ` +
@@ -149,7 +185,8 @@ export class ASTParserService {
             tableReferences: [],
             dataFlowGraph: [],
             callGraph: [],
-            complexity: this.emptyComplexity()
+            complexity: this.emptyComplexity(),
+            codeChunks: []
         };
 
         const lines = content.split('\n');
@@ -159,6 +196,20 @@ export class ASTParserService {
         this.extractPythonClassesProduction(lines, result);
         this.extractPythonImportsProduction(lines, result);
         this.extractSparkOperationsProduction(lines, result);
+        this.extractPythonChunks(lines, result);
+
+        // Map Spark operations to functions
+        for (const func of result.functions) {
+            func.sparkTransformations = result.dataOperations
+                .filter(op => op.line >= func.startLine && op.line <= func.endLine)
+                .map(op => ({
+                    type: op.type as any, // Cast to ensure compatibility if types slightly diverge, but they should match
+                    line: op.line,
+                    code: op.code,
+                    columns: op.columns
+                }));
+        }
+
         this.buildCallGraph(result);
         result.complexity = this.calculateComplexityProduction(content);
 
@@ -342,29 +393,49 @@ export class ASTParserService {
     /**
      * PRODUCTION: Extract Spark operations with comprehensive pattern matching
      */
+    /**
+     * PRODUCTION: Extract Spark operations with comprehensive pattern matching
+     */
     private extractSparkOperationsProduction(lines: string[], result: ASTAnalysisResult): void {
         const sparkPatterns = [
             { regex: /(?:spark|df)\s*\.read\s*\.\s*(parquet|csv|json|delta|table|orc|avro)\s*\(/g, type: 'read' as const },
+            { regex: /\.(parquet|csv|json|delta|orc|avro)\s*\(/g, type: 'read' as const }, // Catch .parquet(), .csv(), etc.
             { regex: /\.write\s*\.\s*(parquet|csv|json|delta|saveAsTable|orc|avro)\s*\(/g, type: 'write' as const },
             { regex: /\.filter\s*\(|\.where\s*\(/g, type: 'filter' as const },
-            { regex: /\.select\s*\(/g, type: 'transform' as const },
+            { regex: /\.select\s*\(/g, type: 'select' as const },
             { regex: /\.join\s*\(/g, type: 'join' as const },
-            { regex: /\.groupBy\s*\(|\.groupby\s*\(/g, type: 'aggregate' as const },
-            { regex: /\.agg\s*\(|\.aggregate\s*\(/g, type: 'aggregate' as const },
-            { regex: /\.withColumn\s*\(|\.with_column\s*\(/g, type: 'transform' as const },
+            { regex: /\.groupBy\s*\(|\.groupby\s*\(/g, type: 'groupBy' as const },
+            { regex: /\.agg\s*\(|\.aggregate\s*\(/g, type: 'agg' as const },
+            { regex: /\.withColumn\s*\(|\.with_column\s*\(/g, type: 'withColumn' as const },
             { regex: /\.union\s*\(|\.unionByName\s*\(/g, type: 'union' as const },
-            { regex: /\.repartition\s*\(|\.coalesce\s*\(/g, type: 'repartition' as const }
+            { regex: /\.repartition\s*\(|\.coalesce\s*\(/g, type: 'repartition' as const },
+            { regex: /\.sort\s*\(|\.orderBy\s*\(/g, type: 'sort' as const },
+            { regex: /\.drop\s*\(/g, type: 'drop' as const },
+            { regex: /\.distinct\s*\(/g, type: 'distinct' as const },
+            { regex: /\.limit\s*\(/g, type: 'limit' as const },
+            { regex: /\.alias\s*\(/g, type: 'alias' as const },
+            { regex: /\.transform\s*\(/g, type: 'transform' as const }
         ];
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
             for (const pattern of sparkPatterns) {
+                // Reset regex state
+                pattern.regex.lastIndex = 0;
+
                 if (pattern.regex.test(line)) {
+                    // Extract columns (simple heuristic for quoted identifiers)
+                    const colMatches = [...line.matchAll(/["']([a-zA-Z_][a-zA-Z0-9_]*)["']/g)].map(m => m[1]);
+
+                    // Filter out common keywords/noise if needed, but for now take all quoted strings as potential cols
+                    // or literal values. Better to have more than less.
+
                     result.dataOperations.push({
                         type: pattern.type,
                         line: i + 1,
-                        code: line.trim().substring(0, 200), // Limit length
+                        code: line.trim().substring(0, 300),
+                        columns: colMatches,
                         confidence: 0.95
                     });
 
@@ -378,11 +449,15 @@ export class ASTParserService {
                     for (const tPattern of tablePatterns) {
                         let match;
                         while ((match = tPattern.exec(line)) !== null) {
-                            result.tableReferences.push({
-                                name: match[1],
-                                operation: pattern.type === 'read' ? 'read' : (pattern.type === 'write' ? 'write' : 'read'),
-                                line: i + 1
-                            });
+                            // Only add if it looks like a table (heuristic)
+                            const isTableOp = pattern.type === 'read' || pattern.type === 'write' || pattern.type === 'join';
+                            if (isTableOp) {
+                                result.tableReferences.push({
+                                    name: match[1],
+                                    operation: pattern.type === 'read' ? 'read' : (pattern.type === 'write' ? 'write' : 'read'),
+                                    line: i + 1
+                                });
+                            }
                         }
                     }
 
@@ -390,6 +465,45 @@ export class ASTParserService {
                     pattern.regex.lastIndex = 0;
                 }
             }
+        }
+    }
+
+    /**
+     * PRODUCTION: Extract Code Chunks for Logic Mapping
+     */
+    private extractPythonChunks(lines: string[], result: ASTAnalysisResult): void {
+        // 1. Symbol Chunks (Functions with Spark Ops)
+        for (const func of result.functions) {
+            if (func.sparkTransformations && func.sparkTransformations.length > 0) {
+                const chunkId = `func:${func.name}:${func.startLine}`;
+
+                // Get content
+                const content = lines.slice(func.startLine - 1, func.endLine).join('\n');
+
+                result.codeChunks.push({
+                    id: chunkId,
+                    type: 'SYMBOL',
+                    content: content,
+                    startLine: func.startLine,
+                    endLine: func.endLine,
+                    parentSymbol: func.name,
+                    sparkOps: func.sparkTransformations.map(op => op.type)
+                });
+            }
+        }
+
+        // 2. Statement Chunks (Individual Operations)
+        // Group consecutive operations into Blocks later if needed
+        for (const op of result.dataOperations) {
+            const chunkId = `stmt:${op.line}`;
+            result.codeChunks.push({
+                id: chunkId,
+                type: 'STATEMENT',
+                content: op.code,
+                startLine: op.line,
+                endLine: op.line,
+                sparkOps: [op.type]
+            });
         }
     }
 
@@ -509,7 +623,8 @@ export class ASTParserService {
             tableReferences: [],
             dataFlowGraph: [],
             callGraph: [],
-            complexity: this.emptyComplexity()
+            complexity: this.emptyComplexity(),
+            codeChunks: []
         };
 
         try {
@@ -776,6 +891,67 @@ export class ASTParserService {
     }
 
     /**
+     * ENHANCEMENT: Map extracted operations to high-level Spark Plan operators
+     */
+    private enrichWithPlanOperators(result: ASTAnalysisResult): void {
+        const opMap = new Map<string, string>(); // Helper map: method name -> Plan Operator
+
+        // Invert alias map for fast lookup
+        Object.entries(SPARK_OP_ALIASES).forEach(([planOp, aliases]) => {
+            aliases.forEach(alias => {
+                opMap.set(alias.toLowerCase(), planOp);
+            });
+        });
+
+        // Loop through all extracted operations
+        for (const op of result.dataOperations) {
+            // Check if existing op.type matches a known method alias
+            // OR if op.code contains any of the aliases
+            const opType = op.type.toLowerCase();
+            const planOp = opMap.get(opType);
+
+            if (planOp) {
+                // If the operation's type is a known alias (e.g. 'groupby'), we can tag it
+                // We don't overwrite the 'type' field as it might break existing logic,
+                // but we can ensure it's added to the 'sparkOps' of relevant functions later.
+                // However, 'dataOperations' are used to populate 'sparkTransformations'.
+                // Ideally, we'd add a 'planOperator' field to DataOperation, but that requires type changes.
+                // Instead, let's treat the Plan Op as another "operation" at the same line.
+                // But simplified: effectively we want to ensure that if we found 'groupby', we also treat it as 'HashAggregate'
+            }
+        }
+
+        // Implementation Strategy:
+        // Update function.sparkTransformations directly
+        for (const func of result.functions) {
+            if (!func.sparkTransformations) continue;
+
+            const existingOps = new Set(func.sparkTransformations.map(t => t.type));
+            const newTransformations: SparkTransformation[] = [];
+
+            for (const trans of func.sparkTransformations) {
+                const transType = trans.type.toLowerCase();
+                // Check if this transformation maps to a Plan Operator
+                const planOp = opMap.get(transType);
+
+                if (planOp && !existingOps.has(planOp as any)) {
+                    // Add the High-Level Plan Operator as a NEW transformation
+                    newTransformations.push({
+                        type: planOp as any, // Cast to match type, assumes we updated types
+                        line: trans.line,
+                        code: trans.code,
+                        columns: trans.columns
+                    });
+                    existingOps.add(planOp as any);
+                }
+            }
+
+            // Append new high-level ops
+            func.sparkTransformations.push(...newTransformations);
+        }
+    }
+
+    /**
      * Parse Jupyter Notebook
      */
     private parseNotebook(content: string, filePath: string): ASTAnalysisResult {
@@ -847,7 +1023,9 @@ export class ASTParserService {
 
         for (const line of codeLines) {
             for (const keyword of decisionKeywords) {
-                const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+                // Escape special regex characters
+                const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'g');
                 const matches = line.match(regex);
                 if (matches) {
                     complexity += matches.length;
@@ -874,7 +1052,8 @@ export class ASTParserService {
             tableReferences: [],
             dataFlowGraph: [],
             callGraph: [],
-            complexity: this.emptyComplexity()
+            complexity: this.emptyComplexity(),
+            codeChunks: []
         };
     }
 

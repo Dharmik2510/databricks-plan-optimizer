@@ -44,9 +44,18 @@ export async function finalMappingNode(
     logger.log(`Finalizing mapping for DAG node: ${currentDagNode.id}`);
 
     // Step 1: Build mapping output
+    // Hydrate code snippet if missing
+    let codeSnippet = finalMapping?.codeSnippet;
+    if (!codeSnippet && finalMapping) {
+      const candidate = filteredCandidates.find(
+        (c) => c.file === finalMapping.file && c.symbol === finalMapping.symbol
+      );
+      codeSnippet = candidate?.codeSnippet || candidate?.metadata?.codeSnippet;
+    }
+
     const mappingOutput: MappingOutput = {
       dagNodeId: currentDagNode.id,
-      mappedCode: finalMapping || {
+      mappedCode: finalMapping ? { ...finalMapping, codeSnippet } : {
         file: 'unknown',
         symbol: 'unknown',
         lines: '0-0',

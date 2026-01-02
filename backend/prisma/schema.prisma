@@ -40,6 +40,7 @@ model User {
 
   // Relations
   analyses      Analysis[]
+  repositories  Repository[]
   chatSessions  ChatSession[]
   refreshTokens RefreshToken[]
 
@@ -98,6 +99,13 @@ model Analysis {
   processingMs      Int?
   aiModel           String?
   
+  // Context
+  snapshotId    String?
+  snapshot      RepoSnapshot?  @relation(fields: [snapshotId], references: [id])
+  
+  repoId        String?
+  repo          Repository?    @relation("RepoAnalyses", fields: [repoId], references: [id])
+
   // Relations
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   chatSessions  ChatSession[]
@@ -229,3 +237,68 @@ model PricingCache {
   @@map("pricing_cache")
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// REPOSITORIES & SNAPSHOTS - Versioned Code Indexing
+// ═══════════════════════════════════════════════════════════════
+
+model Repository {
+  id            String         @id @default(cuid())
+  userId        String
+  url           String
+  name          String
+  
+  defaultBranch String         @default("main")
+  
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots     RepoSnapshot[]
+  analyses      Analysis[]     @relation("RepoAnalyses")
+
+  // Timestamps
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("repositories")
+}
+
+model RepoSnapshot {
+  id              String      @id @default(cuid())
+  repoId          String
+  
+  // Commit Identity
+  commitHash      String
+  branch          String      @default("main")
+  
+  // Indexing Configuration
+  collectionName  String 
+  embeddingModel  String 
+  schemaVersion   Int         @default(1)
+  
+  // Lifecycle
+  status          IndexStatus @default(PENDING) 
+  
+  indexedAt       DateTime?
+  lastUsedAt      DateTime    @default(now())
+
+  // Relations
+  repo            Repository  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  analyses        Analysis[]
+
+  // Timestamps
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([repoId])
+  @@index([status])
+  @@map("repo_snapshots")
+}
+
+enum IndexStatus {
+  PENDING
+  INDEXING
+  ACTIVE
+  FAILED
+  ARCHIVED
+}

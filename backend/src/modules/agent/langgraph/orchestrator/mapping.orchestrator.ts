@@ -15,6 +15,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { compileGraphWithSupabase, invokeGraph, streamGraph } from '../graph/mapping-graph';
 import { MappingState, DagNode, MappingOutput } from '../state/mapping-state.schema';
+import { loadRepoContextNode } from '../nodes/load-repo-context.node';
+import {
+  jobEventEmitter,
+  createJobStartedEvent,
+  createStageStartedEvent,
+  createStageCompletedEvent,
+  createJobCompletedEvent,
+  createErrorEvent,
+} from '../events';
 
 // ============================================================================
 // Configuration
@@ -32,6 +41,7 @@ const CONFIG = {
 
 export interface CreateMappingJobRequest {
   analysisId: string;
+  userId: string; // Required for multi-tenancy
   repoUrl: string;
   commitHash?: string;
   githubToken?: string;
@@ -53,6 +63,7 @@ export interface JobStatus {
   costTracking: {
     totalCostUSD: number;
   };
+  repoContext?: any; // Repository analysis context from LangGraph
 }
 
 // ============================================================================
@@ -107,6 +118,15 @@ export class MappingOrchestrator {
 
     this.jobs.set(jobId, jobStatus);
 
+    // Emit job_started event
+    jobEventEmitter.emitJobEvent(jobId, createJobStartedEvent({
+      jobId,
+      userId: request.userId,
+      repoUrl: request.repoUrl,
+      commitHash: request.commitHash || null,
+      totalNodes: request.dagNodes.length,
+    }));
+
     // Execute job asynchronously
     this.executeJob(jobId, request).catch((error) => {
       this.logger.error(`Job ${jobId} failed`, error);
@@ -115,6 +135,16 @@ export class MappingOrchestrator {
         error: error.message,
         endTime: new Date(),
       });
+
+      // Emit error event
+      jobEventEmitter.emitJobEvent(jobId, createErrorEvent({
+        jobId,
+        error: {
+          code: 'JOB_FAILED',
+          message: error.message,
+          retryable: true,
+        },
+      }));
     });
 
     return { jobId };
@@ -181,11 +211,37 @@ export class MappingOrchestrator {
       );
 
       // Step 3: Finalize job
+      const endTime = new Date();
+      const jobStatus = this.jobs.get(jobId)!;
+      const durationMs = endTime.getTime() - jobStatus.startTime.getTime();
+
       this.updateJobStatus(jobId, {
         status: 'completed',
         results,
-        endTime: new Date(),
+        endTime,
       });
+
+      // Emit job_completed event
+      const finalStatus = this.jobs.get(jobId)!;
+      jobEventEmitter.emitJobEvent(jobId, createJobCompletedEvent({
+        jobId,
+        status: 'completed',
+        durationMs,
+        statistics: {
+          totalNodes: request.dagNodes.length,
+          mappedNodes: results.length,
+          confirmedMappings: results.filter(r => r.confidence >= 0.8).length,
+          probableMappings: results.filter(r => r.confidence >= 0.5 && r.confidence < 0.8).length,
+          unmappedNodes: request.dagNodes.length - results.length,
+          filesScanned: repoState.repoContext?.fileCount || 0,
+          symbolsIndexed: repoState.repoContext?.astIndexSize || 0,
+        },
+        costTracking: {
+          llmCalls: 0, // TODO: Extract from results
+          totalTokens: 0,
+          estimatedCostUSD: finalStatus.costTracking.totalCostUSD,
+        },
+      }));
 
       this.logger.log(`Job ${jobId} completed successfully`);
     } catch (error) {
@@ -203,8 +259,18 @@ export class MappingOrchestrator {
   ): Promise<Partial<MappingState>> {
     this.logger.log(`Loading repo context for job: ${jobId}`);
 
+    // Emit stage_started event
+    jobEventEmitter.emitJobEvent(jobId, createStageStartedEvent({
+      jobId,
+      stage: 'load_repo_context',
+      nodeId: null,
+      message: 'Cloning repository and building context...',
+    }));
+
+    const startTime = Date.now();
     const initialState: Partial<MappingState> = {
       jobId,
+      userId: request.userId, // Pass userId to state
       analysisId: request.analysisId,
       repoUrl: request.repoUrl,
       repoCommitHash: request.commitHash || null,
@@ -214,14 +280,53 @@ export class MappingOrchestrator {
       startTime: new Date(),
     };
 
-    // Invoke only load_repo node
-    // TODO: Implement single-node invocation
-    // For now, this is a placeholder
+    // Invoke load_repo node directly to preload context
+    try {
+      this.logger.log('Pre-loading repository context (cloning & embedding)...');
+      const loadedState = await loadRepoContextNode(initialState as MappingState);
 
-    return {
-      ...initialState,
-      repoContext: null, // Populated by load_repo node
-    };
+      this.logger.log('Repository context loaded successfully');
+
+      const durationMs = Date.now() - startTime;
+
+      // Emit stage_completed event
+      jobEventEmitter.emitJobEvent(jobId, createStageCompletedEvent({
+        jobId,
+        stage: 'load_repo_context',
+        nodeId: null,
+        durationMs,
+        status: 'success',
+        result: {
+          fileCount: loadedState.repoContext?.fileCount,
+          embeddingsGenerated: loadedState.repoContext?.embeddingsGenerated,
+          commitHash: loadedState.repoContext?.commitHash,
+        },
+      }));
+
+      return {
+        ...initialState,
+        repoContext: loadedState.repoContext,
+        metadata: {
+          ...loadedState.metadata,
+        }
+      };
+    } catch (error) {
+      this.logger.error('Failed to load repo context', error);
+
+      // Emit error event
+      jobEventEmitter.emitJobEvent(jobId, createErrorEvent({
+        jobId,
+        stage: 'load_repo_context',
+        nodeId: null,
+        error: {
+          code: 'REPO_LOAD_FAILED',
+          message: error.message,
+          retryable: true,
+        },
+      }));
+
+      throw error;
+    }
   }
 
   /**
@@ -238,6 +343,7 @@ export class MappingOrchestrator {
 
     const allResults: MappingOutput[] = [];
     let totalCost = 0;
+    let capturedRepoContext: any = null;
 
     // Process in batches
     for (let i = 0; i < dagNodes.length; i += CONFIG.MAX_PARALLEL_NODES) {
@@ -271,7 +377,16 @@ export class MappingOrchestrator {
             costTracking: {
               totalCostUSD: totalCost,
             },
+            // Persist repo context if we found it (and haven't saved it yet)
+            ...(result.value.repoContext && !capturedRepoContext
+              ? { repoContext: result.value.repoContext }
+              : {}),
           });
+
+          // Update local capture variable
+          if (result.value.repoContext && !capturedRepoContext) {
+            capturedRepoContext = result.value.repoContext;
+          }
 
           // Check cost limit
           if (totalCost > CONFIG.MAX_COST_PER_JOB_USD) {
@@ -285,6 +400,14 @@ export class MappingOrchestrator {
       }
     }
 
+
+    // One final update to ensure repoContext is saved if it was found in the last batch
+    if (capturedRepoContext) {
+      this.updateJobStatus(jobId, {
+        repoContext: capturedRepoContext,
+      });
+    }
+
     return allResults;
   }
 
@@ -295,7 +418,7 @@ export class MappingOrchestrator {
     jobId: string,
     dagNode: DagNode,
     baseState: Partial<MappingState>,
-  ): Promise<{ mappings: MappingOutput[]; cost: number }> {
+  ): Promise<{ mappings: MappingOutput[]; cost: number; repoContext?: any }> {
     this.logger.log(`Processing DAG node: ${dagNode.id}`);
 
     this.updateJobStatus(jobId, {
@@ -318,6 +441,7 @@ export class MappingOrchestrator {
     return {
       mappings: result.completedMappings,
       cost: result.costTracking?.estimatedCostUSD || 0,
+      repoContext: result.repoContext,
     };
   }
 
@@ -354,7 +478,7 @@ export class MappingOrchestrator {
   /**
    * Stream job execution with real-time updates
    */
-  async *streamJobExecution(
+  async * streamJobExecution(
     jobId: string,
     request: CreateMappingJobRequest,
   ): AsyncGenerator<JobStatus> {

@@ -30,10 +30,10 @@ const CONFIG = {
   THRESHOLD_HIGH: parseFloat(process.env.CONFIDENCE_THRESHOLD_HIGH || '0.8'),
   THRESHOLD_LOW: parseFloat(process.env.CONFIDENCE_THRESHOLD_LOW || '0.5'),
   WEIGHTS: {
-    embeddingScore: 0.3,
-    astScore: 0.2,
-    llmConfidence: 0.4,
-    keywordMatch: 0.1,
+    embeddingScore: 0.4, // Increased from 0.3 - embedding scores are now properly converted
+    astScore: 0.15,      // Decreased from 0.2
+    llmConfidence: 0.35, // Decreased from 0.4
+    keywordMatch: 0.1,   // Unchanged
   },
   ALTERNATIVES_PENALTY: 0.1,
 };
@@ -73,10 +73,22 @@ export async function confidenceGateNode(
     const embeddingScore = mappedCandidate?.embeddingScore || 0.5;
     const astScore = mappedCandidate?.astScore || 0.5;
     const llmConfidence = extractLLMConfidence(explanation);
-    const keywordMatch = computeKeywordMatch(
+
+    // Existing semantic signature match
+    const semanticMatch = computeKeywordMatch(
       semanticDescription?.sparkOperatorSignature || '',
-      finalMapping.symbol,
+      mappedCandidate || ({ symbol: finalMapping.symbol, file: finalMapping.file } as CodeCandidate),
     );
+
+    // New Operator-specific keyword match
+    const operatorMatch = calculateOperatorKeywordScore(
+      state.currentDagNode,
+      mappedCandidate?.codeSnippet || ''
+    );
+
+    // Use the maximum of the two keyword scores to give benefit of doubt
+    const keywordMatch = Math.max(semanticMatch, operatorMatch);
+
     const alternativesPenalty =
       alternatives && alternatives.length > 0 ? CONFIG.ALTERNATIVES_PENALTY : 0.0;
 
@@ -86,10 +98,10 @@ export async function confidenceGateNode(
       Math.max(
         0.0,
         embeddingScore * CONFIG.WEIGHTS.embeddingScore +
-          astScore * CONFIG.WEIGHTS.astScore +
-          llmConfidence * CONFIG.WEIGHTS.llmConfidence +
-          keywordMatch * CONFIG.WEIGHTS.keywordMatch -
-          alternativesPenalty,
+        astScore * CONFIG.WEIGHTS.astScore +
+        llmConfidence * CONFIG.WEIGHTS.llmConfidence +
+        keywordMatch * CONFIG.WEIGHTS.keywordMatch -
+        alternativesPenalty,
       ),
     );
 
@@ -113,8 +125,8 @@ export async function confidenceGateNode(
 
     logger.log(
       `Confidence: ${confidence.toFixed(3)} (${routing}) - ` +
-        `emb:${embeddingScore.toFixed(2)} ast:${astScore.toFixed(2)} ` +
-        `llm:${llmConfidence.toFixed(2)} kw:${keywordMatch.toFixed(2)}`,
+      `emb:${embeddingScore.toFixed(2)} ast:${astScore.toFixed(2)} ` +
+      `llm:${llmConfidence.toFixed(2)} kw:${keywordMatch.toFixed(2)} (sem:${semanticMatch.toFixed(2)} op:${operatorMatch.toFixed(2)})`,
     );
 
     return {
@@ -135,6 +147,50 @@ export async function confidenceGateNode(
 // Helper Functions
 // ============================================================================
 
+const OPERATOR_KEYWORDS: Record<string, string[]> = {
+  'Sort': ['orderBy', 'sort', 'sortWithinPartitions', 'ASC', 'DESC'],
+  'Filter': ['filter', 'where', 'isNotNull', 'isNull'],
+  'HashAggregate': ['groupBy', 'agg', 'sum', 'count', 'avg', 'max', 'min'],
+  'SortAggregate': ['groupBy', 'agg', 'sum', 'count', 'avg', 'max', 'min'],
+  'Project': ['select', 'withColumn', 'alias', 'drop'],
+  'Join': ['join', 'inner', 'left', 'right', 'outer', 'cross'],
+  'BroadcastHashJoin': ['join', 'broadcast'],
+  'SortMergeJoin': ['join'],
+  'BroadcastExchange': ['broadcast'],
+  'Exchange': ['repartition', 'coalesce'],
+  'Union': ['union'],
+  'Limit': ['limit', 'take']
+};
+
+/**
+ * Calculate keyword score specific to the Spark Operator
+ */
+function calculateOperatorKeywordScore(dagNode: any, codeSnippet: string): number {
+  if (!dagNode || !dagNode.operator || !codeSnippet) return 0.5;
+
+  // Case-insensitive lookup
+  const opKey = Object.keys(OPERATOR_KEYWORDS).find(
+    k => k.toLowerCase() === dagNode.operator.toLowerCase()
+  );
+
+  const keywords = opKey ? OPERATOR_KEYWORDS[opKey] : [];
+  if (keywords.length === 0) return 0.5; // No specific keywords known
+
+  const codeLower = codeSnippet.toLowerCase();
+
+  // Count how many of the expected keywords are present
+  const matchedKeywords = keywords.filter(kw =>
+    codeLower.includes(kw.toLowerCase())
+  );
+
+  if (matchedKeywords.length === 0) return 0.0;
+
+  // Score logic: 
+  // 1 match is good (0.8), 2+ matches is perfect (1.0)
+  // We don't need ALL keywords, just strong evidence
+  return matchedKeywords.length >= 2 ? 1.0 : 0.8;
+}
+
 /**
  * Find the candidate that matches the final mapping
  */
@@ -153,89 +209,72 @@ function findMappedCandidate(
   );
 }
 
+
 /**
  * Compute keyword overlap between semantic description and code symbol
  *
- * Extracts keywords from semantic signature and checks presence in symbol name
+ * Improved Logic:
+ * 1. Extract "Required" keywords (columns, keys) from semantic signature
+ * 2. Tokenize code snippet
+ * 3. Calculate Jaccard similarity or Overlap Ratio
  */
 function computeKeywordMatch(
   semanticSignature: string,
-  symbolName: string,
+  candidate: CodeCandidate,
 ): number {
-  // Extract keywords from semantic signature
-  const keywords = extractKeywords(semanticSignature);
+  // 1. Parse keys/cols from semantic signature "KEYS: a, b AGG: ... COLS: x, y"
+  const planTokens = extractPlanTokens(semanticSignature);
 
-  if (keywords.length === 0) {
-    return 0.5; // Neutral if no keywords
+  if (planTokens.size === 0) {
+    return 0.5; // Neutral if no plan tokens found
   }
 
-  // Check how many keywords appear in symbol name
-  const lowerSymbol = symbolName.toLowerCase();
-  const matchCount = keywords.filter((kw) => lowerSymbol.includes(kw)).length;
+  // 2. Tokenize code
+  const codeText = (candidate.symbol + ' ' + (candidate.codeSnippet || '')).toLowerCase();
+  // Split by non-alphanumeric chars to get clean tokens
+  const codeTokens = new Set(codeText.split(/[^a-z0-9_]+/));
 
-  return matchCount / keywords.length;
+  // 3. Calculate overlap
+  let matchCount = 0;
+  for (const token of planTokens) {
+    if (codeTokens.has(token)) {
+      matchCount++;
+    }
+  }
+
+  // Score = ratio of plan tokens found in code
+  // We use a "saturation" curve so 3-4 matches is already very good
+  const ratio = matchCount / Math.max(1, planTokens.size);
+
+  // Boost logic: 
+  // - Even a single match (e.g. 1 unique column name) is a strong signal if the set is small
+  // - If ratio > 0.25 (finding > 1/4 of columns), strictly reward it
+
+  let score = ratio;
+  if (ratio > 0.25) score = Math.min(1.0, ratio * 2.0); // Boost: 0.25 -> 0.5, 0.5 -> 1.0
+
+  return score;
 }
 
-/**
- * Extract meaningful keywords from semantic signature
- *
- * Filters out common words and Spark operator names
- */
-function extractKeywords(text: string): string[] {
-  const STOPWORDS = new Set([
-    'the',
-    'a',
-    'an',
-    'and',
-    'or',
-    'but',
-    'in',
-    'on',
-    'at',
-    'to',
-    'for',
-    'of',
-    'with',
-    'by',
-    'from',
-    'as',
-    'is',
-    'was',
-    'are',
-    'were',
-    'been',
-    'be',
-    'have',
-    'has',
-    'had',
-    'do',
-    'does',
-    'did',
-    'will',
-    'would',
-    'should',
-    'could',
-    'may',
-    'might',
-    'must',
-    'can',
-    // Spark operators (too generic)
-    'hashaggregate',
-    'filter',
-    'sort',
-    'exchange',
-    'project',
-    'scan',
-  ]);
+function extractPlanTokens(signature: string): Set<string> {
+  const tokens = new Set<string>();
 
-  const words = text
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 3 && !STOPWORDS.has(w));
+  // Extract content after "KEYS:", "COLS:", "AGG:", "FILTERS:"
+  const regex = /(?:KEYS|COLS|AGG|FILTERS|INPUT_COLS|SORT): ([^:\n]+)/g;
+  let match;
+  while ((match = regex.exec(signature)) !== null) {
+    const rawValues = match[1];
+    rawValues.split(/,| /).forEach(v => {
+      const clean = v.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (clean.length > 2 && !['sum', 'avg', 'count', 'min', 'max'].includes(clean)) {
+        tokens.add(clean); // Add columns/keys
+      }
+    });
+  }
 
-  // Deduplicate
-  return Array.from(new Set(words));
+  return tokens;
 }
+
 
 /**
  * Confidence routing function for LangGraph conditional edges

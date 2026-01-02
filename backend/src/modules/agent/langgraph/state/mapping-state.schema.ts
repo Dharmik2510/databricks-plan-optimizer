@@ -37,6 +37,7 @@ export interface SemanticDescription {
     filterConditions: string[];
   };
   sparkOperatorSignature: string;
+  nodeClassification: 'CODE_OWNED' | 'DERIVED';
 }
 
 export interface CodeCandidate {
@@ -48,7 +49,11 @@ export interface CodeCandidate {
     type: 'function' | 'class' | 'method';
     complexity?: number;
     callGraph?: string[];
+    codeSnippet?: string; // Stored truncated body in metadata
+    distance?: number;
+    spark_ops?: string[];
   };
+  codeSnippet?: string; // Full body loaded from context if needed
   astScore?: number;
   astReasoning?: string;
 }
@@ -57,6 +62,7 @@ export interface CodeMapping {
   file: string;
   symbol: string;
   lines: string;
+  codeSnippet?: string;
 }
 
 export interface Alternative {
@@ -85,6 +91,9 @@ export interface RepoContext {
   clonePath: string;
   commitHash: string;
   cacheKey: string;
+  repoId: string;
+  snapshotId: string;
+  collectionName: string;
   fileCount: number;
   embeddingsGenerated: number;
   astIndexSize: number;
@@ -140,6 +149,11 @@ export const MappingStateAnnotation = Annotation.Root({
   // ============================================================================
 
   jobId: Annotation<string>({
+    reducer: (prev, next) => next ?? prev,
+    default: () => '',
+  }),
+
+  userId: Annotation<string>({
     reducer: (prev, next) => next ?? prev,
     default: () => '',
   }),

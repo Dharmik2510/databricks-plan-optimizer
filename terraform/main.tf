@@ -198,11 +198,58 @@ resource "google_secret_manager_secret_iam_member" "github_actions_access" {
     "smtp_user"      = google_secret_manager_secret.smtp_user.id
     "frontend_url"   = google_secret_manager_secret.frontend_url.id
     "sentry_dsn"     = google_secret_manager_secret.sentry_dsn.id
+
+    "openai_api_key" = google_secret_manager_secret.openai_api_key.id
+    "chroma_api_key" = google_secret_manager_secret.chroma_api_key.id
   }
 
   secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:github-actions-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# OpenAI API Key
+resource "google_secret_manager_secret" "openai_api_key" {
+  secret_id = "openai-api-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.secret_manager]
+}
+
+resource "google_secret_manager_secret_version" "openai_api_key" {
+  secret      = google_secret_manager_secret.openai_api_key.id
+  secret_data = var.openai_api_key
+}
+
+# ChromaDB API Key
+resource "google_secret_manager_secret" "chroma_api_key" {
+  secret_id = "chroma-api-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.secret_manager]
+}
+
+resource "google_secret_manager_secret_version" "chroma_api_key" {
+  secret      = google_secret_manager_secret.chroma_api_key.id
+  secret_data = var.chroma_api_key
+}
+
+resource "google_secret_manager_secret_iam_member" "openai_api_key_access" {
+  secret_id = google_secret_manager_secret.openai_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "chroma_api_key_access" {
+  secret_id = google_secret_manager_secret.chroma_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
 # Artifact Registry Repository

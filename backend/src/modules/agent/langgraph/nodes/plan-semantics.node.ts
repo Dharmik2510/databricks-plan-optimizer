@@ -25,37 +25,37 @@ const OPERATOR_BEHAVIORS: Record<
   (node: any) => string
 > = {
   HashAggregate: (node) =>
-    `Groups data by ${node.keys?.join(', ') || 'keys'} and applies aggregate functions: ${node.aggregations?.map((a: any) => a.func).join(', ') || 'none'}`,
+    `Groups data by ${node.keys?.join(', ') || 'keys'} and applies aggregate functions: ${node.aggregations?.map((a: any) => a.func).join(', ') || 'none'}. In PySpark this corresponds to .groupBy().agg() or .agg() method calls.`,
 
   Filter: (node) =>
-    `Filters rows based on conditions: ${node.filters?.map((f: any) => `${f.col} ${f.op} ${f.val}`).join(' AND ') || 'predicate'}`,
+    `Filters rows based on conditions: ${node.filters?.map((f: any) => `${f.col} ${f.op} ${f.val}`).join(' AND ') || 'predicate'}. In PySpark this corresponds to .filter() or .where() method calls.`,
 
   Sort: (node) =>
-    `Sorts data by columns: ${node.sortColumns?.join(', ') || 'unspecified'}`,
+    `Sorts data by columns: ${node.sortColumns?.join(', ') || 'unspecified'}. In PySpark this corresponds to .orderBy() or .sort() method calls. This may also be an internal sort for aggregation operations.`,
 
   Exchange: (node) =>
-    `Shuffles data for distribution (partitioning operation)`,
+    `Shuffles data for distribution (partitioning operation). In PySpark this corresponds to .repartition() or .coalesce() method calls.`,
 
   Project: (node) =>
-    `Projects/selects specific columns from dataset`,
+    `Projects/selects specific columns from dataset. In PySpark this corresponds to .select(), .withColumn(), or .alias() method calls.`,
 
   BroadcastHashJoin: (node) =>
-    `Performs broadcast hash join on keys: ${node.keys?.join(', ') || 'join keys'}`,
+    `Performs broadcast hash join on keys: ${node.keys?.join(', ') || 'join keys'}. In PySpark this corresponds to .join() with broadcast hint or automatic broadcast.`,
 
   SortMergeJoin: (node) =>
-    `Performs sort-merge join on keys: ${node.keys?.join(', ') || 'join keys'}`,
+    `Performs sort-merge join on keys: ${node.keys?.join(', ') || 'join keys'}. In PySpark this corresponds to standard .join() on large datasets.`,
 
   Scan: (node) =>
-    `Scans data source (table or file)`,
+    `Scans data source (table or file). In PySpark this corresponds to spark.read.table() or spark.read.format().load().`,
 
   Union: (node) =>
-    `Combines multiple datasets`,
+    `Combines multiple datasets. In PySpark this corresponds to .union() or .unionByName().`,
 
   Limit: (node) =>
-    `Limits result to specified number of rows`,
+    `Limits result to specified number of rows. In PySpark this corresponds to .limit().`,
 
   Window: (node) =>
-    `Applies window function over partitioned data`,
+    `Applies window function over partitioned data. In PySpark this corresponds to Window.partitionBy() usage.`,
 };
 
 // ============================================================================
@@ -81,7 +81,8 @@ export async function planSemanticsNode(
 
     // Get execution behavior description
     const behaviorFn =
-      OPERATOR_BEHAVIORS[operatorType] || OPERATOR_BEHAVIORS.Project;
+      OPERATOR_BEHAVIORS[operatorType] ||
+      ((node: any) => `Performs ${node.operator || 'data transformation'} operation on dataset`);
     const executionBehavior = behaviorFn(currentDagNode);
 
     // Extract data transformation details
@@ -94,15 +95,18 @@ export async function planSemanticsNode(
     );
 
     // Create semantic description
+    const nodeClassification = classifyNode(operatorType);
+
     const semanticDescription: SemanticDescription = {
       dagNodeId: currentDagNode.id,
       operatorType,
       executionBehavior,
       dataTransformation,
       sparkOperatorSignature,
+      nodeClassification,
     };
 
-    logger.log(`Semantic description: ${semanticDescription.executionBehavior}`);
+    logger.log(`Semantic description: ${semanticDescription.executionBehavior} (${nodeClassification})`);
 
     return {
       semanticDescription,
@@ -171,55 +175,92 @@ function extractOutputSchema(node: any): string[] {
  * Build embedding-friendly operator signature
  *
  * This signature is optimized for semantic similarity matching.
- * Format: "<operator> <action> <keywords>"
+ * Format: "<operator> <action> <keywords> <table_names> <column_names>"
  */
 function buildOperatorSignature(node: any, behavior: string): string {
-  const parts: string[] = [node.operator];
+  // Use structured format for precise retrieval: OP: <Type> KEYS: <...> AGG: <...> COLS: <...>
+  const parts: string[] = [`OP: ${node.operator}`];
 
-  // Add action keywords
-  switch (node.operator) {
-    case 'HashAggregate':
-      parts.push('groupBy');
-      if (node.keys) parts.push(...node.keys);
-      parts.push('aggregate');
-      if (node.aggregations) {
-        parts.push(...node.aggregations.map((a: any) => a.func));
-      }
-      break;
+  // Extract table names and schemas
+  const tableNames = extractTableNames(node.physicalPlanFragment || '');
+  const inputColumns = extractInputSchema(node);
+  const outputColumns = extractOutputSchema(node);
 
-    case 'Filter':
-      parts.push('filter', 'where');
-      if (node.filters) {
-        node.filters.forEach((f: any) => {
-          parts.push(f.col, f.op);
-        });
-      }
-      break;
-
-    case 'Sort':
-      parts.push('sort', 'orderBy');
-      if (node.sortColumns) parts.push(...node.sortColumns);
-      break;
-
-    case 'BroadcastHashJoin':
-    case 'SortMergeJoin':
-      parts.push('join', 'on');
-      if (node.keys) parts.push(...node.keys);
-      break;
-
-    case 'Project':
-      parts.push('select', 'project');
-      break;
-
-    case 'Scan':
-      parts.push('read', 'scan', 'source');
-      break;
-
-    default:
-      parts.push(behavior);
+  // 1. Keys
+  if (node.keys && node.keys.length > 0) {
+    parts.push(`KEYS: ${node.keys.join(', ')}`);
   }
 
-  return parts.join(' ');
+  // 2. Aggregations / Functions
+  if (node.aggregations && node.aggregations.length > 0) {
+    parts.push(`AGG: ${node.aggregations.map((a: any) => a.func).join(', ')}`);
+  }
+
+  // 3. Filter Conditions
+  if (node.filters && node.filters.length > 0) {
+    parts.push(`FILTERS: ${node.filters.map((f: any) => `${f.col} ${f.op}`).join(', ')}`);
+  }
+
+  // 4. Sort Columns
+  if (node.sortColumns && node.sortColumns.length > 0) {
+    parts.push(`SORT: ${node.sortColumns.join(', ')}`);
+  }
+
+  // 5. Input Columns (Context)
+  if (inputColumns.length > 0) {
+    // Limit to avoid token overflow, but include enough for matching
+    parts.push(`INPUT_COLS: ${inputColumns.slice(0, 10).join(', ')}`);
+  }
+
+  // 6. Keywords (Legacy support + explicit intent)
+  const keywords: string[] = [];
+  switch (node.operator) {
+    case 'HashAggregate': keywords.push('groupBy', 'aggregate', 'count', 'sum', 'avg'); break;
+    case 'Filter': keywords.push('filter', 'where'); break;
+    case 'Sort': keywords.push('orderBy', 'sort'); break;
+    case 'BroadcastHashJoin':
+    case 'SortMergeJoin': keywords.push('join'); break;
+    case 'Project': keywords.push('select', 'withColumn'); break;
+    case 'Scan': keywords.push('read', 'load', 'table'); break;
+    default: keywords.push('transform');
+  }
+  // Add table names as keywords for context
+  if (tableNames.length > 0) keywords.push(...tableNames);
+
+  parts.push(`KEYWORDS: ${keywords.join(' ')}`);
+
+  return parts.join('\n');
+}
+
+/**
+ * Extract table names from physical plan fragment
+ */
+function extractTableNames(planFragment: string): string[] {
+  const tableNames: string[] = [];
+
+  // Match common table patterns in Spark plans
+  // Pattern 1: FileScan parquet/delta table_name
+  const fileScanMatch = planFragment.match(/FileScan\s+(?:parquet|delta|orc|csv)\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
+  if (fileScanMatch) {
+    tableNames.push(fileScanMatch[1]);
+  }
+
+  // Pattern 2: Scan table_name or Scan <catalog>.<schema>.<table>
+  const scanMatches = planFragment.matchAll(/Scan\s+(?:table\s+)?([a-zA-Z_][a-zA-Z0-9_.]*)/g);
+  for (const match of scanMatches) {
+    const tableName = match[1].split('.').pop(); // Get last part if qualified
+    if (tableName && !tableNames.includes(tableName)) {
+      tableNames.push(tableName);
+    }
+  }
+
+  // Pattern 3: Relation[table_name]
+  const relationMatch = planFragment.match(/Relation\[([a-zA-Z_][a-zA-Z0-9_]*)\]/);
+  if (relationMatch && !tableNames.includes(relationMatch[1])) {
+    tableNames.push(relationMatch[1]);
+  }
+
+  return tableNames;
 }
 
 /**
@@ -255,4 +296,31 @@ export function enrichSemanticDescription(
     ...description,
     executionBehavior: enrichedBehavior,
   };
+}
+
+/**
+ * Classify node as CODE_OWNED or DERIVED
+ */
+function classifyNode(operatorType: string): 'CODE_OWNED' | 'DERIVED' {
+  if (!operatorType) return 'CODE_OWNED';
+
+  const DERIVED_OPS = [
+    'Exchange',
+    'ShuffleExchange',
+    'BroadcastExchange',
+    'AdaptiveSparkPlan',
+    'WholeStageCodegen',
+    'ColumnarToRow',
+    'RowToColumnar',
+    'Coalesce'
+  ];
+
+  const op = operatorType.trim();
+
+  // Check if operator type contains any derived keyword
+  if (DERIVED_OPS.some(derived => op.includes(derived))) {
+    return 'DERIVED';
+  }
+
+  return 'CODE_OWNED';
 }

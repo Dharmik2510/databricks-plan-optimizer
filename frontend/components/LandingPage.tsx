@@ -14,7 +14,9 @@ import {
     X,
     Moon,
     Sun,
-    Heart
+    Heart,
+    Linkedin,
+    Users
 } from 'lucide-react';
 import { AnalysisShowcase } from './AnalysisShowcase';
 import { ThreeBackground } from './ThreeBackground';
@@ -332,7 +334,90 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
             </section>
 
+            {/* Founders Section */}
+            <section className={`py-24 px-6 relative z-10 border-t ${darkMode ? 'bg-slate-950 border-slate-900' : 'bg-white border-slate-100'}`}>
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-16 animate-fade-in">
+                        <p className={`text-sm font-bold uppercase tracking-widest mb-3 ${darkMode ? 'text-orange-500' : 'text-orange-600'}`}>
+                            About Us
+                        </p>
+                        <h2 className={`text-3xl md:text-4xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                            Meet the Founders
+                        </h2>
+                        <p className={`text-lg max-w-2xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                            We are passionate about solving complex data engineering challenges and building tools that empower data teams.
+                        </p>
+                    </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 max-w-4xl mx-auto">
+                        {[
+                            {
+                                name: 'Dharmik Soni',
+                                role: 'Co-Founder & Product Architect',
+                                desc: 'AI Developer at North America\'s largest P&C insurer. Building BrickOptima to solve the optimization visibility gaps we all face on the Databricks platform.',
+                                image: '/images/dharmik.jpeg',
+                                linkedin: 'https://www.linkedin.com/in/dharmik-soni-a385131a0/'
+                            },
+                            {
+                                name: 'Dhruv Soni',
+                                role: 'Co-Founder & Lead Engineer',
+                                desc: 'Data Platform Engineer scaling petabyte-level pipelines. Engineering the solution to our shared performance headaches for the entire Databricks community.',
+                                image: '/images/dhruv.jpeg',
+                                linkedin: 'https://www.linkedin.com/in/-dhruvsoni/'
+                            }
+                        ].map((founder, idx) => (
+                            <div
+                                key={idx}
+                                className={`group relative p-8 rounded-3xl border transition-all duration-500 hover:-translate-y-2 ${darkMode
+                                    ? 'bg-slate-900/40 border-slate-800 hover:border-orange-500/30 hover:bg-slate-800/60'
+                                    : 'bg-slate-50 border-slate-200 hover:border-orange-500/30 hover:shadow-xl hover:bg-white'
+                                    }`}
+                            >
+                                {/* Gradient Orb Background Effect */}
+                                <div className={`absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-orange-500/5 via-transparent to-transparent`} />
+
+                                <div className="relative z-10 flex flex-col items-center text-center">
+                                    <div className="relative mb-6">
+                                        <div className={`absolute inset-0 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity duration-500`} />
+                                        <img
+                                            src={founder.image}
+                                            alt={founder.name}
+                                            className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-slate-800 shadow-xl relative z-10"
+                                            // Fallback to placeholder if image fails
+                                            onError={(e) => {
+                                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${founder.name.replace(' ', '+')}&background=f97316&color=fff&size=256`;
+                                            }}
+                                        />
+                                        <div className="absolute bottom-0 right-0 z-20 bg-white dark:bg-slate-900 rounded-full p-2 shadow-lg border border-slate-100 dark:border-slate-800">
+                                            <a
+                                                href={founder.linkedin}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="block text-[#0077b5] hover:scale-110 transition-transform"
+                                            >
+                                                <Linkedin className="w-5 h-5 fill-current" />
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <h3 className={`text-2xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                        {founder.name}
+                                    </h3>
+                                    <p className={`text-sm font-medium mb-4 uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                                        {founder.role}
+                                    </p>
+
+                                    <div className={`w-12 h-1 rounded-full mb-6 bg-gradient-to-r from-orange-500 to-amber-500 opacity-30 group-hover:opacity-100 transition-opacity duration-500`} />
+
+                                    <p className={`leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                                        "{founder.desc}"
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
 
             {/* Footer */}
             <footer className={`relative z-10 pt-20 pb-10 px-6 border-t ${darkMode ? 'bg-slate-950 border-slate-900' : 'bg-slate-50 border-slate-200'}`}>

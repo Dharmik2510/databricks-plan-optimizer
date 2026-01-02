@@ -150,16 +150,8 @@ async function loadCodeSnippets(
 
   for (const candidate of candidates) {
     try {
-      // TODO: Integrate with file reading (handle various clone paths)
-      // For now, use mock code
-      const code = `
-def ${candidate.symbol}(df):
-    """
-    Example function matching candidate
-    """
-    result = df.groupBy("customer_id").agg({"*": "count"})
-    return result
-      `.trim();
+      // Use the codeSnippet that was already loaded from ChromaDB
+      const code = candidate.codeSnippet || candidate.metadata?.codeSnippet || '// Code unavailable';
 
       results.push({ candidate, code });
     } catch (error) {
@@ -208,20 +200,21 @@ ${physicalPlanFragment}
 ## CANDIDATE CODE
 
 ${candidatesWithCode
-  .map(
-    ({ candidate, code }, idx) => `
+      .map(
+        ({ candidate, code }, idx) => `
 ### Candidate ${idx + 1}: ${candidate.symbol}
 **File:** ${candidate.file}
 **Lines:** ${candidate.lines}
 **Embedding Score:** ${candidate.embeddingScore.toFixed(2)}
 **AST Score:** ${candidate.astScore?.toFixed(2) || 'N/A'}
+**Detected Keywords:** ${detectKeywordsForPrompt(code, semanticDescription.operatorType).join(', ') || 'None'}
 
 \`\`\`python
 ${code}
 \`\`\`
 `,
-  )
-  .join('\n---\n')}
+      )
+      .join('\n---\n')}
 
 ---
 
@@ -257,9 +250,31 @@ Respond with ONLY valid JSON (no markdown, no extra text):
 }
 
 If NO candidate matches well, set bestMatch to the top embedding candidate and explain why confidence is low.
+If NO candidate matches well, set bestMatch to the top embedding candidate and explain why confidence is low.
 `;
 
   return prompt;
+}
+
+// Add helper to detect keywords for prompt context
+function detectKeywordsForPrompt(code: string, operatorType: string): string[] {
+  const keywords: Record<string, string[]> = {
+    'Sort': ['orderBy', 'sort', 'sortWithinPartitions'],
+    'Filter': ['filter', 'where'],
+    'HashAggregate': ['groupBy', 'agg'],
+    'SortAggregate': ['groupBy', 'agg'],
+    'Join': ['join'],
+    'BroadcastHashJoin': ['join', 'broadcast'],
+    'SortMergeJoin': ['join'],
+    'Project': ['select', 'withColumn', 'alias']
+  };
+
+  const opKey = Object.keys(keywords).find(
+    k => k.toLowerCase() === operatorType.toLowerCase()
+  );
+
+  const lookup = opKey ? keywords[opKey] : [];
+  return lookup.filter(k => code.includes(k));
 }
 
 /**
@@ -369,6 +384,7 @@ function validateLLMResponse(
       file: matchingCandidate.file,
       symbol: matchingCandidate.symbol,
       lines: matchingCandidate.lines,
+      codeSnippet: matchingCandidate.codeSnippet || matchingCandidate.metadata?.codeSnippet,
     },
     explanation: bestMatch.reasoning || 'No explanation provided',
     alternatives: llmResponse.alternatives || [],

@@ -38,50 +38,71 @@ interface ASTRule {
 }
 
 const OPERATOR_AST_RULES: Record<string, ASTRule> = {
+  // Aggregation
   HashAggregate: {
-    requiredPatterns: [
-      'groupBy',
-      'groupByKey',
-      'agg',
-      'aggregate',
-      'count',
-      'sum',
-      'avg',
-      'max',
-      'min',
-    ],
-    minimumComplexity: 5,
-  },
-
-  Filter: {
-    requiredPatterns: ['filter', 'where', 'if ', 'boolean'],
-    minimumComplexity: 3,
-  },
-
-  Sort: {
-    requiredPatterns: ['sort', 'orderBy', 'sorted', 'sortBy'],
-    minimumComplexity: 2,
-  },
-
-  BroadcastHashJoin: {
-    requiredPatterns: ['join', 'leftJoin', 'rightJoin', 'innerJoin', 'broadcast'],
-    minimumComplexity: 5,
-  },
-
-  SortMergeJoin: {
-    requiredPatterns: ['join', 'merge'],
-    minimumComplexity: 5,
-  },
-
-  Project: {
-    requiredPatterns: ['select', 'project', 'map', 'withColumn'],
-    minimumComplexity: 2,
-  },
-
-  Scan: {
-    requiredPatterns: ['read', 'load', 'spark.read', 'DataFrame'],
+    requiredPatterns: ['groupBy', 'agg', 'count', 'sum', 'avg', 'max', 'min'],
     minimumComplexity: 1,
   },
+  aggregation: {
+    requiredPatterns: ['groupBy', 'agg', 'count', 'sum', 'avg', 'max', 'min'],
+    minimumComplexity: 1,
+  },
+
+  // Filter
+  Filter: {
+    requiredPatterns: ['filter', 'where', 'if ', 'boolean'],
+    minimumComplexity: 1,
+  },
+
+  // Sort
+  Sort: {
+    requiredPatterns: ['sort', 'orderBy', 'sorted', 'sortBy'],
+    minimumComplexity: 1,
+  },
+
+  // Join
+  BroadcastHashJoin: {
+    requiredPatterns: ['join', 'leftJoin', 'rightJoin', 'innerJoin', 'broadcast'],
+    minimumComplexity: 1,
+  },
+  SortMergeJoin: {
+    requiredPatterns: ['join', 'merge'],
+    minimumComplexity: 1,
+  },
+  join: {
+    requiredPatterns: ['join', 'merge', 'broadcast'],
+    minimumComplexity: 1,
+  },
+
+  // Projection / Transformation
+  Project: {
+    requiredPatterns: ['select', 'project', 'map', 'withColumn', 'alias'],
+    minimumComplexity: 1,
+  },
+  transformation: {
+    requiredPatterns: ['select', 'project', 'map', 'withColumn', 'alias', 'transform'],
+    minimumComplexity: 1,
+  },
+  custom: {
+    requiredPatterns: ['select', 'project', 'map', 'withColumn', 'alias', 'transform'],
+    minimumComplexity: 1,
+  },
+
+  // Scan / Ingestion
+  Scan: {
+    requiredPatterns: ['read', 'load', 'spark.read', 'DataFrame', 'csv', 'parquet', 'table'],
+    minimumComplexity: 1,
+  },
+  data_ingestion: {
+    requiredPatterns: ['read', 'load', 'spark.read', 'DataFrame', 'csv', 'parquet', 'table'],
+    minimumComplexity: 1,
+  },
+
+  // Shuffle (Generalized)
+  shuffle: {
+    requiredPatterns: ['repartition', 'coalesce', 'partitionBy'],
+    minimumComplexity: 1
+  }
 };
 
 // ============================================================================
@@ -112,10 +133,15 @@ export async function astFilterNode(
       `Filtering ${retrievedCandidates.length} candidates for operator: ${semanticDescription.operatorType}`,
     );
 
-    // Get AST rules for this operator
-    const astRules =
-      OPERATOR_AST_RULES[semanticDescription.operatorType] ||
-      OPERATOR_AST_RULES.Project;
+    // Get AST rules for this operator (Case-Insensitive)
+    const opType = semanticDescription.operatorType;
+    const ruleKey = Object.keys(OPERATOR_AST_RULES).find(
+      (k) => k.toLowerCase() === opType.toLowerCase(),
+    );
+
+    const astRules = ruleKey
+      ? OPERATOR_AST_RULES[ruleKey]
+      : OPERATOR_AST_RULES.Project; // Fallback to generic projection rules
 
     // Filter candidates
     const filteredCandidates: CodeCandidate[] = [];
@@ -218,46 +244,43 @@ async function analyzeASTCompatibility(
   const logger = new Logger('AnalyzeAST');
 
   try {
-    // TODO: Load actual code and parse AST
-    // For now, use heuristic matching on symbol name + metadata
-
     let score = 0.0;
-    const maxScore = rules.requiredPatterns.length;
 
-    // Check for required patterns in symbol name
-    let patternMatchCount = 0;
-    for (const pattern of rules.requiredPatterns) {
-      if (candidate.symbol.toLowerCase().includes(pattern.toLowerCase())) {
-        score += 1.0;
-        patternMatchCount++;
+    // Build text to check from code snippet and symbol
+    const textToCheck = candidate.codeSnippet
+      ? (candidate.symbol + '\n' + candidate.codeSnippet).toLowerCase()
+      : candidate.symbol.toLowerCase();
+
+    // ALSO check spark_ops metadata (this is critical for statement-level chunks)
+    const sparkOps = candidate.metadata.spark_ops || [];
+    const sparkOpsText = sparkOps.join(' ').toLowerCase();
+
+    // Combine both sources for matching
+    const combinedText = textToCheck + ' ' + sparkOpsText;
+
+    const matches = rules.requiredPatterns.filter(pattern => combinedText.includes(pattern.toLowerCase()));
+
+    if (matches.length > 0) {
+      // Base score: 0.5 + (0.5 * ratio of matches)
+      const ratio = matches.length / Math.min(3, rules.requiredPatterns.length);
+      score = 0.5 + Math.min(0.4, 0.5 * ratio); // Max 0.9 base
+
+      // Bonus: Code Snippet looks like Spark
+      if (candidate.codeSnippet && candidate.codeSnippet.includes('.')) {
+        score += 0.1;
       }
+    } else {
+      // Minimal score if no keywords found at all
+      score = 0.2;
     }
 
-    // Normalize score
-    // If no patterns match, we shouldn't punish it too hard (0.0).
-    // Vector search found it for a reason. Give it a neutral score (0.4) so it passes the 0.3 threshold.
-    // If patterns match, it gets a boost.
-    let normalizedScore = maxScore > 0 ? score / maxScore : 0.5;
-
-    if (patternMatchCount === 0) {
-      normalizedScore = 0.4; // Neutral / Permissive baseline
-      logger.debug(`No pattern match for ${candidate.symbol}, assigning neutral score 0.4`);
+    // Complexity penalty
+    const complexity = candidate.metadata.complexity || 1;
+    if (rules.minimumComplexity && complexity < rules.minimumComplexity) {
+      score *= 0.8;
     }
 
-    // Apply complexity check
-    if (rules.minimumComplexity && candidate.metadata.complexity) {
-      if (candidate.metadata.complexity < rules.minimumComplexity) {
-        normalizedScore *= 0.8; // Reduced penalty (was 0.7)
-      }
-    }
-
-    // Check call graph (data flow analysis)
-    if (candidate.metadata.callGraph && candidate.metadata.callGraph.length > 0) {
-      normalizedScore *= 1.1; // Boost for having callers (not dead code)
-    }
-
-    // Cap at 1.0
-    return Math.min(normalizedScore, 1.0);
+    return Math.min(score, 1.0);
   } catch (error) {
     logger.warn(`AST analysis failed for ${candidate.symbol}`, error);
     return 0.5; // Neutral score on error

@@ -33,6 +33,8 @@ export type ExecutionStageType =
     | 'broadcast'
     | 'custom';
 
+export type NodeClassification = 'CODE_OWNED' | 'DERIVED';
+
 export interface StageMetrics {
     rowsEstimate?: number;
     shuffleBytes?: number;
@@ -63,6 +65,7 @@ export interface PlanMetadata {
 export interface RepositoryConfig {
     url: string;
     branch: string;
+    commitHash?: string;
     token?: string;
     includePatterns?: string[];
     excludePatterns?: string[];
@@ -99,6 +102,7 @@ export interface FileAnalysis {
     configReferences: ConfigReference[];
     annotations: AnnotationInfo[];
     complexity: ComplexityMetrics;
+    codeChunks: CodeChunk[];
 }
 
 export interface FunctionInfo {
@@ -112,6 +116,26 @@ export interface FunctionInfo {
     calls: string[];
     isAsync: boolean;
     complexity: number;
+    sparkTransformations?: SparkTransformation[];
+}
+
+export interface CodeChunk {
+    id: string; // unique identifier (file:hash or symbol:idx)
+    type: ChunkType;
+    content: string;
+    startLine: number;
+    endLine: number;
+    parentSymbol?: string; // name of containing function/class
+    sparkOps?: string[];
+}
+
+export type ChunkType = 'SYMBOL' | 'BLOCK' | 'STATEMENT';
+
+export interface SparkTransformation {
+    type: 'read' | 'write' | 'filter' | 'select' | 'join' | 'groupBy' | 'agg' | 'withColumn' | 'transform' | 'union' | 'repartition' | 'sort' | 'window' | 'drop' | 'distinct' | 'limit' | 'alias';
+    line: number;
+    code: string;
+    columns?: string[];
 }
 
 export interface ParameterInfo {
@@ -156,13 +180,21 @@ export type DataOperationType =
     | 'join'
     | 'filter'
     | 'aggregate'
+    | 'groupBy'
+    | 'agg'
     | 'transform'
+    | 'select'
+    | 'withColumn'
     | 'window'
     | 'union'
     | 'cache'
     | 'broadcast'
     | 'repartition'
-    | 'sort';
+    | 'sort'
+    | 'drop'
+    | 'distinct'
+    | 'limit'
+    | 'alias';
 
 export interface TableReference {
     name: string;
@@ -289,6 +321,7 @@ export interface AgentConfig {
 
 export interface AgentJob {
     id: string;
+    userId: string; // Added for multi-tenancy
     planId: string;
     repoConfig: RepositoryConfig;
     agentConfig: AgentConfig;
@@ -388,6 +421,7 @@ export interface CreateAgentJobRequest {
     planName?: string;
     repositoryUrl: string;
     branch?: string;
+    commitHash?: string;
     token?: string;
     dagStages?: any[];
     options?: Partial<AgentConfig>;
@@ -430,6 +464,9 @@ export interface UpdateMappingRequest {
 export type AgentWebSocketEvent =
     | { type: 'progress'; data: AgentProgress }
     | { type: 'log'; data: AgentLog }
+    | { type: 'stage_started'; data: { stage: string; message?: string; nodeId?: string } }
+    | { type: 'stage_completed'; data: { stage: string; durationMs?: number; nodeId?: string } }
+    | { type: 'stage_progress'; data: { stage: string; progress?: { percentage: number }; message?: string; nodeId?: string } }
     | { type: 'stage_mapped'; data: { stageId: string; mapping: PlanCodeMapping } }
     | { type: 'file_analyzed'; data: { filePath: string; operationsFound: number } }
     | { type: 'completed'; data: AgentResult }

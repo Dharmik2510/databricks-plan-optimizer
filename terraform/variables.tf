@@ -53,3 +53,15 @@ variable "frontend_url" {
   type        = string
   default     = "https://brickoptima-frontend-abc123.run.app"
 }
+
+variable "openai_api_key" {
+  description = "OpenAI API key"
+  type        = string
+  sensitive   = true
+}
+
+variable "chroma_api_key" {
+  description = "ChromaDB API key"
+  type        = string
+  sensitive   = true
+}

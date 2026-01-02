@@ -20,7 +20,7 @@ export class ChromaDBCloudService {
 
   constructor() {
     const useSSL = process.env.CHROMA_USE_SSL === 'true';
-    const port = process.env.CHROMA_PORT || '443';
+    const port = process.env.CHROMA_PORT || '8000'; // cloud default is 8000
     const host = process.env.CHROMA_HOST;
     const tenant = process.env.CHROMA_TENANT;
     const database = process.env.CHROMA_DATABASE || 'default_database';
@@ -33,7 +33,8 @@ export class ChromaDBCloudService {
       throw new Error('CHROMA_TENANT environment variable is required for ChromaDB Cloud');
     }
 
-    const path = useSSL ? `https://${host}` : `http://${host}:${port}`;
+    // IMPORTANT: include port even when SSL is true
+    const path = useSSL ? `https://${host}:${port}` : `http://${host}:${port}`;
 
     this.client = new ChromaClient({
       path,
@@ -54,11 +55,11 @@ export class ChromaDBCloudService {
     this.logger.log(`ChromaDB Cloud client initialized: ${path} (tenant: ${tenant}, database: ${database})`);
   }
 
-  async createCollection(name: string) {
+  async createCollection(name: string, options?: { metadata?: Record<string, any> }) {
     try {
       const collection = await this.client.createCollection({
         name,
-        metadata: { description: 'Code embeddings for DAG mapping' },
+        metadata: options?.metadata || { description: 'Code embeddings for DAG mapping' },
       });
       this.logger.log(`Collection created: ${name}`);
       return collection;
@@ -79,25 +80,37 @@ export class ChromaDBCloudService {
     embeddings: number[][],
     metadatas: any[],
     ids: string[],
+    documents?: string[],
   ) {
     const collection = await this.client.getCollection({
       name: collectionName,
       embeddingFunction: this.embeddingFunction,
     });
 
-    await collection.add({
-      ids,
-      embeddings,
-      metadatas,
-    });
+    // Prefer upsert for idempotency
+    if (typeof (collection as any).upsert === "function") {
+      await (collection as any).upsert({ ids, embeddings, metadatas, documents });
+    } else {
+      // Fallback: delete then add (still idempotent)
+      if (typeof (collection as any).delete === "function") {
+        await (collection as any).delete({ ids });
+      }
+      await collection.add({
+        ids,
+        embeddings,
+        metadatas,
+        documents,
+      });
+    }
 
-    this.logger.log(`Added ${embeddings.length} embeddings to ${collectionName}`);
+    this.logger.log(`Upserted ${embeddings.length} embeddings into ${collectionName}`);
   }
 
   async query(
     collectionName: string,
     queryEmbedding: number[],
     topK: number = 10,
+    where?: Record<string, any>,
   ) {
     const collection = await this.client.getCollection({
       name: collectionName,
@@ -107,13 +120,14 @@ export class ChromaDBCloudService {
     const results = await collection.query({
       queryEmbeddings: [queryEmbedding],
       nResults: topK,
+      where,
     });
 
     this.logger.log(`Query returned ${results.ids[0]?.length || 0} results`);
 
     return results.ids[0]?.map((id, idx) => ({
       id,
-      score: results.distances?.[0]?.[idx] || 0,
+      distance: results.distances?.[0]?.[idx] ?? null,
       metadata: results.metadatas?.[0]?.[idx] || {},
       document: results.documents?.[0]?.[idx] || '',
     })) || [];
@@ -148,4 +162,19 @@ export class ChromaDBCloudService {
       throw error;
     }
   }
+
+  async getCollectionCount(collectionName: string): Promise<number> {
+    try {
+      const collection = await this.client.getCollection({
+        name: collectionName,
+        embeddingFunction: this.embeddingFunction,
+      });
+      const count = await collection.count();
+      return count;
+    } catch (error) {
+      this.logger.error(`Failed to get count for collection ${collectionName}`, error);
+      throw error;
+    }
+  }
 }
+

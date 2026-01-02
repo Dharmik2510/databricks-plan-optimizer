@@ -21,10 +21,15 @@ import {
   BadRequestException,
   Sse,
   MessageEvent,
+  UseGuards,
 } from '@nestjs/common';
 import { Observable, interval, map, switchMap, takeWhile } from 'rxjs';
 import { MappingOrchestrator, CreateMappingJobRequest } from '../langgraph/orchestrator/mapping.orchestrator';
 import { Logger } from '@nestjs/common';
+import { JwtAuthGuard } from '../../../common/guards';
+import { CurrentUser, CurrentUserData } from '../../../common/decorators';
+import { AgentEvent } from '../langgraph/events';
+
 
 // ============================================================================
 // DTOs
@@ -48,10 +53,11 @@ class JobResponse {
 // ============================================================================
 
 @Controller('api/agent')
+@UseGuards(JwtAuthGuard)
 export class MappingJobController {
   private readonly logger = new Logger(MappingJobController.name);
 
-  constructor(private readonly orchestrator: MappingOrchestrator) {}
+  constructor(private readonly orchestrator: MappingOrchestrator) { }
 
   /**
    * POST /api/agent/map-to-code
@@ -62,7 +68,10 @@ export class MappingJobController {
    */
   @Post('map-to-code')
   @HttpCode(HttpStatus.ACCEPTED)
-  async createMappingJob(@Body() dto: CreateMappingJobDto): Promise<JobResponse> {
+  async createMappingJob(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: CreateMappingJobDto
+  ): Promise<JobResponse> {
     this.logger.log('Received map-to-code request');
 
     // Validate input
@@ -77,6 +86,7 @@ export class MappingJobController {
     // Create job
     const { jobId } = await this.orchestrator.createJob({
       analysisId: dto.analysisId,
+      userId: user.id, // Pass authenticated user ID
       repoUrl: dto.repoUrl,
       commitHash: dto.commitHash,
       githubToken: dto.githubToken,
@@ -134,28 +144,38 @@ export class MappingJobController {
    *
    * Server-Sent Events stream of job progress
    *
-   * Emits job status updates in real-time
+   * Emits real-time agent events as they occur (not polled)
    */
   @Sse('jobs/:jobId/stream')
   streamJobProgress(@Param('jobId') jobId: string): Observable<MessageEvent> {
-    this.logger.log(`Streaming job progress: ${jobId}`);
+    this.logger.log(`Client connected to SSE stream for job: ${jobId}`);
 
-    // Poll job status every 2 seconds
-    return interval(2000).pipe(
-      switchMap(async () => {
-        const status = await this.orchestrator.getJobStatus(jobId);
+    return new Observable((subscriber) => {
+      // Import event emitter
+      const { jobEventEmitter } = require('../langgraph/events');
 
-        if (!status) {
-          throw new NotFoundException(`Job ${jobId} not found`);
+      // Subscribe to events for this job
+      const unsubscribe = jobEventEmitter.onJobEvent(jobId, (event: AgentEvent) => {
+        this.logger.debug(`Streaming event: ${event.type} for job ${jobId}`);
+
+        // Emit event to SSE client
+        subscriber.next({
+          data: event,
+        });
+
+        // Complete stream when job finishes
+        if (event.type === 'job_completed' || event.type === 'error') {
+          this.logger.log(`Job ${jobId} finished, closing SSE stream`);
+          subscriber.complete();
         }
+      });
 
-        return status;
-      }),
-      takeWhile((status) => status.status === 'running' || status.status === 'pending', true),
-      map((status) => ({
-        data: status,
-      })),
-    );
+      // Cleanup on disconnect
+      return () => {
+        this.logger.log(`Client disconnected from SSE stream for job: ${jobId}`);
+        unsubscribe();
+      };
+    });
   }
 
   /**
