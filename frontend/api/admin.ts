@@ -93,3 +93,34 @@ export const getFailedAnalyses = async (limit: number = 50) => {
   const response = await apiClient.get(`/admin/analyses/failed?limit=${limit}`);
   return response;
 };
+
+// ═══════════════════════════════════════════════════════════════
+// FEEDBACK MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+export const getAllFeedback = async (params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  category?: string;
+}) => {
+  const queryParams = new URLSearchParams();
+  if (params.page) queryParams.append('page', params.page.toString());
+  if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.status) queryParams.append('status', params.status);
+  if (params.category) queryParams.append('category', params.category);
+
+  // Note: Assuming endpoint exists or will be created
+  const response = await apiClient.get(`/admin/feedback?${queryParams.toString()}`);
+  return response;
+};
+
+export const updateFeedbackStatus = async (ticketId: string, status: string) => {
+  const response = await apiClient.patch(`/admin/feedback/${ticketId}/status`, { status });
+  return response;
+};
+
+export const getFeedbackStats = async () => {
+  const response = await apiClient.get('/admin/feedback/stats');
+  return response;
+};

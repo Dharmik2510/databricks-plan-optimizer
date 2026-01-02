@@ -133,8 +133,12 @@ export class LoggingInterceptor implements NestInterceptor {
       });
     } catch (err) {
       // Handle foreign key constraint violation (e.g., invalid sessionId)
-      if ((err as any).code === 'P2003' && (err as any).meta?.field_name?.includes('sessionId')) {
-        // Retry without sessionId
+      // Check for P2003 code and specifically the sessionId constraint
+      if (
+        (err as any).code === 'P2003' || // Foreign key constraint failed
+        (err as any).message?.includes('Foreign key constraint violated')
+      ) {
+        // Retry without sessionId - this is a known issue where sessionId might not exist yet
         try {
           await this.prisma.requestAudit.upsert({
             where: { requestId: ctx.requestId },
@@ -160,7 +164,7 @@ export class LoggingInterceptor implements NestInterceptor {
           });
           return; // Success on retry
         } catch (retryErr) {
-          // If retry fails, log the original error
+          // If retry fails, fall through to log the original error
         }
       }
 

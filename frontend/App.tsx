@@ -232,16 +232,18 @@ function AppContent() {
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
       <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} prediction={prediction} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          appState={appState}
-          resetApp={resetApp}
-          goToNewAnalysis={goToNewAnalysis}
-          onGuideClick={() => setShowUserGuide(true)}
-          onComputeClick={handleComputeClick}
-          user={user}
-        />
+        {activeTab !== ActiveTab.ADMIN && (
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            appState={appState}
+            resetApp={resetApp}
+            goToNewAnalysis={goToNewAnalysis}
+            onGuideClick={() => setShowUserGuide(true)}
+            onComputeClick={handleComputeClick}
+            user={user}
+          />
+        )}
         <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
           <div className="max-w-[1600px] mx-auto p-8 h-full">
             <Suspense fallback={<LoadingScreen />}>
