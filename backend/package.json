@@ -30,9 +30,9 @@
     "@google-cloud/billing": "^4.6.0",
     "@google/generative-ai": "^0.21.0",
     "@langchain/community": "^0.3.16",
-    "@langchain/core": "^1.1.8",
-    "@langchain/langgraph": "^1.0.7",
-    "@langchain/langgraph-checkpoint-postgres": "^1.0.0",
+    "@langchain/core": "^0.3.58",
+    "@langchain/langgraph": "^0.2.74",
+    "@langchain/langgraph-checkpoint-postgres": "0.0.5",
     "@langchain/openai": "^0.3.15",
     "@nestjs/common": "^10.4.6",
     "@nestjs/config": "^3.3.0",
@@ -116,6 +116,7 @@
   "overrides": {
     "glob": "^11.0.0",
     "tmp": "^0.2.4",
-    "inquirer": "^10.0.0"
+    "inquirer": "^10.0.0",
+    "@google/generative-ai": "^0.21.0"
   }
 }
