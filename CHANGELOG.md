@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.27.0...v1.28.0) (2026-01-02)
+
+
+### Features
+
+* Implement Google OAuth login and add agent job pause/resume functionality with progress events. ([753f319](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/753f319ea394023630996fff2b010cf42d907b36))
+
 # [1.27.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.26.0...v1.27.0) (2026-01-02)
 
 
