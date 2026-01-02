@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.29.0...v1.30.0) (2026-01-02)
+
+
+### Features
+
+* Introduce workflow observability with new metrics and logging services, a workflow node decorator, and updated documentation and integrations. ([6c211c9](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/6c211c944ca21eb9610fbb7c56a881138d03df41))
+
 # [1.29.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.28.0...v1.29.0) (2026-01-02)
 
 
