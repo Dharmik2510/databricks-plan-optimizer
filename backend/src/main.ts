@@ -1,16 +1,18 @@
+// CRITICAL: Import tracing FIRST, before any other code
+import { initTracing } from './tracing';
+initTracing();
+
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import { NestFactory, HttpAdapterHost } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import * as fetch from 'node-fetch';
-import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
+import { AppLoggerService } from './common/logging/app-logger.service';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { TracingInterceptor } from './common/interceptors/tracing.interceptor';
-import { WinstonModule } from 'nest-winston';
-import { loggerConfig } from './config/logger.config';
 
 if (!globalThis.fetch) {
   globalThis.fetch = fetch as any;
@@ -21,7 +23,7 @@ if (!globalThis.fetch) {
 
 // Sentry must be initialized early
 Sentry.init({
-  dsn: process.env.SENTRY_DSN, // Access env directly for early init, or use config service later if needed but best here
+  dsn: process.env.SENTRY_DSN,
   integrations: [
     nodeProfilingIntegration(),
   ],
@@ -30,11 +32,16 @@ Sentry.init({
 });
 
 async function bootstrap() {
+  // Create app (logger will be initialized via AppModule)
   const app = await NestFactory.create(AppModule, {
-    logger: WinstonModule.createLogger(loggerConfig),
+    logger: false, // We'll set up our logger next
   });
+
+  // Get our custom logger
+  const logger = app.get(AppLoggerService);
+  app.useLogger(logger);
+
   const configService = app.get(ConfigService);
-  const logger = new Logger('Bootstrap');
 
   // Security headers
   app.use(helmet());
@@ -69,13 +76,11 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
-    exposedHeaders: ['X-Correlation-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'X-Session-ID', 'X-Request-ID'],
+    exposedHeaders: ['X-Correlation-ID', 'X-Request-ID'],
   });
 
-  // Global Observability Interceptors & Filters
-  const httpAdapter = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter.httpAdapter));
+  // Additional interceptors (metrics, tracing from Sentry)
   app.useGlobalInterceptors(new MetricsInterceptor(), new TracingInterceptor());
 
   // Global validation pipe
@@ -96,6 +101,13 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3001);
   await app.listen(port, '0.0.0.0');
 
+  logger.log('🚀 BrickOptima API started', {
+    port,
+    apiPrefix: '/api/v1',
+    corsOrigin,
+    nodeEnv: process.env.NODE_ENV,
+    otelEnabled: process.env.OTEL_ENABLED === 'true',
+  });
   logger.log(`🚀 BrickOptima API running on http://0.0.0.0:${port}`);
   logger.log(`📚 API Prefix: /api/v1`);
   logger.log(`🔗 CORS Origin: ${corsOrigin}`);

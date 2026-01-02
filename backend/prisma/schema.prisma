@@ -8,31 +8,41 @@ datasource db {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  email            String         @unique
+  id               String    @id @default(cuid())
+  email            String    @unique
   passwordHash     String
   name             String
   avatar           String?
-  settings         Json           @default("{}")
-  analysisCount    Int            @default(0)
+  settings         Json      @default("{}")
+  analysisCount    Int       @default(0)
   lastAnalysisAt   DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   lastLoginAt      DateTime?
-  resetToken       String?        @unique
+  resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  isActive         Boolean        @default(true)
-  
+  isActive         Boolean   @default(true)
+
   // Authentication
-  googleId      String?   @unique
-  isVerified    Boolean   @default(false)
+  googleId          String?  @unique
+  isVerified        Boolean  @default(false)
   verificationToken String?
-  quotaLimit       Int            @default(100)
-  role             UserRole       @default(USER)
-  analyses         Analysis[]
-  chatSessions     ChatSession[]
-  refreshTokens    RefreshToken[]
-  repositories     Repository[]
+  quotaLimit        Int      @default(100)
+  role              UserRole @default(USER)
+
+  // Relations
+  analyses      Analysis[]
+  chatSessions  ChatSession[]
+  refreshTokens RefreshToken[]
+  repositories  Repository[]
+
+  // Observability relations
+  userSessions      UserSession[]
+  requestAudits     RequestAudit[]
+  workflowRuns      WorkflowRun[]
+  feedbacks         UserFeedback[]
+  assignedFeedbacks UserFeedback[]  @relation("AssignedFeedback")
+  feedbackEvents    FeedbackEvent[]
 
   @@index([email])
   @@index([role])
@@ -62,6 +72,7 @@ model Analysis {
   snapshot          RepoSnapshot?  @relation(fields: [snapshotId], references: [id])
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   chatSessions      ChatSession[]
+  workflowRuns      WorkflowRun[]
 
   @@index([userId])
   @@index([userId, createdAt])
@@ -246,4 +257,231 @@ enum IndexStatus {
   ACTIVE
   FAILED
   ARCHIVED
+}
+
+// ============================================
+// OBSERVABILITY & USER FEEDBACK MODELS
+// ============================================
+
+model UserSession {
+  id        String @id @default(cuid())
+  sessionId String @unique
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deviceInfo Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt      DateTime @default(now())
+  lastActivityAt DateTime @updatedAt
+  expiresAt      DateTime
+
+  requestAudits RequestAudit[]
+  feedbacks     UserFeedback[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("user_sessions")
+}
+
+model RequestAudit {
+  id String @id @default(cuid())
+
+  requestId     String  @unique
+  correlationId String
+  traceId       String?
+  spanId        String?
+
+  method     String
+  path       String
+  statusCode Int
+  durationMs Int
+
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId String?
+  session   UserSession? @relation(fields: [sessionId], references: [sessionId], onDelete: SetNull)
+
+  feature String
+
+  analysisId    String?
+  jobId         String?
+  workflowRunId String?
+
+  errorName    String?
+  errorMessage String?
+  errorCode    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@index([correlationId])
+  @@index([traceId])
+  @@index([userId, createdAt])
+  @@index([feature, createdAt])
+  @@index([statusCode, createdAt])
+  @@index([workflowRunId])
+  @@map("request_audits")
+}
+
+model WorkflowRun {
+  id String @id @default(cuid())
+
+  workflowRunId String  @unique
+  correlationId String
+  traceId       String?
+
+  workflowType String
+  status       String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  analysisId String?
+  analysis   Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  jobId      String?
+
+  input  Json
+  output Json?
+  error  Json?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+
+  events    WorkflowEvent[]
+  feedbacks UserFeedback[]
+
+  @@index([workflowRunId])
+  @@index([correlationId])
+  @@index([traceId])
+  @@index([userId, startedAt])
+  @@index([workflowType, status])
+  @@index([analysisId])
+  @@index([jobId])
+  @@index([status, startedAt])
+  @@map("workflow_runs")
+}
+
+model WorkflowEvent {
+  id String @id @default(cuid())
+
+  workflowRunId String
+  workflowRun   WorkflowRun @relation(fields: [workflowRunId], references: [workflowRunId], onDelete: Cascade)
+
+  nodeId    String
+  nodeName  String
+  eventType String
+
+  input    Json?
+  output   Json?
+  error    Json?
+  metadata Json?
+
+  timestamp  DateTime @default(now())
+  durationMs Int?
+
+  traceId String?
+  spanId  String?
+
+  @@index([workflowRunId, timestamp])
+  @@index([nodeId])
+  @@index([eventType, timestamp])
+  @@index([traceId])
+  @@map("workflow_events")
+}
+
+model UserFeedback {
+  id       String @id @default(cuid())
+  ticketId String @unique @default(cuid())
+
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   UserSession? @relation(fields: [sessionId], references: [sessionId], onDelete: SetNull)
+
+  title       String
+  description String @db.Text
+  severity    String
+  category    String
+  feature     String
+
+  status       String   @default("new")
+  assignedToId String?
+  assignedTo   User?    @relation("AssignedFeedback", fields: [assignedToId], references: [id], onDelete: SetNull)
+  tags         String[]
+
+  correlationId String?
+  traceId       String?
+  requestId     String?
+  workflowRunId String?
+  workflowRun   WorkflowRun? @relation(fields: [workflowRunId], references: [workflowRunId], onDelete: SetNull)
+  analysisId    String?
+  jobId         String?
+
+  pageUrl     String?
+  userAgent   String?
+  browserInfo Json?
+  appVersion  String?
+  lastAction  String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  attachments FeedbackAttachment[]
+  events      FeedbackEvent[]
+
+  @@index([ticketId])
+  @@index([userId, createdAt])
+  @@index([status, severity, createdAt])
+  @@index([feature, createdAt])
+  @@index([assignedToId])
+  @@index([correlationId])
+  @@index([traceId])
+  @@index([workflowRunId])
+  @@index([analysisId])
+  @@map("user_feedbacks")
+}
+
+model FeedbackAttachment {
+  id         String       @id @default(cuid())
+  feedbackId String
+  feedback   UserFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  fileName   String
+  fileType   String
+  fileSize   Int
+  storageUrl String
+
+  isScreenshot   Boolean @default(false)
+  screenshotMeta Json?
+
+  uploadedAt DateTime @default(now())
+
+  @@index([feedbackId])
+  @@map("feedback_attachments")
+}
+
+model FeedbackEvent {
+  id         String       @id @default(cuid())
+  feedbackId String
+  feedback   UserFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  eventType String
+
+  authorId   String?
+  author     User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  isInternal Boolean @default(false)
+
+  content  String? @db.Text
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([feedbackId, createdAt])
+  @@index([eventType])
+  @@map("feedback_events")
 }
