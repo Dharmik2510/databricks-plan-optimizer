@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.28.0...v1.29.0) (2026-01-02)
+
+
+### Features
+
+* implement comprehensive observability with structured logging, request auditing, tracing, and updated documentation** ([b928f58](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/b928f58d70617b2b65dc79526a22c7fec7d55008))
+
 # [1.28.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.27.0...v1.28.0) (2026-01-02)
 
 
