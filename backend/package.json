@@ -29,6 +29,7 @@
     "@babel/types": "^7.26.3",
     "@google-cloud/billing": "^4.6.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^3.0.0",
+    "@google-cloud/storage": "^7.18.0",
     "@google/generative-ai": "^0.21.0",
     "@langchain/community": "^0.3.16",
     "@langchain/core": "^0.3.58",

@@ -14,6 +14,7 @@ import { HealthModule } from './health/health.module';
 import { RepositoryModule } from './modules/repository/repository.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 
 // Observability imports
 import { LoggingModule } from './common/logging/logging.module';
@@ -56,6 +57,7 @@ import { AppLoggerService } from './common/logging/app-logger.service';
     RepositoryModule,
     AgentModule,
     AdminModule,
+    FeedbackModule,
 
     // Integration modules
     GeminiModule,

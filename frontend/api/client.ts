@@ -1,5 +1,5 @@
 // src/api/client.ts
-// Centralized API client with authentication handling
+// Centralized API client with authentication handling and observability
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -15,14 +15,38 @@ interface ApiError {
   error: string;
 }
 
+// Generate a session ID that persists across page reloads
+const getSessionId = (): string => {
+  let sessionId = sessionStorage.getItem('x-session-id');
+  if (!sessionId) {
+    sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    sessionStorage.setItem('x-session-id', sessionId);
+  }
+  return sessionId;
+};
+
+// Generate a correlation ID that persists across page reloads (different from session)
+const getCorrelationId = (): string => {
+  let correlationId = localStorage.getItem('x-correlation-id');
+  if (!correlationId) {
+    correlationId = `corr_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    localStorage.setItem('x-correlation-id', correlationId);
+  }
+  return correlationId;
+};
+
 class ApiClient {
   private baseUrl: string;
   private accessToken: string | null = null;
   private refreshPromise: Promise<string | null> | null = null;
+  private sessionId: string;
+  private correlationId: string;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
     this.accessToken = localStorage.getItem('accessToken');
+    this.sessionId = getSessionId();
+    this.correlationId = getCorrelationId();
   }
 
   setAccessToken(token: string | null) {
@@ -36,6 +60,14 @@ class ApiClient {
 
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  getSessionId(): string {
+    return this.sessionId;
+  }
+
+  getCorrelationId(): string {
+    return this.correlationId;
   }
 
   private async refreshAccessToken(): Promise<string | null> {
@@ -81,8 +113,11 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    // Build headers with observability context
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
+      'X-Session-ID': this.sessionId,
+      'X-Correlation-ID': this.correlationId,
       ...options.headers,
     };
 
@@ -178,3 +213,4 @@ class ApiClient {
 
 export const apiClient = new ApiClient(API_BASE_URL);
 export default apiClient;
+

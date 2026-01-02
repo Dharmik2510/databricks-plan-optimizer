@@ -66,8 +66,15 @@ variable "chroma_api_key" {
   sensitive   = true
 }
 
+
 variable "google_client_id" {
   description = "Google OAuth Client ID"
   type        = string
   sensitive   = true
+}
+
+variable "feedback_bucket_name" {
+  description = "Name of the GCS bucket for user feedback screenshots"
+  type        = string
+  default     = "brickoptima-feedback-screenshots"
 }

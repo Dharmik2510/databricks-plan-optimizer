@@ -20,6 +20,7 @@ import {
   BrainCircuit,
   Moon,
   Sun,
+  Ticket,
 } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './ThemeContext';
@@ -45,6 +46,13 @@ const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ d
 const Onboarding = lazy(() => import('./components/Onboarding'));
 const CommandPalette = lazy(() => import('./components/CommandPalette'));
 const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal'));
+const MyTicketsPage = lazy(() => import('./components/feedback/MyTicketsPage').then(m => ({ default: m.MyTicketsPage })));
+const TicketDetailPage = lazy(() => import('./components/feedback/TicketDetailPage').then(m => ({ default: m.TicketDetailPage })));
+
+// Feedback components (not lazy since they're always mounted)
+import { FeedbackButton } from './components/feedback/FeedbackButton';
+import { FeedbackModal } from './components/feedback/FeedbackModal';
+import { useFeedbackStore } from './store/useFeedbackStore';
 
 // Routes
 import { HomeRoute } from './routes/HomeRoute';
@@ -311,6 +319,20 @@ function AppContent() {
                 />
               )}
               {activeTab === ActiveTab.ADMIN && <AdminPanel />}
+              {activeTab === ActiveTab.MY_TICKETS && (
+                <MyTicketsPage
+                  onSelectTicket={(ticketId) => {
+                    useFeedbackStore.getState().setSelectedTicketId(ticketId);
+                    setActiveTab(ActiveTab.TICKET_DETAIL);
+                  }}
+                />
+              )}
+              {activeTab === ActiveTab.TICKET_DETAIL && useFeedbackStore.getState().selectedTicketId && (
+                <TicketDetailPage
+                  ticketId={useFeedbackStore.getState().selectedTicketId!}
+                  onBack={() => setActiveTab(ActiveTab.MY_TICKETS)}
+                />
+              )}
             </Suspense>
           </div>
         </main>
@@ -337,6 +359,9 @@ function AppContent() {
             shortcuts={shortcuts}
           />
         </Suspense>
+        {/* Feedback Floating Button & Modal */}
+        <FeedbackButton />
+        <FeedbackModal />
       </div>
     </div>
   );
@@ -510,6 +535,13 @@ const Sidebar = ({
                 label="AI Consultant"
                 active={activeTab === ActiveTab.CHAT}
                 onClick={() => setActiveTab(ActiveTab.CHAT)}
+              />
+              <div className="h-px bg-slate-800 my-2 mx-3"></div>
+              <SidebarItem
+                icon={Ticket}
+                label="My Tickets"
+                active={activeTab === ActiveTab.MY_TICKETS || activeTab === ActiveTab.TICKET_DETAIL}
+                onClick={() => setActiveTab(ActiveTab.MY_TICKETS)}
               />
             </>
           )}

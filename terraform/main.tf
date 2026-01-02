@@ -199,8 +199,8 @@ resource "google_secret_manager_secret_iam_member" "github_actions_access" {
     "frontend_url"   = google_secret_manager_secret.frontend_url.id
     "sentry_dsn"     = google_secret_manager_secret.sentry_dsn.id
 
-    "openai_api_key" = google_secret_manager_secret.openai_api_key.id
-    "chroma_api_key" = google_secret_manager_secret.chroma_api_key.id
+    "openai_api_key"   = google_secret_manager_secret.openai_api_key.id
+    "chroma_api_key"   = google_secret_manager_secret.chroma_api_key.id
     "google_client_id" = google_secret_manager_secret.google_client_id.id
   }
 

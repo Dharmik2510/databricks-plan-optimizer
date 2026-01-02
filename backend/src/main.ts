@@ -13,6 +13,7 @@ import * as fetch from 'node-fetch';
 import { AppLoggerService } from './common/logging/app-logger.service';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { TracingInterceptor } from './common/interceptors/tracing.interceptor';
+import { json, urlencoded } from 'express';
 
 if (!globalThis.fetch) {
   globalThis.fetch = fetch as any;
@@ -34,8 +35,12 @@ Sentry.init({
 async function bootstrap() {
   // Create app (logger will be initialized via AppModule)
   const app = await NestFactory.create(AppModule, {
-    logger: false, // We'll set up our logger next
+    logger: false,
   });
+
+  // Increase payload limit for screenshots
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
 
   // Get our custom logger
   const logger = app.get(AppLoggerService);

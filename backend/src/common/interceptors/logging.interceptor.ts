@@ -132,6 +132,38 @@ export class LoggingInterceptor implements NestInterceptor {
         },
       });
     } catch (err) {
+      // Handle foreign key constraint violation (e.g., invalid sessionId)
+      if ((err as any).code === 'P2003' && (err as any).meta?.field_name?.includes('sessionId')) {
+        // Retry without sessionId
+        try {
+          await this.prisma.requestAudit.upsert({
+            where: { requestId: ctx.requestId },
+            update: {},
+            create: {
+              requestId: ctx.requestId,
+              correlationId: ctx.correlationId,
+              traceId: ctx.traceId,
+              spanId: ctx.spanId,
+              method,
+              path,
+              statusCode,
+              durationMs,
+              userId: ctx.userId,
+              sessionId: null, // Set to null on retry
+              feature: ctx.feature || this.inferFeature(path),
+              ...(error && {
+                errorName: error.name,
+                errorMessage: error.message,
+                errorCode: (error as any).code,
+              }),
+            },
+          });
+          return; // Success on retry
+        } catch (retryErr) {
+          // If retry fails, log the original error
+        }
+      }
+
       // CRITICAL: Never fail the request if audit logging fails
       // Log the failure but continue
       this.logger.error('Failed to create request audit', err as Error, {

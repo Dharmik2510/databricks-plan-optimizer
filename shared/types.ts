@@ -195,6 +195,8 @@ export enum ActiveTab {
   HISTORY = 'HISTORY',
   CODE_MAP = 'CODE_MAP',
   ADMIN = 'ADMIN',
+  MY_TICKETS = 'MY_TICKETS',
+  TICKET_DETAIL = 'TICKET_DETAIL',
 }
 
 export interface RepoConfig {
