@@ -147,4 +147,11 @@ export const feedbackApi = {
             isScreenshot,
         });
     },
+
+    /**
+     * Delete a feedback ticket
+     */
+    async deleteFeedback(ticketId: string): Promise<void> {
+        return apiClient.delete(`/feedback/${ticketId}`);
+    },
 };

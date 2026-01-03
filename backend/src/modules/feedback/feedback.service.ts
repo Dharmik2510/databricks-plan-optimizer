@@ -308,6 +308,45 @@ export class FeedbackService {
     }
 
     /**
+     * Delete a feedback ticket and its attachments
+     */
+    async deleteFeedback(userId: string, ticketId: string) {
+        // First find the ticket to check ownership and get ID
+        const ticket = await this.prisma.userFeedback.findUnique({
+            where: { ticketId },
+            include: {
+                attachments: true,
+            },
+        });
+
+        if (!ticket) {
+            throw new NotFoundException(`Ticket ${ticketId} not found`);
+        }
+
+        // Users can only delete their own tickets
+        if (ticket.userId !== userId) {
+            throw new ForbiddenException('You can only delete your own tickets');
+        }
+
+        // Delete all attachments from storage
+        for (const attachment of ticket.attachments) {
+            if (attachment.storageUrl) {
+                await this.storageService.deleteFile(attachment.storageUrl);
+            }
+        }
+
+        // Delete the ticket from database
+        // Relations (attachments, events) will be deleted due to CASCADE in schema
+        await this.prisma.userFeedback.delete({
+            where: { id: ticket.id },
+        });
+
+        this.logger.log(`Feedback deleted: ${ticket.ticketId} by user ${userId}`);
+
+        return { success: true };
+    }
+
+    /**
      * Serve a local file
      */
     serveLocalFile(fileName: string, res: any) {

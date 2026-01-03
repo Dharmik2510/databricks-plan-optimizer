@@ -18,6 +18,7 @@ import {
     Lightbulb,
     HelpCircle,
     MoreHorizontal,
+    Trash2,
 } from 'lucide-react';
 import { feedbackApi, FeedbackTicket, FeedbackListResponse } from '../../api/feedback';
 import { useFeedbackStore } from '../../store/useFeedbackStore';
@@ -70,6 +71,32 @@ export const MyTicketsPage: React.FC<Props> = ({ onSelectTicket }) => {
             setError(err instanceof Error ? err.message : 'Failed to load tickets');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const handleDeleteTicket = async (e: React.MouseEvent, ticketId: string) => {
+        e.stopPropagation();
+        if (!window.confirm('Are you sure you want to delete this ticket? This action cannot be undone.')) {
+            return;
+        }
+
+        setDeletingId(ticketId);
+        try {
+            await feedbackApi.deleteFeedback(ticketId);
+            // Remove locally or refresh
+            if (response) {
+                setResponse({
+                    ...response,
+                    tickets: response.tickets.filter(t => t.ticketId !== ticketId)
+                });
+            }
+        } catch (err) {
+            console.error('Failed to delete ticket:', err);
+            alert('Failed to delete ticket. Please try again.');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -252,7 +279,21 @@ export const MyTicketsPage: React.FC<Props> = ({ onSelectTicket }) => {
                                             )}
                                         </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-orange-500 transition-colors flex-shrink-0" />
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={(e) => handleDeleteTicket(e, ticket.ticketId)}
+                                            disabled={deletingId === ticket.ticketId}
+                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            title="Delete Ticket"
+                                        >
+                                            {deletingId === ticket.ticketId ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-5 h-5" />
+                                            )}
+                                        </button>
+                                        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-orange-500 transition-colors flex-shrink-0" />
+                                    </div>
                                 </div>
                             </button>
                         ))}

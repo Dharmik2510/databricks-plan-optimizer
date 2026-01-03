@@ -167,6 +167,36 @@ export class StorageService {
         return path.join(this.localUploadDir, fileName);
     }
 
+    async deleteFile(storageUrl: string): Promise<void> {
+        if (!storageUrl) return;
+
+        if (storageUrl.startsWith('gs://') && this.isGcsConfigured && this.storage) {
+            try {
+                const [, , bucketName, ...pathParts] = storageUrl.split('/');
+                const filePath = pathParts.join('/');
+                const bucket = this.storage.bucket(bucketName);
+                const file = bucket.file(filePath);
+
+                await file.delete();
+                this.logger.log(`File deleted from GCS: ${storageUrl}`);
+            } catch (error) {
+                this.logger.warn(`Failed to delete file from GCS: ${storageUrl}`, error);
+                // Don't throw, we still want to delete the DB record
+            }
+        } else if (storageUrl.startsWith('local://')) {
+            try {
+                const fileName = storageUrl.replace('local://', '');
+                const filePath = this.getFilePath(fileName);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    this.logger.log(`Local file deleted: ${filePath}`);
+                }
+            } catch (error) {
+                this.logger.warn(`Failed to delete local file: ${storageUrl}`, error);
+            }
+        }
+    }
+
     private getExtensionFromMimeType(mimeType: string): string {
         const mimeToExt: Record<string, string> = {
             'image/png': 'png',

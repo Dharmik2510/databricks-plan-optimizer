@@ -9,6 +9,7 @@ import {
     HttpCode,
     HttpStatus,
     Res,
+    Delete,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FeedbackService } from './feedback.service';
@@ -102,5 +103,18 @@ export class FeedbackController {
         @Res() res: Response,
     ) {
         return this.feedbackService.serveLocalFile(fileName, res);
+    }
+
+    /**
+     * Delete a feedback ticket
+     * DELETE /api/v1/feedback/:ticketId
+     */
+    @Delete(':ticketId')
+    @HttpCode(HttpStatus.OK)
+    async deleteFeedback(
+        @CurrentUser() user: CurrentUserData,
+        @Param('ticketId') ticketId: string,
+    ) {
+        return this.feedbackService.deleteFeedback(user.id, ticketId);
     }
 }
