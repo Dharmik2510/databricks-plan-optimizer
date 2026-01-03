@@ -284,3 +284,10 @@ resource "google_artifact_registry_repository" "brickoptima" {
 
   depends_on = [google_project_service.artifact_registry]
 }
+
+# Grant Token Creator role to Service Account (Required for signing URLs/blobs)
+resource "google_service_account_iam_member" "cloud_run_token_creator" {
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
