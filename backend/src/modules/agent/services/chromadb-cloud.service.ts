@@ -19,7 +19,11 @@ export class ChromaDBCloudService {
   private embeddingFunction: IEmbeddingFunction;
 
   constructor() {
+    this.logger.log('Initializing ChromaDB Cloud Service...');
+    this.logger.log(`Environment: CHROMA_HOST=${process.env.CHROMA_HOST ? 'Set' : 'Unset'}, CHROMA_TENANT=${process.env.CHROMA_TENANT ? 'Set' : 'Unset'}`);
+
     const useSSL = process.env.CHROMA_USE_SSL === 'true';
+
     const port = process.env.CHROMA_PORT || '8000'; // cloud default is 8000
     const host = process.env.CHROMA_HOST;
     const tenant = process.env.CHROMA_TENANT;

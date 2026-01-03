@@ -101,7 +101,7 @@ jobs:
             --cpu 2 \
             --min-instances 1 \
             --max-instances 10 \
-            --timeout 300 \
+            --timeout 600 \
             --concurrency 80 \
             --env-vars-file ./backend/cloud-run-env.yaml \
             --set-secrets "DATABASE_URL=database-url:latest,JWT_SECRET=jwt-secret:latest,GEMINI_API_KEY=gemini-api-key:latest,SENTRY_DSN=sentry-dsn:latest,SMTP_PASS=SMTP_PASS:latest,SMTP_USER=smtp-user:latest,FRONTEND_URL=frontend-url:latest,OPENAI_API_KEY=openai-api-key:latest,CHROMA_API_KEY=chroma-api-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest"

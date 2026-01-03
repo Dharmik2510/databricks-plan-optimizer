@@ -118,4 +118,7 @@ async function bootstrap() {
   logger.log(`🔗 CORS Origin: ${corsOrigin}`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('❌ Fatal error during application bootstrap:', err);
+  process.exit(1);
+});
