@@ -21,6 +21,7 @@ import { OptimizationPanel } from '../components/optimizations/OptimizationPanel
 import { PredictivePanel } from '../components/PredictivePanel';
 import { OptimizationPlayground } from '../components/OptimizationPlayground';
 import AnalysisLoadingState from '../components/AnalysisLoadingState';
+import { PlanValidationFlow } from '../components/validation';
 import { client } from '../api';
 import { AppState, ActiveTab } from '../../shared/types';
 import { useToast } from '../design-system/components';
@@ -29,6 +30,7 @@ import { usePredictionStore } from '../store/usePredictionStore';
 import { useRepositoryStore } from '../store/useRepositoryStore';
 import { useClusterStore } from '../store/useClusterStore';
 import { useUIStore } from '../store/useUIStore';
+import { useValidationStore } from '../store/useValidationStore';
 
 
 export const DashboardRoute: React.FC = () => {
@@ -75,6 +77,13 @@ export const DashboardRoute: React.FC = () => {
   // UI Store
   const { dagExpanded, selectedNodeId, setDagExpanded, setSelectedNodeId, setActiveTab } =
     useUIStore();
+
+  // Validation Store
+  const { stage: validationStage, result: validationResult, reset: resetValidation } =
+    useValidationStore();
+
+  // Track if plan has been validated
+  const isPlanValidated = validationStage === 'success' && validationResult?.is_valid;
 
 
 
@@ -254,70 +263,51 @@ export const DashboardRoute: React.FC = () => {
       {(appState === AppState.IDLE || appState === AppState.ERROR) && (
         <div className="flex flex-col min-h-[75vh] animate-fade-in gap-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-            {/* LEFT: Input Area */}
-            <div className="lg:col-span-2 w-full bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 flex flex-col transition-colors">
-              <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                {['text', 'file'].map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setInputMode(mode as any)}
-                    className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${inputMode === mode
-                      ? 'text-orange-700 dark:text-orange-400 bg-white dark:bg-slate-900 border-b-2 border-orange-500 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                  >
-                    {mode === 'text' ? <FileText className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                    {mode === 'text' ? 'Paste Plan / Logs' : 'Upload File'}
-                  </button>
-                ))}
-              </div>
-              <div className="p-8 relative flex-1 flex flex-col">
-                {inputMode === 'text' ? (
-                  <div className="relative group flex-1">
-                    <textarea
-                      value={textContent}
-                      onChange={(e) => setTextContent(e.target.value)}
-                      className="w-full h-full min-h-[400px] p-6 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-sm rounded-2xl border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none resize-none shadow-inner leading-relaxed transition-all placeholder-slate-400 dark:placeholder-slate-600"
-                      placeholder="Paste your 'EXPLAIN EXTENDED' output here..."
-                    ></textarea>
-                    <div className="absolute top-4 right-4">
-                      <button
-                        onClick={insertDemoData}
-                        className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 hover:border-orange-200 dark:hover:border-orange-800 transition-all cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-orange-500 group-hover:rotate-12 transition-transform" />
-                        <span className="text-xs font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent group-hover:from-orange-500 group-hover:to-red-500">
-                          Load Demo Plan
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-full min-h-[400px] border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all relative group cursor-pointer">
-                    <div className="p-5 bg-white dark:bg-slate-800 rounded-full shadow-md mb-4 group-hover:scale-110 transition-transform text-orange-600 dark:text-orange-400 border border-slate-200 dark:border-slate-700">
-                      <Upload className="w-8 h-8" />
-                    </div>
-                    <p className="text-slate-800 dark:text-slate-200 font-bold text-lg">Click to Upload</p>
-                    <input
-                      type="file"
-                      accept=".json,.txt,.log"
-                      onChange={handleFileUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                  </div>
-                )}
-              </div>
+            {/* LEFT: Validation Flow */}
+            <div className="lg:col-span-2">
+              <PlanValidationFlow
+                textContent={textContent}
+                setTextContent={setTextContent}
+                inputMode={inputMode}
+                setInputMode={setInputMode}
+                onValidationComplete={() => {
+                  // Plan is validated, user can now proceed to analysis config
+                }}
+                onInsertDemo={insertDemoData}
+                onFileUpload={handleFileUpload}
+              />
             </div>
 
-            {/* RIGHT: Configuration Panel */}
-            <AnalysisConfigPanel
-              analysisTitle={analysisTitle}
-              setAnalysisTitle={setAnalysisTitle}
-              clusterContext={clusterContext}
-              setClusterContext={setClusterContext}
-              handleAnalyze={handleAnalyze}
-              textContent={textContent}
-            />
+            {/* RIGHT: Configuration Panel - Show when plan is validated */}
+            {isPlanValidated && (
+              <AnalysisConfigPanel
+                analysisTitle={analysisTitle}
+                setAnalysisTitle={setAnalysisTitle}
+                clusterContext={clusterContext}
+                setClusterContext={setClusterContext}
+                handleAnalyze={handleAnalyze}
+                textContent={textContent}
+              />
+            )}
+
+            {/* RIGHT: Placeholder when not validated */}
+            {!isPlanValidated && (
+              <div className="w-full bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-900 dark:to-slate-800 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 flex flex-col items-center justify-center p-8 transition-colors min-h-[400px]">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex p-4 bg-slate-200 dark:bg-slate-700 rounded-2xl">
+                    <Server className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-600 dark:text-slate-400 mb-2">
+                      Analysis Settings
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-500 max-w-[200px]">
+                      Validate your physical plan first to configure analysis settings
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {error && (

@@ -179,6 +179,7 @@ export interface ChatMessage {
 
 export enum AppState {
   IDLE = 'IDLE',
+  VALIDATING = 'VALIDATING',
   ANALYZING = 'ANALYZING',
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',

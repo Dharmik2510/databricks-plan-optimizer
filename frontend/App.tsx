@@ -64,6 +64,7 @@ import { usePredictionStore } from './store/usePredictionStore';
 import { useRepositoryStore } from './store/useRepositoryStore';
 import { useClusterStore } from './store/useClusterStore';
 import { useUIStore } from './store/useUIStore';
+import { useValidationStore } from './store/useValidationStore';
 
 // React Query
 import { queryClient } from './lib/queryClient';
@@ -116,6 +117,7 @@ function AppContent() {
   const goToNewAnalysis = () => {
     setAppState(AppState.IDLE);
     setActiveTab(ActiveTab.DASHBOARD);
+    useValidationStore.getState().reset();
   };
 
   const handleComputeClick = () => {

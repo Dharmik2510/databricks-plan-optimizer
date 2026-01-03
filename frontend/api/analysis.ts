@@ -50,6 +50,23 @@ export interface CreateAnalysisData {
   repoFiles?: any[];
 }
 
+export interface ValidationResult {
+  is_valid: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+  detected_engine: 'spark' | 'unknown';
+  detected_plan_type: 'physical' | 'logical' | 'unknown';
+  detected_issues: string[];
+  suggested_user_action: string;
+  stage_count?: number;
+  detected_operators?: string[];
+}
+
+export interface QuickValidationResult {
+  likely_valid: boolean;
+  hints: string[];
+}
+
 export const analysisApi = {
   create: async (data: CreateAnalysisData): Promise<Analysis> => {
     return apiClient.post<Analysis>('/analyses', data);
@@ -86,6 +103,21 @@ export const analysisApi = {
   delete: async (id: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete(`/analyses/${id}`);
   },
+
+  /**
+   * Validate a physical plan using AI
+   */
+  validatePlan: async (planText: string): Promise<ValidationResult> => {
+    return apiClient.post<ValidationResult>('/analyses/validate', { planText });
+  },
+
+  /**
+   * Quick heuristic validation (no AI, instant response)
+   */
+  quickValidate: async (planText: string): Promise<QuickValidationResult> => {
+    return apiClient.post<QuickValidationResult>('/analyses/validate/quick', { planText });
+  },
 };
 
 export default analysisApi;
+
