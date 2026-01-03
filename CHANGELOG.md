@@ -1,3 +1,10 @@
+# [1.40.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.39.0...v1.40.0) (2026-01-03)
+
+
+### Features
+
+* add GCP observability including logging, monitoring, tracing, and error reporting. ([95d0955](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/95d0955fa8c69c583a2ef2aabb846835723cb257))
+
 # [1.39.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.38.0...v1.39.0) (2026-01-03)
 
 
