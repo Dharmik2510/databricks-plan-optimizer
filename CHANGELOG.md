@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.31.0...v1.32.0) (2026-01-02)
+
+
+### Features
+
+* Introduce a revamped admin panel with dedicated sections for system health, user, feedback, analysis, and global settings management. ([afce3f3](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/afce3f3555bebe96d9ea4b5a20eaf2bf8dde8efe))
+
 # [1.31.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.30.0...v1.31.0) (2026-01-02)
 
 
