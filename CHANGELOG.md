@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.32.0...v1.33.0) (2026-01-03)
+
+
+### Features
+
+* Grant `iam.serviceAccountTokenCreator` role to the default compute service account for signing URLs/blobs. ([9ac80cc](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/9ac80ccf6fedabc903c66ae3dfa5f2ab3be287ce))
+
 # [1.32.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.31.0...v1.32.0) (2026-01-02)
 
 
