@@ -1,3 +1,10 @@
+# [1.44.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.43.0...v1.44.0) (2026-01-03)
+
+
+### Features
+
+* Implement node education module for DAG insights, add mobile theme toggle, and optimize onboarding UI for responsiveness. ([f0f22f0](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/f0f22f08742c0ec921d0dd48ead6353de44d5e76))
+
 # [1.43.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.42.0...v1.43.0) (2026-01-03)
 
 
