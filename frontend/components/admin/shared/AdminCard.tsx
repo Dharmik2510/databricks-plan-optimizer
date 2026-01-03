@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardProps } from '../../design-system/components';
-import { cn } from '../../design-system/utils';
+import { Card, CardProps } from '../../../design-system/components';
+import { cn } from '../../../design-system/utils';
 
 interface AdminCardProps extends CardProps {
     interactive?: boolean;

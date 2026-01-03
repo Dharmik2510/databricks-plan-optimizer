@@ -502,4 +502,242 @@ export class AdminService {
       },
     });
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FEEDBACK MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+
+  async getAllFeedback(params: {
+    page: number;
+    limit: number;
+    status?: string;
+    category?: string;
+  }) {
+    const { page, limit, status, category } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (category) where.category = category;
+
+    const [tickets, total] = await Promise.all([
+      this.prisma.userFeedback.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          ticketId: true,
+          title: true,
+          status: true,
+          severity: true,
+          category: true,
+          feature: true,
+          createdAt: true,
+          updatedAt: true,
+          resolvedAt: true,
+          _count: {
+            select: {
+              events: true,
+              attachments: true,
+            },
+          },
+        },
+      }),
+      this.prisma.userFeedback.count({ where }),
+    ]);
+
+    return {
+      tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getFeedbackStats() {
+    const [total, open, resolved, critical, inProgress, pending] = await Promise.all([
+      this.prisma.userFeedback.count(),
+      this.prisma.userFeedback.count({ where: { status: 'open' } }),
+      this.prisma.userFeedback.count({ where: { status: 'resolved' } }),
+      this.prisma.userFeedback.count({ where: { severity: 'critical' } }),
+      this.prisma.userFeedback.count({ where: { status: 'in_progress' } }),
+      this.prisma.userFeedback.count({ where: { status: 'pending' } }),
+    ]);
+
+    return {
+      total,
+      open,
+      resolved,
+      critical,
+      inProgress,
+      pending,
+    };
+  }
+
+  async getFeedbackDetail(ticketId: string) {
+    const ticket = await this.prisma.userFeedback.findUnique({
+      where: { id: ticketId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+          },
+        },
+        events: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                role: true,
+              },
+            },
+          },
+        },
+        attachments: {
+          orderBy: { uploadedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException(`Feedback ticket ${ticketId} not found`);
+    }
+
+    return ticket;
+  }
+
+  async updateFeedbackStatus(ticketId: string, status: string) {
+    const ticket = await this.prisma.userFeedback.findUnique({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException(`Feedback ticket ${ticketId} not found`);
+    }
+
+    const updatedTicket = await this.prisma.userFeedback.update({
+      where: { id: ticketId },
+      data: {
+        status,
+        ...(status === 'resolved' && { resolvedAt: new Date() }),
+      },
+    });
+
+    // Create a status change event
+    await this.prisma.feedbackEvent.create({
+      data: {
+        feedbackId: ticket.id,
+        eventType: 'STATUS_CHANGE',
+        content: `Status changed to ${status}`,
+        isInternal: false,
+      },
+    });
+
+    return updatedTicket;
+  }
+
+  async addFeedbackReply(
+    ticketId: string,
+    adminId: string,
+    content: string,
+    isInternal: boolean = false,
+  ) {
+    const ticket = await this.prisma.userFeedback.findUnique({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException(`Feedback ticket ${ticketId} not found`);
+    }
+
+    const event = await this.prisma.feedbackEvent.create({
+      data: {
+        feedbackId: ticket.id,
+        eventType: 'REPLY',
+        content,
+        isInternal,
+        authorId: adminId,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    // Update ticket's updatedAt timestamp
+    await this.prisma.userFeedback.update({
+      where: { id: ticketId },
+      data: { updatedAt: new Date() },
+    });
+
+    return event;
+  }
+
+  async assignFeedback(ticketId: string, adminId: string) {
+    const ticket = await this.prisma.userFeedback.findUnique({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException(`Feedback ticket ${ticketId} not found`);
+    }
+
+    const admin = await this.prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Admin user ${adminId} not found`);
+    }
+
+    const updatedTicket = await this.prisma.userFeedback.update({
+      where: { id: ticketId },
+      data: { assignedToId: adminId },
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    // Create an assignment event
+    await this.prisma.feedbackEvent.create({
+      data: {
+        feedbackId: ticket.id,
+        eventType: 'ASSIGNED',
+        content: `Assigned to ${admin.name}`,
+        isInternal: false,
+      },
+    });
+
+    return updatedTicket;
+  }
 }

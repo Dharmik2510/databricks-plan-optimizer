@@ -124,3 +124,37 @@ export const getFeedbackStats = async () => {
   const response = await apiClient.get('/admin/feedback/stats');
   return response;
 };
+
+export const getFeedbackDetail = async (ticketId: string) => {
+  const response = await apiClient.get(`/admin/feedback/${ticketId}`);
+  return response;
+};
+
+export const addFeedbackReply = async (ticketId: string, content: string, isInternal: boolean = false) => {
+  const response = await apiClient.post(`/admin/feedback/${ticketId}/reply`, { content, isInternal });
+  return response;
+};
+
+export const assignFeedback = async (ticketId: string, adminId: string) => {
+  const response = await apiClient.patch(`/admin/feedback/${ticketId}/assign`, { adminId });
+  return response;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+export const getGlobalSettings = async () => {
+  const response = await apiClient.get('/admin/settings');
+  return response;
+};
+
+export const updateGlobalSettings = async (settings: any) => {
+  const response = await apiClient.put('/admin/settings', settings);
+  return response;
+};
+
+export const resetSettingsToDefaults = async () => {
+  const response = await apiClient.post('/admin/settings/reset');
+  return response;
+};

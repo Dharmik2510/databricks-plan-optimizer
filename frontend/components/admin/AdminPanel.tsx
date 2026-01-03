@@ -30,23 +30,11 @@ const AdminPanel: React.FC = () => {
       case 'analyses':
         return <AnalysisManagement />;
       case 'health':
-        return (
-          <div className="flex items-center justify-center h-full text-slate-500">
-            System Health View (Coming Soon)
-          </div>
-        );
+        return <SystemHealth />;
       case 'feedback':
-        return (
-          <div className="flex items-center justify-center h-full text-slate-500">
-            Feedback & Reports View (Coming Soon)
-          </div>
-        );
+        return <FeedbackManagement />;
       case 'settings':
-        return (
-          <div className="flex items-center justify-center h-full text-slate-500">
-            Admin Settings (Coming Soon)
-          </div>
-        );
+        return <GlobalSettings />;
       default:
         return <AdminDashboard onNavigateToUsers={() => setActiveView('users')} onNavigateToAnalyses={() => setActiveView('analyses')} />;
     }

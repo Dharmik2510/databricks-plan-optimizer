@@ -109,6 +109,7 @@ export class LoggingInterceptor implements NestInterceptor {
     }
 
     try {
+      // Only include sessionId if it exists to avoid foreign key constraint errors
       await this.prisma.requestAudit.upsert({
         where: { requestId: ctx.requestId },
         update: {}, // Ignore duplicates (idempotent)
@@ -122,8 +123,9 @@ export class LoggingInterceptor implements NestInterceptor {
           statusCode,
           durationMs,
           userId: ctx.userId,
-          sessionId: ctx.sessionId,
           feature: ctx.feature || this.inferFeature(path),
+          // Only add sessionId if it's provided (to avoid FK constraint violations)
+          ...(ctx.sessionId && { sessionId: ctx.sessionId }),
           ...(error && {
             errorName: error.name,
             errorMessage: error.message,

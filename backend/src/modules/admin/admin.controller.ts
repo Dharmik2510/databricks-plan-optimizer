@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Body,
   Param,
   Query,
@@ -15,6 +16,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { AdminService } from './admin.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CurrentUser, CurrentUserData } from '../../common/decorators';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -121,5 +123,65 @@ export class AdminController {
   async getFailedAnalyses(@Query('limit') limit?: string) {
     const limitNum = limit ? parseInt(limit, 10) : 50;
     return this.adminService.getFailedAnalyses(limitNum);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FEEDBACK MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+
+  @Get('feedback')
+  async getAllFeedback(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('category') category?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+
+    return this.adminService.getAllFeedback({
+      page: pageNum,
+      limit: limitNum,
+      status,
+      category,
+    });
+  }
+
+  @Get('feedback/stats')
+  async getFeedbackStats() {
+    return this.adminService.getFeedbackStats();
+  }
+
+  @Get('feedback/:id')
+  async getFeedbackDetail(@Param('id') id: string) {
+    return this.adminService.getFeedbackDetail(id);
+  }
+
+  @Patch('feedback/:id/status')
+  @HttpCode(HttpStatus.OK)
+  async updateFeedbackStatus(
+    @Param('id') id: string,
+    @Body() body: { status: string },
+  ) {
+    return this.adminService.updateFeedbackStatus(id, body.status);
+  }
+
+  @Post('feedback/:id/reply')
+  @HttpCode(HttpStatus.CREATED)
+  async addFeedbackReply(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+    @Body() body: { content: string; isInternal?: boolean },
+  ) {
+    return this.adminService.addFeedbackReply(id, user.id, body.content, body.isInternal);
+  }
+
+  @Patch('feedback/:id/assign')
+  @HttpCode(HttpStatus.OK)
+  async assignFeedback(
+    @Param('id') id: string,
+    @Body() body: { adminId: string },
+  ) {
+    return this.adminService.assignFeedback(id, body.adminId);
   }
 }
