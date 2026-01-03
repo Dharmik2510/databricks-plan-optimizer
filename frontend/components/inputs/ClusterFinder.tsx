@@ -32,6 +32,7 @@ export const ClusterFinder: React.FC<Props> = ({
         maxMemory: null as number | null,
     });
     const [mounted, setMounted] = useState(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false); // Mobile filter toggle
 
     useEffect(() => {
         setMounted(true);
@@ -101,9 +102,17 @@ export const ClusterFinder: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 lg:gap-4">
+                        {/* Mobile Filter Toggle */}
+                        <button
+                            onClick={() => setShowMobileFilters(true)}
+                            className="lg:hidden p-2.5 bg-slate-100 dark:bg-white/5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                        >
+                            <Layers className="w-5 h-5" />
+                        </button>
+
                         {/* Search Bar */}
-                        <div className="relative w-72 group">
+                        <div className="relative w-full md:w-72 group">
                             <div className="hidden dark:block absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                             <input
@@ -127,22 +136,40 @@ export const ClusterFinder: React.FC<Props> = ({
 
                 {/* Content */}
                 <div className="relative z-10 flex flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950/30 transition-colors">
-                    {/* Sidebar Filters */}
-                    <ClusterFilters
-                        filters={filters}
-                        onFilterChange={setFilters}
-                        totalInstances={filteredInstances.length}
-                    />
+
+                    {/* Sidebar Filters - Responsive */}
+                    <div className={`
+                        flex-shrink-0 border-r border-slate-200 dark:border-white/5 transition-all duration-300
+                        lg:w-64 lg:relative lg:block
+                        ${showMobileFilters ? 'absolute inset-0 z-30 w-full bg-white dark:bg-slate-900' : 'hidden'}
+                    `}>
+                        {/* Mobile Header for Filters */}
+                        <div className="lg:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/5">
+                            <h3 className="font-bold text-slate-900 dark:text-white">Filters</h3>
+                            <button onClick={() => setShowMobileFilters(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg">
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        <ClusterFilters
+                            filters={filters}
+                            onFilterChange={setFilters}
+                            totalInstances={filteredInstances.length}
+                        />
+                    </div>
 
                     {/* Main Grid */}
-                    <InstanceGrid
-                        instances={filteredInstances}
-                        onSelect={(inst) => {
-                            onSelect(inst);
-                            onClose();
-                        }}
-                        loading={loading}
-                    />
+                    <div className="flex-1 w-full relative">
+                        {/* Mobile Filter Toggle Overlay Button (if we wanted floating, but better in header) */}
+                        <InstanceGrid
+                            instances={filteredInstances}
+                            onSelect={(inst) => {
+                                onSelect(inst);
+                                onClose();
+                            }}
+                            loading={loading}
+                        />
+                    </div>
                 </div>
 
                 {/* Footer */}

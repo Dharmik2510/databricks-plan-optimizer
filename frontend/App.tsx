@@ -21,7 +21,9 @@ import {
   Moon,
   Sun,
   Ticket,
+  Menu,
 } from 'lucide-react';
+import { Drawer } from './design-system/components/Drawer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './ThemeContext';
 import { useAuth } from './store/AuthContext';
@@ -107,6 +109,13 @@ function AppContent() {
   // Fetch cloud data globally
   useCloudRegions(cloudProvider);
   useCloudInstances(clusterContext.region, cloudProvider);
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  // Close mobile menu when changing tabs
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [activeTab]);
 
   const resetApp = () => {
     resetAnalysis();
@@ -232,9 +241,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen font-sans flex flex-col overflow-hidden text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-orange-500/30 transition-colors duration-300">
-      <Header onLogoClick={() => setActiveTab(ActiveTab.HOME)} prediction={prediction} />
-      <div className="flex flex-1 overflow-hidden">
-        {activeTab !== ActiveTab.ADMIN && (
+      <Header
+        onLogoClick={() => setActiveTab(ActiveTab.HOME)}
+        prediction={prediction}
+        onMenuClick={() => setIsMobileMenuOpen(true)}
+      />
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile Drawer */}
+        <Drawer isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}>
           <Sidebar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -244,10 +258,26 @@ function AppContent() {
             onGuideClick={() => setShowUserGuide(true)}
             onComputeClick={handleComputeClick}
             user={user}
+            isMobile={true}
           />
+        </Drawer>
+
+        {activeTab !== ActiveTab.ADMIN && (
+          <div className="hidden lg:flex flex-col h-[calc(100vh-64px)] z-20">
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              appState={appState}
+              resetApp={resetApp}
+              goToNewAnalysis={goToNewAnalysis}
+              onGuideClick={() => setShowUserGuide(true)}
+              onComputeClick={handleComputeClick}
+              user={user}
+            />
+          </div>
         )}
-        <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950">
-          <div className="max-w-[1600px] mx-auto p-8 h-full">
+        <main className="flex-1 overflow-auto h-[calc(100vh-64px)] relative scroll-smooth bg-slate-50 dark:bg-slate-950 w-full">
+          <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8 h-full">
             <Suspense fallback={<LoadingScreen />}>
               {activeTab === ActiveTab.HOME && <HomeRoute />}
               {activeTab === ActiveTab.DASHBOARD && <DashboardRoute />}
@@ -386,19 +416,27 @@ const App = () => (
 const Header = ({
   onLogoClick,
   prediction,
+  onMenuClick,
 }: {
   onLogoClick: () => void;
   prediction: PerformancePrediction | null;
+  onMenuClick?: () => void;
 }) => {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-6 shadow-xl z-30 flex-shrink-0 relative">
+    <header className="h-16 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between px-4 lg:px-6 shadow-xl z-30 flex-shrink-0 relative">
       <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] animate-gradient-x bg-[length:200%_auto]"></div>
-      <div className="flex items-center gap-8 relative z-10">
+      <div className="flex items-center gap-3 lg:gap-8 relative z-10">
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2 -ml-2 text-slate-400 hover:text-white transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
         <button
           onClick={onLogoClick}
-          className="font-bold text-lg flex items-center gap-3 text-white group cursor-pointer select-none bg-transparent border-none outline-none"
+          className="font-bold text-lg flex items-center gap-2 lg:gap-3 text-white group cursor-pointer select-none bg-transparent border-none outline-none"
         >
           <div className="relative">
             <div className="absolute inset-0 bg-orange-500 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
@@ -422,13 +460,13 @@ const Header = ({
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg shadow-sm backdrop-blur-sm">
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg shadow-sm backdrop-blur-sm">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
           <span className="text-xs font-bold text-indigo-300">AI Engine Ready</span>
         </div>
 
         {prediction?.aiAgentStatus && (
-          <div className="flex items-center gap-3 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md border border-indigo-400/30 animate-fade-in group hover:shadow-lg transition-all cursor-default">
+          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md border border-indigo-400/30 animate-fade-in group hover:shadow-lg transition-all cursor-default">
             <div className="flex items-center gap-2">
               <BrainCircuit className="w-4 h-4 text-white animate-pulse" />
               <div className="flex flex-col leading-none">
@@ -459,6 +497,7 @@ const Sidebar = ({
   onGuideClick,
   onComputeClick,
   user,
+  isMobile,
 }: any) => {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
@@ -469,8 +508,8 @@ const Sidebar = ({
   }, [isAdmin, setActiveTab, activeTab]);
 
   return (
-    <aside className="w-[240px] bg-slate-900 flex flex-col border-r border-slate-800 z-20">
-      <div className="p-4">
+    <aside className={`w-full lg:w-[240px] h-full bg-slate-900 flex flex-col border-r border-slate-800 z-20 ${isMobile ? '' : 'hidden lg:flex'}`}>
+      <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
         {!isAdmin && (
           <button
             onClick={goToNewAnalysis}
@@ -560,7 +599,7 @@ const Sidebar = ({
           )}
         </div>
       </div>
-      <div className="mt-auto p-4 border-t border-slate-800 space-y-2">
+      <div className="mt-auto p-3 border-t border-slate-800 space-y-1">
         {!isAdmin && appState === AppState.SUCCESS && (
           <Button
             onClick={resetApp}
@@ -595,7 +634,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, 'data-tour': dataTour
   <button
     data-tour={dataTour}
     onClick={onClick}
-    className="w-full relative group p-[1px] rounded-lg overflow-hidden transition-all duration-300 mb-1 focus:outline-none"
+    className="w-full relative group p-[1px] rounded-lg overflow-hidden transition-all duration-300 mb-0.5 focus:outline-none"
   >
     <span
       className={`absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 transition-opacity duration-300 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'

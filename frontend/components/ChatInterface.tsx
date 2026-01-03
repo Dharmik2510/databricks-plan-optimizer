@@ -86,7 +86,7 @@ export const ChatInterface: React.FC<Props> = ({ analysisResult }) => {
   }
 
   return (
-    <div className="flex flex-col h-[650px] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in relative">
+    <div className="flex flex-col h-[calc(100vh-180px)] lg:h-[650px] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in relative">
 
       {/* Header */}
       <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">

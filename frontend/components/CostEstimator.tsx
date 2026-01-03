@@ -111,10 +111,10 @@ export const CostEstimator: React.FC<Props> = ({
   }
 
   return (
-    <div className="relative w-full max-w-6xl mx-auto pb-20">
-      {/* Background Decorators */}
-      <div className="absolute -top-20 -left-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute top-40 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[96px] pointer-events-none" />
+    <div className="relative w-full max-w-6xl mx-auto pb-20 px-4 md:px-0">
+      {/* Background Decorators - Hidden on mobile to prevent overflow/distraction */}
+      <div className="hidden lg:block absolute -top-20 -left-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-[128px] pointer-events-none" />
+      <div className="hidden lg:block absolute top-40 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[96px] pointer-events-none" />
 
       <div className="relative z-10 space-y-8 animate-fade-in-up">
         {/* Header */}
@@ -137,12 +137,12 @@ export const CostEstimator: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 md:gap-8">
 
           {/* Configuration Panel - Glassmorphism */}
           <div className="xl:col-span-8 relative group">
             <div className="absolute inset-0 bg-gradient-to-b from-slate-200/50 to-white/20 dark:from-white/5 dark:to-transparent rounded-[2.5rem] pointer-events-none" />
-            <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-8 lg:p-10 shadow-xl dark:shadow-2xl relative overflow-hidden transition-colors">
+            <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 lg:p-10 shadow-xl dark:shadow-2xl relative overflow-hidden transition-colors">
 
               {/* Subtle Grid Pattern */}
               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none mix-blend-overlay"></div>
@@ -279,7 +279,7 @@ export const CostEstimator: React.FC<Props> = ({
                 {/* Frequency - Custom Selector */}
                 <div className="space-y-4 md:col-span-2">
                   <label className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-1 transition-colors">Execution Schedule</label>
-                  <div className="grid grid-cols-4 gap-3 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5 transition-colors">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5 transition-colors">
                     {FREQUENCIES.map((f) => {
                       const isSelected = frequency === f.value;
                       return (

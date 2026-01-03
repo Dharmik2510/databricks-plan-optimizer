@@ -9,6 +9,7 @@ import { useTheme } from '../../ThemeContext';
 import { DagNode, DagLink, OptimizationTip } from '../../../shared/types';
 import { ZoomIn, ZoomOut, Maximize, RefreshCw, Minimize, X, FileCode2 } from 'lucide-react';
 import { useDagLayout } from '../../hooks/useDagLayout';
+import { NodeDetailsSidebar, SelectedNode } from './NodeDetailsSidebar';
 
 interface DAGCanvasProps {
     nodes: DagNode[];
@@ -49,10 +50,57 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
         if (onToggleExpand) onToggleExpand(val);
         else setInternalExpanded(val);
     };
-
     const handleSetSelectedNode = (id: string | null) => {
         if (onSelectNode) onSelectNode(id);
         else setInternalSelectedNodeId(id);
+
+        // Auto-open sidebar on selection
+        if (id) setSidebarOpen(true);
+    };
+
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const mapToSidebarNode = (node: any): SelectedNode => {
+        if (!node) return null as any; // Should not happen if called with valid node
+
+        // Construct metrics from known properties if direct metrics map is missing
+        const metrics: Record<string, string | number> = node.metrics || {};
+
+        if (Object.keys(metrics).length === 0) {
+            if (node.rowsProcessed !== undefined) metrics['Rows Processed'] = node.rowsProcessed >= 1e6 ? `${(node.rowsProcessed / 1e6).toFixed(1)}M` : node.rowsProcessed;
+            if (node.partitions !== undefined) metrics['Partitions'] = node.partitions;
+            if (node.sizeOut !== undefined) metrics['Output Size'] = node.sizeOut;
+            if (node.estimatedCost !== undefined) metrics['Est. Cost'] = node.estimatedCost;
+        }
+
+        // Map evidence from various potential sources
+        let evidence = node.evidence || [];
+        // Fallback for agent mapping node structure if not strict evidence array
+        if (evidence.length === 0 && node.mapping && node.mapping.codeSnippet) {
+            // We don't want to fabricate evidence, but if codeSnippet is present essentially as evidence
+            // we can include it if it implies reasoning. 
+            // However, strictly following "evidence objects with text + file" logic:
+            // If node.reasoning is present, we treat that as summary, not evidence snippets.
+        }
+
+        return {
+            id: node.id,
+            label: node.name || node.label || node.id,
+            operatorType: node.type || null,
+            confidence: typeof node.confidence === 'number' ? node.confidence : null,
+            evidence: Array.isArray(evidence) ? evidence : [],
+            metrics: metrics,
+            stageInfo: node.stageInfo || null,
+            reasoningNotes: node.reasoningNotes || node.reasoning || null
+        };
+    };
+
+    // Helper for copy
+    const handleCopyDetails = (text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            // Could show toast here, for now console
+            console.log("Details copied to clipboard");
+        });
     };
 
     // D3 Zoom Behavior setup
@@ -162,6 +210,14 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
             ${isExpanded ? 'w-full h-full rounded-none border-0' : 'w-full h-[800px]'}
         `}>
             {expandedHeader}
+
+            {sidebarOpen && (
+                <NodeDetailsSidebar
+                    selectedNode={selectedNodeId ? mapToSidebarNode(layout.nodes.find(n => n.id === selectedNodeId)) : null}
+                    onClose={() => setSidebarOpen(false)}
+                    onCopyDetails={handleCopyDetails}
+                />
+            )}
 
             {/* Background Grid */}
             <div

@@ -60,6 +60,9 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     const [job, setJob] = useState<AgentJob | null>(null);
     const [urlError, setUrlError] = useState<string>('');
 
+    // Mobile Tab State for Workspace
+    const [activeMobileTab, setActiveMobileTab] = useState<'plan' | 'code'>('plan');
+
     // Branch selection state
     const [availableBranches, setAvailableBranches] = useState<string[]>([]);
     const [isLoadingBranches, setIsLoadingBranches] = useState(false);
@@ -300,7 +303,7 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
 
     // Case 4: Input / Configuration (With Plan Context)
     return (
-        <div className="h-full p-8 bg-slate-50 dark:bg-slate-900 overflow-y-auto">
+        <div className="h-full p-4 md:p-8 bg-slate-50 dark:bg-slate-900 overflow-y-auto">
             <div className="max-w-3xl mx-auto">
                 {/* Helper Banner for Active Job */}
                 {storeJobId && ['initializing', 'running', 'paused'].includes(storeStatus) && (
@@ -342,9 +345,9 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                     {/* Main Content (2/3) */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="xl:col-span-2 space-y-6">
                         {/* Plan Context Banner */}
                         <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-xl flex items-center gap-3">
                             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg text-indigo-600 dark:text-indigo-400">
@@ -392,7 +395,7 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 block">Branch</label>
                                         <div className="relative">

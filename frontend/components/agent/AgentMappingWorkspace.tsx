@@ -22,7 +22,15 @@ interface AgentMappingWorkspaceProps {
     onBack: () => void;
 }
 
+type Tab = 'nodes' | 'details' | 'timeline';
+
 export const AgentMappingWorkspace: React.FC<AgentMappingWorkspaceProps> = ({ onBack }) => {
+    // Mobile Tab State
+    const [activeTab, setActiveTab] = React.useState<Tab>('nodes');
+
+
+
+
     // Use individual selectors to prevent infinite render loop
     const jobId = useAgentMappingStore(state => state.jobId);
     const repoConfig = useAgentMappingStore(state => state.repoConfig);
@@ -72,21 +80,58 @@ export const AgentMappingWorkspace: React.FC<AgentMappingWorkspaceProps> = ({ on
                 <AgentControls />
             </header>
 
-            {/* 3-Column Layout */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* LEFT:  DAG Nodes List (320px) */}
-                <div className="w-80 flex-shrink-0">
+            {/* 3-Column Layout (Desktop) / Tabbed (Mobile) */}
+            <div className="flex-1 flex overflow-hidden relative">
+                {/* LEFT:  DAG Nodes List (320px on Desktop, Full on Mobile if active) */}
+                <div className={`
+                    w-full lg:w-80 flex-shrink-0 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800
+                    ${activeTab === 'nodes' ? 'block' : 'hidden lg:block'}
+                `}>
                     <DAGNodesList />
                 </div>
 
-                {/* CENTER: Node Details (flex-1) */}
-                <div className="flex-1 min-w-0 bg-white dark:bg-slate-900">
+                {/* CENTER: Node Details (flex-1 on Desktop, Full on Mobile if active) */}
+                <div className={`
+                    flex-1 min-w-0 bg-white dark:bg-slate-900
+                    ${activeTab === 'details' ? 'block' : 'hidden lg:block'}
+                `}>
                     <MappingReasoningPanel node={selectedNode} />
                 </div>
 
-                {/* RIGHT: Timeline (400px) */}
-                <div className="w-96 flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">
+                {/* RIGHT: Timeline (400px on Desktop, Full on Mobile if active) */}
+                <div className={`
+                    w-full lg:w-96 flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800
+                    ${activeTab === 'timeline' ? 'block' : 'hidden lg:block'}
+                `}>
                     <AgentTimeline />
+                </div>
+            </div>
+
+            {/* Mobile Bottom Navigation */}
+            <div className="lg:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 safe-area-bottom">
+                <div className="flex justify-around items-center h-16">
+                    <button
+                        onClick={() => setActiveTab('nodes')}
+                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'nodes' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        <Activity className="w-5 h-5" />
+                        <span className="text-[10px] font-bold uppercase tracking-wide">Nodes</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('details')}
+                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'details' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        <Activity className="w-5 h-5" />
+                        {/* Note: In a real app I'd use a different icon like FileText, but keeping imports minimal for now unless I add more */}
+                        <span className="text-[10px] font-bold uppercase tracking-wide">Details</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('timeline')}
+                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'timeline' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        <Activity className="w-5 h-5" />
+                        <span className="text-[10px] font-bold uppercase tracking-wide">Timeline</span>
+                    </button>
                 </div>
             </div>
         </div>
