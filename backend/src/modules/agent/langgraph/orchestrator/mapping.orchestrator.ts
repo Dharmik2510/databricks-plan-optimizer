@@ -83,13 +83,39 @@ export class MappingOrchestrator {
 
   constructor() {
     // Compile graph once at startup with Supabase checkpointer
-    this.graphInitialized = this.initializeGraph();
+    // CRITICAL: Handle potential rejection to avoid UnhandledPromiseRejection causing crash
+    this.graphInitialized = this.initializeGraph().catch(err => {
+      this.logger.error('❌ Failed to initialize graph in constructor', err);
+      // We don't rethrow here to prevent app crash. 
+      // executeJob will re-check graphInitialized or we can retry.
+    });
   }
 
   private async initializeGraph() {
-    this.logger.log('Initializing LangGraph with Supabase checkpointer...');
-    this.graph = await compileGraphWithSupabase();
-    this.logger.log('MappingOrchestrator initialized with Supabase checkpointer');
+    const maxRetries = 5;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        this.logger.log('Initializing LangGraph with Supabase checkpointer...');
+        this.graph = await compileGraphWithSupabase();
+        this.logger.log('✅ MappingOrchestrator initialized with Supabase checkpointer');
+        return;
+      } catch (error) {
+        retryCount++;
+        this.logger.error(`❌ Graph initialization failed (Attempt ${retryCount}/${maxRetries}): ${error.message}`);
+
+        if (retryCount >= maxRetries) {
+          this.logger.error('CRITICAL: Graph initialization failed after retries. Mapping jobs will fail.');
+          throw error; // Re-throw to be caught by the constructor .catch()
+        }
+
+        // Exponential backoff
+        const delay = Math.pow(2, retryCount - 1) * 1000;
+        this.logger.log(`Retrying graph init in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
   /**

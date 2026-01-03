@@ -24,17 +24,33 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    try {
-      await this.$connect();
-      this.logger.log('✅ Database connected');
+    const maxRetries = 5;
+    let retryCount = 0;
 
-      // Add user isolation middleware
-      this.setupUserIsolationMiddleware();
-    } catch (error) {
-      this.logger.error(`❌ Database connection failed: ${error.message}`);
-      this.logger.error('DATABASE_URL is set:', !!process.env.DATABASE_URL);
-      // Don't throw - let the app start and fail on first DB operation
-      // This allows health checks to work and provides better error messages
+    while (retryCount < maxRetries) {
+      try {
+        await this.$connect();
+        this.logger.log('✅ Database connected successfully');
+
+        // Add user isolation middleware
+        this.setupUserIsolationMiddleware();
+        return;
+      } catch (error) {
+        retryCount++;
+        this.logger.error(`❌ Database connection failed (Attempt ${retryCount}/${maxRetries}): ${error.message}`);
+
+        if (retryCount >= maxRetries) {
+          this.logger.error('CRITICAL: All database connection attempts failed');
+          // Don't throw - let the app start but log critical failure. 
+          // Readiness probes should handle this.
+          break;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s, 8s...
+        const delay = Math.pow(2, retryCount - 1) * 1000;
+        this.logger.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
   }
 
