@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.35.0...v1.36.0) (2026-01-03)
+
+
+### Features
+
+* Implement retry mechanisms with exponential backoff for database and graph initialization, and catch graph init promise rejections. ([d914fd0](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/d914fd0b7fc0304194e408c815a26842d2f0fb23))
+
 # [1.35.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.34.0...v1.35.0) (2026-01-03)
 
 
