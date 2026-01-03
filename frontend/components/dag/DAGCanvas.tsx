@@ -60,6 +60,29 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    /**
+     * Compute upstream/downstream labels for a node (max 3 each)
+     */
+    const getNeighborLabels = (nodeId: string): { upstreamLabels: string[], downstreamLabels: string[] } => {
+        const nodeMap = new Map(layout.nodes.map(n => [n.id, n]));
+
+        // Get parent IDs and map to labels
+        const parentIds = layout.parentsMap.get(nodeId) || [];
+        const upstreamLabels = parentIds
+            .slice(0, 3)
+            .map(id => nodeMap.get(id)?.name || id)
+            .filter(Boolean) as string[];
+
+        // Get child IDs and map to labels
+        const childIds = layout.childrenMap.get(nodeId) || [];
+        const downstreamLabels = childIds
+            .slice(0, 3)
+            .map(id => nodeMap.get(id)?.name || id)
+            .filter(Boolean) as string[];
+
+        return { upstreamLabels, downstreamLabels };
+    };
+
     const mapToSidebarNode = (node: any): SelectedNode => {
         if (!node) return null as any; // Should not happen if called with valid node
 
@@ -83,6 +106,9 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
             // If node.reasoning is present, we treat that as summary, not evidence snippets.
         }
 
+        // Compute upstream and downstream neighbors
+        const { upstreamLabels, downstreamLabels } = getNeighborLabels(node.id);
+
         return {
             id: node.id,
             label: node.name || node.label || node.id,
@@ -91,7 +117,9 @@ export const DAGCanvas: React.FC<DAGCanvasProps> = ({
             evidence: Array.isArray(evidence) ? evidence : [],
             metrics: metrics,
             stageInfo: node.stageInfo || null,
-            reasoningNotes: node.reasoningNotes || node.reasoning || null
+            reasoningNotes: node.reasoningNotes || node.reasoning || null,
+            upstreamLabels,
+            downstreamLabels
         };
     };
 

@@ -393,6 +393,8 @@ function AppContent() {
             shortcuts={shortcuts}
           />
         </Suspense>
+        {/* Mobile Theme Toggle - Floating Button */}
+        <MobileThemeToggle />
         {/* Feedback Floating Button & Modal */}
         <FeedbackButton />
         <FeedbackModal />
@@ -400,6 +402,21 @@ function AppContent() {
     </div>
   );
 }
+
+// Mobile Floating Theme Toggle
+const MobileThemeToggle = () => {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="md:hidden fixed bottom-24 right-4 z-50 p-3 rounded-full bg-slate-800 dark:bg-slate-700 text-slate-300 dark:text-slate-200 shadow-lg border border-slate-700 dark:border-slate-600 hover:bg-slate-700 dark:hover:bg-slate-600 transition-all"
+      title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+    >
+      {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+    </button>
+  );
+};
 
 const App = () => (
   <ErrorBoundary>
@@ -454,7 +471,7 @@ const Header = ({
       <div className="flex items-center gap-5 relative z-10">
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700"
+          className="hidden md:block p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700"
           title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

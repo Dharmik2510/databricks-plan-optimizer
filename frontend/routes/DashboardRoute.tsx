@@ -558,24 +558,22 @@ const AnalysisConfigPanel: React.FC<any> = ({
 };
 
 const ExecutiveSummary: React.FC<{ summary: string }> = ({ summary }) => (
-  <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 relative overflow-hidden transition-colors">
-    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-    <div className="flex items-start gap-6 relative z-10">
-      <div className="p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl border border-orange-100 dark:border-orange-800 hidden sm:block shadow-sm">
-        <Activity className="w-8 h-8" />
+  <section className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 md:p-8 relative overflow-hidden transition-colors">
+    <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-orange-500"></div>
+    <div className="flex items-start gap-3 md:gap-6 relative z-10">
+      <div className="p-3 md:p-4 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-xl md:rounded-2xl border border-orange-100 dark:border-orange-800 hidden sm:block shadow-sm">
+        <Activity className="w-6 h-6 md:w-8 md:h-8" />
       </div>
-      <div className="flex-1">
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-4">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Executive Summary
-            </h3>
-          </div>
-          <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2 md:mb-3">
+          <h3 className="text-lg md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Executive Summary
+          </h3>
+          <span className="self-start px-2 md:px-3 py-0.5 md:py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-700 dark:text-orange-400 text-[10px] md:text-xs font-bold uppercase rounded-full tracking-wide shadow-sm">
             AI Generated
           </span>
         </div>
-        <p className="text-slate-800 dark:text-slate-300 leading-relaxed text-lg font-medium">{summary}</p>
+        <p className="text-slate-800 dark:text-slate-300 leading-relaxed text-sm md:text-lg font-medium">{summary}</p>
       </div>
     </div>
   </section>

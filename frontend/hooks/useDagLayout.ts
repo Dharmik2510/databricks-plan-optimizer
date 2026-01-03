@@ -29,6 +29,9 @@ interface LayoutResult {
     height: number;
     maxLevel: number;
     bottleneckCount: number;
+    // Neighbor maps for upstream/downstream computation
+    parentsMap: Map<string, string[]>;   // nodeId -> parent nodeIds
+    childrenMap: Map<string, string[]>;  // nodeId -> child nodeIds
 }
 
 export const useDagLayout = (
@@ -203,7 +206,9 @@ export const useDagLayout = (
             width: (maxLevel + 1) * (STAGE_WIDTH + STAGE_GAP) + 100,
             height: Math.max(800, maxNodesInStage * NODE_VERTICAL_SPACING + 200),
             maxLevel,
-            bottleneckCount: calculatedNodes.filter(n => n.isBottleneck).length
+            bottleneckCount: calculatedNodes.filter(n => n.isBottleneck).length,
+            parentsMap,
+            childrenMap: adjacency
         };
 
     }, [rawNodes, rawLinks, optimizations]);

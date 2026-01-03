@@ -214,6 +214,7 @@ export class LoggingInterceptor implements NestInterceptor {
     if (path.includes('/mapping')) return 'mapping';
     if (path.includes('/repo') || path.includes('/repository')) return 'repo';
     if (path.includes('/chat')) return 'chat';
+    if (path.includes('/education')) return 'education';
     if (path.includes('/admin')) return 'admin';
     if (path.includes('/user')) return 'user';
     if (path.includes('/health') || path.includes('/metrics')) return 'health';

@@ -69,7 +69,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-4 max-w-sm w-full pointer-events-none">
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 z-[100] flex flex-col gap-3 md:gap-4 md:max-w-sm md:w-full pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
       ))}

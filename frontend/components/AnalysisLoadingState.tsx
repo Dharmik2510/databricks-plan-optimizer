@@ -53,34 +53,33 @@ const AnalysisLoadingState: React.FC<AnalysisLoadingStateProps> = ({
   const progressPercentage = Math.min((elapsedTime / estimatedTime) * 100, 95);
 
   return (
-    <div className="flex items-center justify-center min-h-[600px] p-8 relative overflow-hidden bg-slate-50 dark:bg-transparent">
+    <div className="flex items-center justify-center min-h-[400px] md:min-h-[600px] p-4 md:p-8 relative overflow-hidden bg-slate-50 dark:bg-transparent">
       {/* Background Ambient Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 dark:bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="relative max-w-2xl w-full bg-white dark:bg-[#0B1120] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500">
+      <div className="relative max-w-2xl w-full bg-white dark:bg-[#0B1120] rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500">
 
         {/* Glowing Top Border */}
         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-orange-500 via-purple-500 to-blue-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
 
-        <div className="p-10 space-y-10 relative z-10">
+        <div className="p-5 md:p-10 space-y-6 md:space-y-10 relative z-10">
 
-          {/* Header */}
           <div className="flex flex-col items-center text-center">
-            <div className="relative mb-8">
+            <div className="relative mb-4 md:mb-8">
               {/* Ripple Effect */}
               <div className="absolute inset-0 rounded-full border border-indigo-500/30 dark:border-indigo-500/30 animate-[ping_2s_ease-out_infinite]"></div>
               <div className="absolute inset-0 rounded-full border border-violet-500/20 dark:border-violet-500/20 animate-[ping_3s_ease-out_infinite_delay-700ms]"></div>
 
-              <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-xl relative z-10">
+              <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-xl relative z-10">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500/10 dark:from-indigo-500/20 to-violet-500/10 dark:to-violet-500/20 animate-spin-slow"></div>
-                <Loader2 className="w-8 h-8 text-indigo-500 dark:text-indigo-400 animate-spin" />
+                <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-indigo-500 dark:text-indigo-400 animate-spin" />
               </div>
             </div>
 
-            <h3 className="text-3xl font-bold text-slate-900 dark:text-white dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-white dark:via-slate-200 dark:to-slate-400 mb-3 tracking-tight">
+            <h3 className="text-xl md:text-3xl font-bold text-slate-900 dark:text-white dark:bg-clip-text dark:text-transparent dark:bg-gradient-to-r dark:from-white dark:via-slate-200 dark:to-slate-400 mb-2 md:mb-3 tracking-tight">
               Analyzing Your Query
             </h3>
-            <p className="text-slate-500 dark:text-slate-400 text-lg max-w-lg leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 text-sm md:text-lg max-w-lg leading-relaxed">
               Our AI is reviewing your query plan and generating optimization recommendations...
             </p>
           </div>
@@ -106,7 +105,7 @@ const AnalysisLoadingState: React.FC<AnalysisLoadingStateProps> = ({
           </div>
 
           {/* Step-by-step Progress */}
-          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md">
+          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl md:rounded-2xl p-4 md:p-6 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md">
             <div className="space-y-4">
               {progressSteps.map((step, idx) => (
                 <StepItem key={idx} step={step} />
@@ -115,8 +114,8 @@ const AnalysisLoadingState: React.FC<AnalysisLoadingStateProps> = ({
           </div>
 
           {/* Tips */}
-          <div className="pt-6 border-t border-slate-200 dark:border-white/5 text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-500 flex items-center justify-center gap-2 animate-pulse">
+          <div className="pt-4 md:pt-6 border-t border-slate-200 dark:border-white/5 text-center">
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-500 flex items-center justify-center gap-2 animate-pulse">
               <Sparkles className="w-4 h-4 text-amber-500" />
               Tip: Larger query plans may take up to 30 seconds to analyze thoroughly
             </p>
@@ -149,8 +148,8 @@ const StepItem = ({ step }: { step: AnalysisStep }) => {
       </div>
       <div className="flex-1 flex justify-between items-center">
         <span className={`text-sm font-medium ${step.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' :
-            step.status === 'current' ? 'text-slate-900 dark:text-white' :
-              'text-slate-400 dark:text-slate-500'
+          step.status === 'current' ? 'text-slate-900 dark:text-white' :
+            'text-slate-400 dark:text-slate-500'
           }`}>
           {step.label}
         </span>
