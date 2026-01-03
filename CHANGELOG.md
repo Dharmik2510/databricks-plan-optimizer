@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.41.0...v1.42.0) (2026-01-03)
+
+
+### Features
+
+* Add plan validation feature with new backend endpoints, DTOs, and frontend UI components. ([ff76367](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/ff76367682d48e7dc7ec841aa6168ebcaddac04a))
+
 # [1.41.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.40.0...v1.41.0) (2026-01-03)
 
 
