@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.34.0...v1.35.0) (2026-01-03)
+
+
+### Features
+
+* Add ChromaDB service initialization logging, improve application bootstrap error handling, and extend Cloud Run deployment timeout. ([5c57a7a](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/5c57a7a95d456da5c94e6dab0b8400030ab8b7eb))
+
 # [1.34.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.33.0...v1.34.0) (2026-01-03)
 
 
