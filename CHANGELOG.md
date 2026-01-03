@@ -1,3 +1,10 @@
+# [1.39.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.38.0...v1.39.0) (2026-01-03)
+
+
+### Features
+
+* implement feedback ticket deletion functionality across backend and frontend. ([a969a75](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/a969a7578630cf23507825aef9c7f28a0ab69bf0))
+
 # [1.38.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.37.0...v1.38.0) (2026-01-03)
 
 
