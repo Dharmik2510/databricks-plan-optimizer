@@ -18,6 +18,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 
 // Observability imports
 import { LoggingModule } from './common/logging/logging.module';
+import { MonitoringModule } from './common/monitoring/monitoring.module'; // Phase 5
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -45,6 +46,7 @@ import { AppLoggerService } from './common/logging/app-logger.service';
 
     // Core modules
     LoggingModule, // Observability: Global logging
+    MonitoringModule, // Phase 5: Cloud Monitoring, Tracing, Custom Metrics
     PrismaModule,
     HealthModule,
 

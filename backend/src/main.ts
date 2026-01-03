@@ -1,4 +1,9 @@
 // CRITICAL: Import tracing FIRST, before any other code
+// Phase 5: OpenTelemetry Cloud Trace integration
+import { initializeTracing } from './common/monitoring/tracing.config';
+initializeTracing();
+
+// Legacy tracing (Sentry-specific)
 import { initTracing } from './tracing';
 initTracing();
 
@@ -11,6 +16,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import * as fetch from 'node-fetch';
 import { AppLoggerService } from './common/logging/app-logger.service';
+import { ErrorReportingFilter } from './common/filters/error-reporting.filter';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { TracingInterceptor } from './common/interceptors/tracing.interceptor';
 import { json, urlencoded } from 'express';
@@ -45,6 +51,9 @@ async function bootstrap() {
   // Get our custom logger
   const logger = app.get(AppLoggerService);
   app.useLogger(logger);
+
+  // Phase 5: Apply global error reporting filter
+  app.useGlobalFilters(new ErrorReportingFilter(logger));
 
   const configService = app.get(ConfigService);
 

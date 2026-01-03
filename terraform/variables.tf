@@ -78,3 +78,16 @@ variable "feedback_bucket_name" {
   type        = string
   default     = "brickoptima-feedback-screenshots"
 }
+
+# Observability variables
+variable "environment" {
+  description = "Environment name (development, staging, production)"
+  type        = string
+  default     = "production"
+}
+
+variable "alert_email" {
+  description = "Email address for monitoring alerts"
+  type        = string
+  default     = "brickoptima@gmail.com"
+}

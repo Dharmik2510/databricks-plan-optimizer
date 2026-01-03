@@ -1,9 +1,21 @@
-project_id     = "your-project-id"
-region         = "us-central1"
-database_url   = "postgresql://user:password@host:5432/db"
-jwt_secret     = "your-jwt-secret"
-gemini_api_key = "your-gemini-api-key"
-smtp_pass      = "your-smtp-password"
-smtp_user      = "brickoptima@gmail.com"
-frontend_url   = "https://your-frontend-url.run.app"
-sentry_dsn     = "https://your-sentry-dsn@o0.ingest.sentry.io/0"
+# GCP Project Configuration
+project_id = "gen-lang-client-0997977661"
+region     = "us-central1"
+
+# Environment
+environment = "production"
+
+# Observability Configuration
+alert_email = "brickoptima@gmail.com"
+
+# Required Secrets (set these securely)
+database_url    = "postgresql://..."
+jwt_secret      = "your-jwt-secret"
+gemini_api_key  = "your-gemini-key"
+smtp_pass       = "your-smtp-password"
+smtp_user       = "brickoptima@gmail.com"
+sentry_dsn      = "your-sentry-dsn"
+frontend_url    = "https://brickoptima-frontend-abc123.run.app"
+openai_api_key  = "your-openai-key"
+chroma_api_key  = "your-chroma-key"
+google_client_id = "your-google-client-id"

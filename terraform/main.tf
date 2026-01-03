@@ -291,3 +291,43 @@ resource "google_service_account_iam_member" "cloud_run_token_creator" {
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
+
+# ============================================================================
+# OBSERVABILITY IAM PERMISSIONS
+# Grant Cloud Run service account permissions for observability services
+# ============================================================================
+
+# BigQuery Admin - for querying and managing observability logs
+resource "google_project_iam_member" "cloud_run_bigquery_admin" {
+  project = var.project_id
+  role    = "roles/bigquery.admin"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Logging Admin - for writing structured logs and managing log configuration
+resource "google_project_iam_member" "cloud_run_logging_admin" {
+  project = var.project_id
+  role    = "roles/logging.admin"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Monitoring Metric Writer - for exporting custom metrics
+resource "google_project_iam_member" "cloud_run_monitoring_metric_writer" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Cloud Trace Agent - for writing distributed traces
+resource "google_project_iam_member" "cloud_run_trace_agent" {
+  project = var.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Error Reporting Writer - for reporting errors to Cloud Error Reporting
+resource "google_project_iam_member" "cloud_run_error_reporting_writer" {
+  project = var.project_id
+  role    = "roles/errorreporting.writer"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
