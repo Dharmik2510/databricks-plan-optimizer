@@ -1,3 +1,10 @@
+# [1.38.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.37.0...v1.38.0) (2026-01-03)
+
+
+### Features
+
+* Enhance admin feedback API with debug information and configure Nginx to disable index.html caching and support Google Auth popups. ([2f67df7](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2f67df766e52270fbea4c4bb791ab88a0bfc85f2))
+
 # [1.37.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.36.0...v1.37.0) (2026-01-03)
 
 
