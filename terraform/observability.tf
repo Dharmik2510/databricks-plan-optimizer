@@ -374,6 +374,61 @@ resource "google_monitoring_notification_channel" "email_alerts" {
 # }
 
 # ============================================================================
+# CUSTOM METRIC DESCRIPTORS
+# ============================================================================
+
+resource "google_monitoring_metric_descriptor" "workflow_failures" {
+  description = "Rate of workflow failures"
+  display_name = "Workflow Failure Rate"
+  type = "custom.googleapis.com/brickoptima/workflow_failures"
+  metric_kind = "GAUGE"
+  value_type = "DOUBLE"
+  unit = "1"
+  
+  labels {
+    key = "project_id"
+    value_type = "STRING"
+    description = "GCP Project ID"
+  }
+
+  depends_on = [google_project_service.monitoring]
+}
+
+resource "google_monitoring_metric_descriptor" "critical_tickets_unassigned" {
+  description = "Count of unassigned critical feedback tickets"
+  display_name = "Unassigned Critical Tickets"
+  type = "custom.googleapis.com/brickoptima/critical_tickets_unassigned"
+  metric_kind = "GAUGE"
+  value_type = "INT64"
+  unit = "1"
+
+  labels {
+    key = "project_id"
+    value_type = "STRING"
+    description = "GCP Project ID"
+  }
+
+  depends_on = [google_project_service.monitoring]
+}
+
+resource "google_monitoring_metric_descriptor" "db_connection_count" {
+  description = "Number of active database connections"
+  display_name = "DB Connection Count"
+  type = "custom.googleapis.com/brickoptima/db_connection_count"
+  metric_kind = "GAUGE"
+  value_type = "INT64"
+  unit = "1"
+
+  labels {
+    key = "project_id"
+    value_type = "STRING"
+    description = "GCP Project ID"
+  }
+
+  depends_on = [google_project_service.monitoring]
+}
+
+# ============================================================================
 # CLOUD MONITORING: ALERT POLICIES
 # ============================================================================
 
@@ -451,8 +506,8 @@ resource "google_monitoring_alert_policy" "workflow_failure_rate" {
 
     condition_threshold {
       filter = <<-EOT
-        resource.type = "cloud_run_revision"
-        AND metric.type = "logging.googleapis.com/user/workflow_failures"
+        metric.type = "custom.googleapis.com/brickoptima/workflow_failures"
+        AND resource.type = "global"
       EOT
 
       duration   = "300s"
@@ -462,7 +517,7 @@ resource "google_monitoring_alert_policy" "workflow_failure_rate" {
 
       aggregations {
         alignment_period     = "60s"
-        per_series_aligner   = "ALIGN_RATE"
+        per_series_aligner   = "ALIGN_MEAN"
         cross_series_reducer = "REDUCE_MEAN"
       }
     }
@@ -472,9 +527,6 @@ resource "google_monitoring_alert_policy" "workflow_failure_rate" {
 
   alert_strategy {
     auto_close = "86400s"
-    notification_rate_limit {
-      period = "3600s"
-    }
   }
 
   documentation {
@@ -504,7 +556,10 @@ resource "google_monitoring_alert_policy" "workflow_failure_rate" {
   }
 
   enabled    = true
-  depends_on = [google_project_service.monitoring]
+  depends_on = [
+    google_project_service.monitoring,
+    google_monitoring_metric_descriptor.workflow_failures
+  ]
 }
 
 # Alert 3: Unassigned Critical Feedback Tickets
@@ -517,8 +572,8 @@ resource "google_monitoring_alert_policy" "critical_tickets_unassigned" {
 
     condition_threshold {
       filter = <<-EOT
-        resource.type = "cloud_run_revision"
-        AND metric.type = "logging.googleapis.com/user/critical_tickets_unassigned"
+        metric.type = "custom.googleapis.com/brickoptima/critical_tickets_unassigned"
+        AND resource.type = "global"
       EOT
 
       duration   = "60s"
@@ -565,7 +620,10 @@ resource "google_monitoring_alert_policy" "critical_tickets_unassigned" {
   }
 
   enabled    = true
-  depends_on = [google_project_service.monitoring]
+  depends_on = [
+    google_project_service.monitoring,
+    google_monitoring_metric_descriptor.critical_tickets_unassigned
+  ]
 }
 
 # Alert 4: High Memory Usage
@@ -600,9 +658,6 @@ resource "google_monitoring_alert_policy" "high_memory_usage" {
 
   alert_strategy {
     auto_close = "86400s"
-    notification_rate_limit {
-      period = "3600s"
-    }
   }
 
   documentation {
@@ -638,8 +693,8 @@ resource "google_monitoring_alert_policy" "high_db_connections" {
 
     condition_threshold {
       filter = <<-EOT
-        resource.type = "cloud_run_revision"
-        AND metric.type = "logging.googleapis.com/user/db_connection_count"
+        metric.type = "custom.googleapis.com/brickoptima/db_connection_count"
+        AND resource.type = "global"
       EOT
 
       duration   = "180s"
@@ -658,9 +713,6 @@ resource "google_monitoring_alert_policy" "high_db_connections" {
 
   alert_strategy {
     auto_close = "86400s"
-    notification_rate_limit {
-      period = "3600s"
-    }
   }
 
   documentation {
@@ -679,7 +731,10 @@ resource "google_monitoring_alert_policy" "high_db_connections" {
   }
 
   enabled    = true
-  depends_on = [google_project_service.monitoring]
+  depends_on = [
+    google_project_service.monitoring,
+    google_monitoring_metric_descriptor.db_connection_count
+  ]
 }
 
 # ============================================================================
