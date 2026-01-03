@@ -1,7 +1,7 @@
 {
   "name": "brickoptima---databricks-dag-analyzer",
   "private": true,
-  "version": "1.40.0",
+  "version": "1.41.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

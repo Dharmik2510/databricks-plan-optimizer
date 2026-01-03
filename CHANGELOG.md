@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.40.0...v1.41.0) (2026-01-03)
+
+
+### Features
+
+* Add custom metric descriptors and update alert policies to use them, adjusting alert filters and removing rate limits. ([b29e80a](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/b29e80ad594ae163c1d88f039ae4f62fd41cd448))
+
 # [1.40.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.39.0...v1.40.0) (2026-01-03)
 
 
