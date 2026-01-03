@@ -1,3 +1,10 @@
+# [1.37.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.36.0...v1.37.0) (2026-01-03)
+
+
+### Features
+
+* Implement detailed feedback ticket view in admin panel and refine request audit logging. ([2832e37](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2832e37ceacd1bb5e7007f19b0a5b127ad240d1a))
+
 # [1.36.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.35.0...v1.36.0) (2026-01-03)
 
 
