@@ -5,7 +5,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ═══════════════════════════════════════════════════════════════
   // ANALYTICS & METRICS
@@ -520,6 +520,8 @@ export class AdminService {
     if (status) where.status = status;
     if (category) where.category = category;
 
+    console.log(`[AdminService] Fetching feedback with params:`, { page, limit, status, category, where });
+
     const [tickets, total] = await Promise.all([
       this.prisma.userFeedback.findMany({
         where,
@@ -556,6 +558,7 @@ export class AdminService {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      _debug: { fetchedCount: tickets.length, totalCount: total }
     };
   }
 
