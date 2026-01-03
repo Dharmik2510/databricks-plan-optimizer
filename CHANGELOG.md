@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.42.0...v1.43.0) (2026-01-03)
+
+
+### Features
+
+* Introduce a DAG node details sidebar with Spark operator education and a new Drawer component. ([104cfa9](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/104cfa9b40c45bd7ee85d25b61203d24314a41a9))
+
 # [1.42.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.41.0...v1.42.0) (2026-01-03)
 
 
