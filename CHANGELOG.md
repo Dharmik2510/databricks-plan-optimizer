@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.33.0...v1.34.0) (2026-01-03)
+
+
+### Features
+
+* Add environment variables for request audit sampling rate and OpenTelemetry enablement. ([56d0076](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/56d0076a55d73e7af4d538ee7dc75f817da16c49))
+
 # [1.33.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.32.0...v1.33.0) (2026-01-03)
 
 
