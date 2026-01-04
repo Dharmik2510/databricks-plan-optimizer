@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.46.1...v1.47.0) (2026-01-04)
+
+
+### Features
+
+* Implement Databricks Runtime version fetching and caching, including a new Prisma model and API endpoint. ([21fab71](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/21fab71d156b0414af38f3bd7cc6adc4b57f277b))
+
 ## [1.46.1](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.46.0...v1.46.1) (2026-01-04)
 
 
