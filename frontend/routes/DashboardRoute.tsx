@@ -18,8 +18,7 @@ import {
 import { ClusterFinder } from '../components/inputs/ClusterFinder';
 import { EnhancedDagVisualizer } from '../components/EnhancedDagVisualizer';
 import { OptimizationPanel } from '../components/optimizations/OptimizationPanel';
-import { PredictivePanel } from '../components/PredictivePanel';
-import { OptimizationPlayground } from '../components/OptimizationPlayground';
+// TIER 0: PredictivePanel removed - relies on fabricated predictions
 import AnalysisLoadingState from '../components/AnalysisLoadingState';
 import { PlanValidationFlow } from '../components/validation';
 import { client } from '../api';
@@ -52,8 +51,8 @@ export const DashboardRoute: React.FC = () => {
     setInputMode,
   } = useAnalysisStore();
 
-  // Prediction Store
-  const { prediction, setPrediction } = usePredictionStore();
+  // TIER 0: Prediction store removed - no fabricated predictions
+  // const { prediction, setPrediction } = usePredictionStore();
 
   // Repository Store
   const {
@@ -116,7 +115,7 @@ export const DashboardRoute: React.FC = () => {
     }
     setAppState(AppState.ANALYZING);
     setError(null);
-    setPrediction(null);
+    // TIER 0: setPrediction removed - no fabricated predictions
     addToast({ type: 'info', title: 'Analysis Started', description: 'Starting analysis...' });
     try {
       // Auto-fetch repo if URL provided but files not loaded
@@ -173,12 +172,7 @@ export const DashboardRoute: React.FC = () => {
         clusterContext
       );
       setResult(data);
-      try {
-        const pred = client.predictAtScale(data, 100);
-        setPrediction(pred);
-      } catch (predError) {
-        console.warn('Predictive analysis failed:', predError);
-      }
+      // TIER 0: Removed prediction calculation - no fabricated time/cost estimates
       setAppState(AppState.SUCCESS);
       setActiveTab(ActiveTab.DASHBOARD);
       addToast({
@@ -224,10 +218,8 @@ export const DashboardRoute: React.FC = () => {
     });
   };
 
+  // TIER 0: Simplified enrichOptimizations - no cost estimation from fabricated time savings
   const enrichOptimizations = (optimizations: any[]) => {
-    const currentInstance = availableInstances.find((i) => i.id === clusterContext.clusterType);
-    const pricePerHour = currentInstance?.pricePerHour || 0.5;
-
     return optimizations.map((opt) => {
       let relatedCodeSnippets = opt.relatedCodeSnippets || [];
 
@@ -248,10 +240,7 @@ export const DashboardRoute: React.FC = () => {
         });
       }
 
-      if (opt.estimated_time_saved_seconds) {
-        const costSaved = (opt.estimated_time_saved_seconds / 3600) * pricePerHour;
-        return { ...opt, estimated_cost_saved_usd: costSaved, relatedCodeSnippets };
-      }
+      // TIER 0: Do not calculate cost from time - return as-is
       return { ...opt, relatedCodeSnippets };
     });
   };
@@ -353,15 +342,7 @@ export const DashboardRoute: React.FC = () => {
               }, 100);
             }}
           />
-          {prediction && (
-            <>
-              <PredictivePanel prediction={prediction} />
-              <OptimizationPlayground
-                optimizations={result.optimizations}
-                baselineDuration={result.estimatedDurationMin || 15}
-              />
-            </>
-          )}
+          {/* TIER 0: PredictivePanel and OptimizationPlayground removed - rely on fabricated predictions */}
         </div>
       )}
     </>

@@ -5,6 +5,9 @@ export enum Severity {
   LOW = 'Low',
 }
 
+// Qualitative impact levels for Tier 0 accuracy (no fabricated numbers)
+export type ImpactLevel = 'Very High' | 'High' | 'Medium' | 'Low';
+
 export interface DagNode {
   id: string;
   name: string;
@@ -56,11 +59,23 @@ export interface OptimizationTip {
   description: string;
   codeSuggestion?: string;
   originalPattern?: string;
-  estimated_time_saved_seconds?: number;
-  estimated_cost_saved_usd?: number;
+
+  // Qualitative Impact (Tier 0 - no fabricated numbers)
+  impactLevel?: ImpactLevel;
+  impactReasoning?: string; // 1-2 sentences explaining why this matters
+  evidenceBasis?: string[]; // e.g., ["shuffle detected", "broadcast join avoided"]
+
+  // Keep: structural analysis
   confidence_score?: number; // 0-100
   implementation_complexity?: 'Low' | 'Medium' | 'High';
   affected_stages?: string[];
+
+  // DEPRECATED (Tier 0): These fields are no longer populated
+  // Will be removed in future version. Use impactLevel instead.
+  /** @deprecated Use impactLevel instead - no longer populated */
+  estimated_time_saved_seconds?: number;
+  /** @deprecated Use impactLevel instead - no longer populated */
+  estimated_cost_saved_usd?: number;
 
   // Enhanced Code Mapping
   relatedCodeSnippets?: EnhancedCodeSnippet[]; // Multiple code locations
@@ -113,8 +128,8 @@ export interface CodeSmell {
 // --- New Advanced Features Types ---
 
 export interface ClusterRecommendation {
-  current: { nodes: number; type: string; costPerHour: number };
-  recommended: { nodes: number; type: string; costPerHour: number };
+  current: { nodes: number; type: string; costPerHour?: number };
+  recommended: { nodes: number; type: string; costPerHour?: number };
   reasoning: string;
   expectedImprovement: string;
 }

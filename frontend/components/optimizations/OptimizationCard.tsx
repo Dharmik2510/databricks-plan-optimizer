@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle, ExternalLink, X, FileCode } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle, ExternalLink, X, FileCode, Lightbulb } from 'lucide-react';
 import { OptimizationTip, Severity } from '../../../shared/types';
 import { SeverityBadge } from './SeverityBadge';
-import { ImpactMetrics } from './ImpactMetrics';
+import { ImpactBadge } from './ImpactBadge';
 import { CodeDiff } from './CodeDiff';
 import { ConfidenceMeter } from './ConfidenceMeter';
 import { useToast } from '../../hooks/useToast';
@@ -25,7 +25,7 @@ export const OptimizationCard: React.FC<OptimizationCardProps> = ({
     onDismiss,
     onViewInDag
 }) => {
-    const { title, description, severity, estimated_time_saved_seconds, estimated_cost_saved_usd, codeSuggestion, confidence_score } = optimization;
+    const { title, description, severity, impactLevel, impactReasoning, evidenceBasis, codeSuggestion, confidence_score } = optimization;
     const { success } = useToast();
     const [isHovered, setIsHovered] = useState(false);
 
@@ -64,11 +64,7 @@ export const OptimizationCard: React.FC<OptimizationCardProps> = ({
                             {title}
                         </span>
                         <div className="ml-auto flex items-center gap-4">
-                            <ImpactMetrics
-                                timeSaved={estimated_time_saved_seconds ? estimated_time_saved_seconds / 60 : undefined}
-                                costSaved={estimated_cost_saved_usd}
-                                compact
-                            />
+                            <ImpactBadge level={impactLevel} compact />
                             {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                         </div>
                     </div>
@@ -86,15 +82,25 @@ export const OptimizationCard: React.FC<OptimizationCardProps> = ({
                     {/* Metadata Row */}
                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                         <ConfidenceMeter score={confidence_score || 0} />
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-400 uppercase">Tags:</span>
-                            <div className="flex gap-1">
-                                {/* Mock badges for tags */}
-                                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 rounded">SQL</span>
-                                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 rounded">Performance</span>
+                        {evidenceBasis && evidenceBasis.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase">Evidence:</span>
+                                <div className="flex gap-1 flex-wrap">
+                                    {evidenceBasis.slice(0, 2).map((e, i) => (
+                                        <span key={i} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 rounded">{e}</span>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
+
+                    {/* Impact Reasoning */}
+                    {impactReasoning && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">{impactReasoning}</p>
+                        </div>
+                    )}
 
                     {/* Code Suggestion */}
                     {codeSuggestion && (

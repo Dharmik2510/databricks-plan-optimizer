@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Expanded Interface matching shared/types.ts structure
+// Tier 0: Qualitative impact only - no fabricated numeric estimates
+export type ImpactLevel = 'Very High' | 'High' | 'Medium' | 'Low';
+
 export interface AnalysisResult {
   summary: string;
   dagNodes: Array<{
@@ -26,12 +29,20 @@ export interface AnalysisResult {
     description: string;
     codeSuggestion?: string;
     originalPattern?: string;
-    estimated_time_saved_seconds?: number;
-    estimated_cost_saved_usd?: number;
+
+    // Qualitative Impact (Tier 0)
+    impactLevel?: ImpactLevel;
+    impactReasoning?: string;
+    evidenceBasis?: string[];
+
     confidence_score?: number;
     implementation_complexity?: 'Low' | 'Medium' | 'High';
     affected_stages?: string[];
     enabledInPlayground?: boolean;
+
+    // DEPRECATED: No longer populated in Tier 0
+    estimated_time_saved_seconds?: number;
+    estimated_cost_saved_usd?: number;
   }>;
   codeMappings?: Array<{
     filePath: string;
@@ -39,16 +50,19 @@ export interface AnalysisResult {
     code: string;
     relevanceExplanation: string;
   }>;
+
+  // DEPRECATED: No longer populated in Tier 0
   estimatedDurationMin?: number;
 
-  // --- Advanced Features ---
+  // Cluster Recommendations (qualitative reasoning, no cost numbers)
   clusterRecommendation?: {
-    current: { nodes: number; type: string; costPerHour: number };
-    recommended: { nodes: number; type: string; costPerHour: number };
+    current: { nodes: number; type: string; costPerHour?: number };
+    recommended: { nodes: number; type: string; costPerHour?: number };
     reasoning: string;
     expectedImprovement: string;
   };
 
+  // DEPRECATED: These rely on fabricated predictions
   whatIfScenarios?: Array<{
     scenario: string;
     timeReduction: string;
@@ -111,103 +125,75 @@ export class GeminiService {
     }
 
     const systemPrompt = `You are a Principal Data Engineer and Databricks Performance Architect.
-Analyze the provided Spark Physical Plan or SQL Explain output to find performance issues and specific optimization opportunities.
+Analyze the provided Spark Physical Plan or SQL Explain output to find performance issues and optimization opportunities.
 
-Your analysis MUST be returned as a **VALID JSON OBJECT**. Do not include markdown code blocks (like \`\`\`json).
+**CRITICAL CONSTRAINTS - TIER 0 ACCURACY:**
+- You MUST NOT generate any numeric time or cost estimates.
+- You MUST NOT estimate seconds, minutes, hours, dollars, or specific percentages of improvement.
+- You MUST NOT fabricate execution times, cost savings, or prediction numbers.
+- Focus ONLY on qualitative impact based on observable plan structure.
+
+Your analysis MUST be returned as a **VALID JSON OBJECT**. Do not include markdown code blocks.
 
 The JSON structure must match this TypeScript interface exactly:
 
 \`\`\`typescript
 interface AnalysisResult {
-  summary: string; // Executive summary (2-3 sentences)
+  summary: string; // Executive summary (2-3 sentences) - NO time/cost numbers
   
   // DAG Visualization Data
   dagNodes: { id: string; name: string; type: string; metric?: string }[];
   dagLinks: { source: string; target: string }[];
   
-  // Resource Estimations
+  // Resource Impact (relative indicators only)
   resourceMetrics: { stageId: string; cpuPercentage: number; memoryMb: number }[];
   
-  // Optimization Tips
+  // Optimization Tips - QUALITATIVE ONLY
   optimizations: {
     title: string;
     severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-    description: string;
+    description: string; // Explain the issue clearly - NO fabricated numbers
     codeSuggestion?: string;
     originalPattern?: string;
-    estimated_time_saved_seconds?: number;
-    estimated_cost_saved_usd?: number;
-    confidence_score?: number; // 0-100
-    implementation_complexity?: 'Low' | 'Medium' | 'High';
+    
+    // REQUIRED: Qualitative Impact Assessment
+    impactLevel: "Very High" | "High" | "Medium" | "Low";
+    impactReasoning: string; // 1-2 sentences: WHY this matters for performance
+    evidenceBasis: string[]; // What in the plan proves this? e.g., ["BroadcastNestedLoopJoin detected", "No join condition specified"]
+    
+    confidence_score: number; // 0-100: How confident are you this is a real issue?
+    implementation_complexity: "Low" | "Medium" | "High";
     affected_stages?: string[]; // IDs of dagNodes
-    enabledInPlayground?: boolean; // Set true if this is suitable for logical "what-if" testing
   }[];
   
-  estimatedDurationMin?: number;
-
-  // Cluster Sizing Recommendations
+  // Cluster Recommendations (qualitative reasoning only)
   clusterRecommendation?: {
-    current: { nodes: number; type: string; costPerHour: number }; // Infer current if possible, otherwise guess standard
-    recommended: { nodes: number; type: string; costPerHour: number };
-    reasoning: string;
-    expectedImprovement: string;
-  };
-
-  // What-If Analysis Scenarios
-  whatIfScenarios?: {
-    scenario: string; // e.g., "Switch to Broadcast Join" or "Scale up Cluster"
-    timeReduction: string; // e.g. "40%"
-    costSavings: string; // e.g. "$15/run"
-    complexity: string; // e.g. "Low"
-    implementation: string; // Short description
-  }[];
-
-  // Predictive Scalability Analysis
-  performancePrediction?: {
-    baselineExecutionTime: number; // Seconds
-    predictedExecutionTime: number; // Seconds (after optimizations)
-    
-    // Impact of data growing
-    dataScaleImpact: {
-      dataSize: "1x" | "10x" | "100x";
-      currentTime: number; // Predicted seconds at this scale (unoptimized)
-      optimizedTime: number; // Predicted seconds at this scale (optimized)
-      breakingPoint?: string; // e.g. "OOM expected at 50x"
-    }[];
-    
-    // Bottleneck evolution
-    bottleneckProgression: {
-      stage: string;
-      currentImpact: number; // % of total time
-      at10xScale: number; // % of total time
-      at100xScale: number; // % of total time
-      recommendation: string;
-    }[];
-  };
-
-  // Historical Trends (SIMULATED based on typical patterns for similar workloads)
-  historicalTrend?: {
-    dates: string[]; // Last 5-7 executions, e.g. "2023-10-01"
-    executionTimes: number[];
-    costs: number[];
-    optimizationsApplied: string[];
-    roi: number; // %
+    current: { nodes: number; type: string }; // NO costPerHour
+    recommended: { nodes: number; type: string }; // NO costPerHour
+    reasoning: string; // WHY this change helps
+    expectedImprovement: string; // e.g., "Better parallelism for shuffle-heavy workloads" - NOT "40% faster"
   };
 }
 \`\`\`
 
-**Focus on:**
-1. Cartesian Products (BroadcastNestedLoopJoin)
-2. Shuffle Storms (Exchange hashpartitioning)
-3. Spill to Disk / Memory Pressure
-4. Scan Inefficiency (missing filters, Z-Ordering)
-5. Skew (partition data imbalance)
+**Impact Level Guidelines:**
+- **Very High**: Will cause job failure, OOM, or severe performance degradation (e.g., Cartesian product without join condition)
+- **High**: Significant bottleneck affecting majority of query execution (e.g., large shuffles, data skew)
+- **Medium**: Noticeable inefficiency worth addressing (e.g., suboptimal join order, missing filter pushdown)
+- **Low**: Minor improvement opportunity (e.g., partition count tuning)
+
+**Focus on detecting:**
+1. Cartesian Products (BroadcastNestedLoopJoin without condition) - Very High impact
+2. Shuffle Storms (Exchange hashpartitioning with high partition counts) - High impact
+3. Spill to Disk / Memory Pressure indicators - High impact
+4. Scan Inefficiency (missing filters, no partition pruning) - Medium impact
+5. Data Skew (uneven partition sizes) - Medium to High impact
 
 **IMPORTANT:**
-- **Ensure the DAG is FULLY CONNECTED.** Source nodes (Scan, FileScan, etc.) MUST be linked to their subsequent operation. Do not leave any orphaned nodes.
-- If you cannot determine exact numbers, provide reasonable **estimates** based on typical Spark behavior for the observed plan structure.
-- For "historicalTrend", since this is a stateless analysis, **SIMULATE** a plausible history for a job with these characteristics (e.g. slowly degrading performance over time due to data growth).
-- Populate "performancePrediction" by extrapolating the current bottlenecks.
+- Ensure the DAG is FULLY CONNECTED. No orphaned nodes.
+- Every optimization MUST have impactLevel, impactReasoning, and evidenceBasis populated.
+- Do NOT include whatIfScenarios, performancePrediction, historicalTrend, or estimatedDurationMin.
+- Never use phrases like "saves X seconds", "reduces by Y%", or "costs $Z less".
 `;
 
     const prompt = `Analyze this Spark execution plan:\n\n${content}`;
@@ -216,7 +202,7 @@ interface AnalysisResult {
       const result = await this.model.generateContent({
         contents: [
           { role: 'user', parts: [{ text: systemPrompt }] },
-          { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and return the explicit JSON structure requested, including predictive and advanced metrics.' }] },
+          { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and provide qualitative impact assessments only. No fabricated time or cost estimates.' }] },
           { role: 'user', parts: [{ text: prompt }] },
         ],
         generationConfig: {
@@ -248,7 +234,10 @@ interface AnalysisResult {
       // Sometimes the LLM fails to link the source scan to the next stage. We fix this locally.
       const repaired = this.repairDagConnectivity(parsed);
 
-      return repaired;
+      // TIER 0: Sanitize any numeric fields that might have slipped through
+      const sanitized = this.sanitizeNumericFields(repaired);
+
+      return sanitized;
     } catch (error) {
       this.logger.error('Gemini analysis failed:', error);
       throw error;
@@ -383,5 +372,58 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
       this.logger.error('Error in DAG repair:', e);
       return result; // Fail safe, return original
     }
+  }
+
+  /**
+   * TIER 0 ACCURACY: Sanitize any numeric cost/time fields that might have slipped through.
+   * This ensures no fabricated estimates are returned even if the LLM ignores constraints.
+   */
+  private sanitizeNumericFields(result: AnalysisResult): AnalysisResult {
+    return {
+      ...result,
+      // Remove top-level numeric fields
+      estimatedDurationMin: undefined,
+      performancePrediction: undefined,
+      whatIfScenarios: undefined,
+      historicalTrend: undefined,
+
+      // Sanitize optimizations
+      optimizations: result.optimizations.map(opt => ({
+        ...opt,
+        // Strip numeric estimates
+        estimated_time_saved_seconds: undefined,
+        estimated_cost_saved_usd: undefined,
+        // Ensure qualitative fields have fallbacks
+        impactLevel: opt.impactLevel || this.inferImpactLevel(opt.severity),
+        impactReasoning: opt.impactReasoning || opt.description,
+        evidenceBasis: opt.evidenceBasis || [],
+      })),
+
+      // Sanitize cluster recommendation (remove cost fields)
+      clusterRecommendation: result.clusterRecommendation ? {
+        ...result.clusterRecommendation,
+        current: {
+          nodes: result.clusterRecommendation.current.nodes,
+          type: result.clusterRecommendation.current.type,
+          costPerHour: undefined,
+        },
+        recommended: {
+          nodes: result.clusterRecommendation.recommended.nodes,
+          type: result.clusterRecommendation.recommended.type,
+          costPerHour: undefined,
+        },
+      } : undefined,
+    };
+  }
+
+  /**
+   * Infer impact level from severity as a fallback
+   */
+  private inferImpactLevel(severity: string): ImpactLevel {
+    const s = severity?.toUpperCase();
+    if (s === 'CRITICAL') return 'Very High';
+    if (s === 'HIGH') return 'High';
+    if (s === 'MEDIUM') return 'Medium';
+    return 'Low';
   }
 }

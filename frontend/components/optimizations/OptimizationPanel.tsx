@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { Filter, SortAsc, Sparkles, SlidersHorizontal } from 'lucide-react';
-import { OptimizationTip, Severity } from '../../../shared/types';
+import { OptimizationTip, Severity, ImpactLevel } from '../../../shared/types';
 import { OptimizationCard } from './OptimizationCard';
+import { AnalysisDisclaimer } from '../AnalysisDisclaimer';
 import { useToast } from '../../hooks/useToast';
 
 interface OptimizationPanelProps {
@@ -49,7 +50,9 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({ optimizati
                 return (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0);
             }
             if (sortBy === 'impact') {
-                return (b.estimated_cost_saved_usd || 0) - (a.estimated_cost_saved_usd || 0);
+                // Sort by impact level (Very High > High > Medium > Low)
+                const impactWeight: Record<ImpactLevel, number> = { 'Very High': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
+                return (impactWeight[b.impactLevel || 'Low'] || 0) - (impactWeight[a.impactLevel || 'Low'] || 0);
             }
             if (sortBy === 'confidence') {
                 return (b.confidence_score || 0) - (a.confidence_score || 0);
@@ -61,10 +64,13 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({ optimizati
     }, [normalizedOptimizations, filter, sortBy]);
 
     const stats = useMemo(() => {
+        const highImpact = normalizedOptimizations.filter(o =>
+            o.impactLevel === 'Very High' || o.impactLevel === 'High' || o.severity === Severity.HIGH
+        ).length;
         return {
             total: normalizedOptimizations.length,
             critical: normalizedOptimizations.filter(o => o.severity === Severity.HIGH).length,
-            savings: normalizedOptimizations.reduce((acc, curr) => acc + (curr.estimated_cost_saved_usd || 0), 0)
+            highImpact,
         };
     }, [normalizedOptimizations]);
 
@@ -93,10 +99,13 @@ export const OptimizationPanel: React.FC<OptimizationPanelProps> = ({ optimizati
                         </span>
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Potential savings: <span className="font-bold text-emerald-600 dark:text-emerald-400">${stats.savings.toFixed(2)}</span> per run
+                        <span className="font-bold text-red-600 dark:text-red-400">{stats.highImpact}</span> high-impact issues detected
                     </p>
                 </div>
             </div>
+
+            {/* Disclaimer */}
+            <AnalysisDisclaimer />
 
             {/* Filter Bar */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
