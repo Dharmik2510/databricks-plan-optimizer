@@ -519,3 +519,14 @@ model FeedbackEvent {
   @@index([eventType])
   @@map("feedback_events")
 }
+
+model DbrVersionCache {
+  id        String   @id @default(cuid())
+  cloud     String   // e.g. "aws"
+  versions  Json     // The parsed list of versions
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+  
+  @@unique([cloud])
+  @@map("dbr_version_cache")
+}

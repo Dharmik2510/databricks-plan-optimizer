@@ -16,6 +16,7 @@ import { AgentModule } from './modules/agent/agent.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { EducationModule } from './modules/education/education.module';
+import { DbrModule } from './modules/dbr/dbr.module';
 
 // Observability imports
 import { LoggingModule } from './common/logging/logging.module';
@@ -62,6 +63,7 @@ import { AppLoggerService } from './common/logging/app-logger.service';
     AdminModule,
     FeedbackModule,
     EducationModule,
+    DbrModule,
 
     // Integration modules
     GeminiModule,

@@ -36,6 +36,13 @@ import { useValidationStore } from '../store/useValidationStore'; // Restored
 import { EventLogUploadModal } from '../components/modals/EventLogUploadModal';
 import { AnalysisShowcase } from '../components/AnalysisShowcase';
 
+interface DbrVersion {
+  majorMinor: string;
+  displayLabel: string;
+  isLts: boolean;
+  releaseDate: string | null;
+  eolDate: string | null;
+}
 
 export const DashboardRoute: React.FC = () => {
   const { theme } = useTheme();
@@ -401,8 +408,8 @@ export const DashboardRoute: React.FC = () => {
               <button
                 onClick={() => setIsUploadModalOpen(true)}
                 className={`px-5 py-2.5 font-bold rounded-xl shadow-sm transition-colors whitespace-nowrap ${uploadStatus === 'error' ? 'bg-white text-red-600 hover:bg-red-50' :
-                    uploadStatus === 'success' ? 'bg-white text-emerald-600 hover:bg-emerald-50' :
-                      'bg-white text-indigo-600 hover:bg-indigo-50'
+                  uploadStatus === 'success' ? 'bg-white text-emerald-600 hover:bg-emerald-50' :
+                    'bg-white text-indigo-600 hover:bg-indigo-50'
                   }`}
               >
                 {uploadStatus === 'error' ? 'Retry Upload' : uploadStatus === 'success' ? 'Upload New Log' : 'Upload Log'}
@@ -485,6 +492,40 @@ const AnalysisConfigPanel: React.FC<any> = ({
 
   // Find current instance object for display
   const currentInstance = availableInstances.find(i => i.id === clusterContext.clusterType);
+
+  // DBR Version Logic
+  const [dbrVersions, setDbrVersions] = React.useState<DbrVersion[]>([]);
+  const [loadingDbr, setLoadingDbr] = React.useState(true);
+  const [errorDbr, setErrorDbr] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const fetchVersions = async () => {
+      try {
+        setLoadingDbr(true);
+        const data = await client.get('/runtime-versions?cloud=aws') as any;
+        if (mounted) {
+          // Expecting { versions: [...] }
+          const fetchedVersions = data.versions || [];
+          setDbrVersions(fetchedVersions);
+          if (fetchedVersions.length > 0 && !clusterContext.dbrVersion) {
+            // Default to first available or logic for "Latest"
+            setClusterContext(prev => ({ ...prev, dbrVersion: fetchedVersions[0].majorMinor }));
+          }
+          setErrorDbr(null);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch DBR versions', err);
+        if (mounted) {
+          setErrorDbr(err.message || 'Unknown error');
+        }
+      } finally {
+        if (mounted) setLoadingDbr(false);
+      }
+    };
+    fetchVersions();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 flex flex-col h-full transition-colors">
@@ -609,20 +650,80 @@ const AnalysisConfigPanel: React.FC<any> = ({
           </label>
           <div className="relative">
             <select
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100 appearance-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none disabled:opacity-50"
               value={clusterContext.dbrVersion}
               onChange={(e) => setClusterContext({ ...clusterContext, dbrVersion: e.target.value })}
+              disabled={loadingDbr}
             >
-              <option>15.2 (Latest)</option>
-              <option>14.3 LTS</option>
-              <option>13.3 LTS</option>
-              <option>12.2 LTS</option>
-              <option>11.3 LTS</option>
+              {loadingDbr ? (
+                <option>Loading versions...</option>
+              ) : errorDbr ? (
+                <>
+                  <option disabled>Error loading versions</option>
+                  <optgroup label="Fallback versions">
+                    <option value="15.4">15.4 LTS (Fallback)</option>
+                    <option value="14.3">14.3 LTS (Fallback)</option>
+                    <option value="13.3">13.3 LTS (Fallback)</option>
+                  </optgroup>
+                </>
+              ) : (
+                <>
+                  {/* Latest */}
+                  {dbrVersions.some(v => !v.isLts && v.majorMinor >= '15.0') && (
+                    <optgroup label="Latest">
+                      {dbrVersions
+                        .filter(v => !v.isLts && v.majorMinor >= '15.0')
+                        .map(v => (
+                          <option key={v.majorMinor} value={v.majorMinor}>
+                            {v.displayLabel}
+                          </option>
+                        ))
+                      }
+                    </optgroup>
+                  )}
+
+                  {/* LTS */}
+                  <optgroup label="LTS">
+                    {dbrVersions
+                      .filter(v => v.isLts)
+                      .map(v => (
+                        <option key={v.majorMinor} value={v.majorMinor}>
+                          {v.displayLabel}
+                        </option>
+                      ))
+                    }
+                  </optgroup>
+
+                  {/* Others */}
+                  {dbrVersions.some(v => !v.isLts && v.majorMinor < '15.0') && (
+                    <optgroup label="Other">
+                      {dbrVersions
+                        .filter(v => !v.isLts && v.majorMinor < '15.0')
+                        .map(v => (
+                          <option key={v.majorMinor} value={v.majorMinor}>
+                            {v.displayLabel}
+                          </option>
+                        ))
+                      }
+                    </optgroup>
+                  )}
+                </>
+              )}
             </select>
             <div className="absolute right-4 top-3.5 pointer-events-none text-slate-400">
-              <Activity className="w-4 h-4" />
+              {loadingDbr ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-400"></div>
+              ) : (
+                <Activity className="w-4 h-4" />
+              )}
             </div>
           </div>
+          {errorDbr && (
+            <p className="mt-1 text-xs text-orange-500 flex items-center gap-1">
+              <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
+              Using offline list
+            </p>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col">
