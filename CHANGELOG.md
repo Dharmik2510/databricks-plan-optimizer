@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.45.0...v1.46.0) (2026-01-04)
+
+
+### Features
+
+* Implement Tier 1 analysis with event log upload, baseline calculation, and result display. ([3a35eea](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/3a35eea2738312255da48031d5254e0404885bf8))
+
 # [1.45.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.44.0...v1.45.0) (2026-01-04)
 
 
