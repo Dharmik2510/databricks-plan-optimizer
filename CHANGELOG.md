@@ -1,3 +1,10 @@
+# [1.48.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.47.0...v1.48.0) (2026-01-04)
+
+
+### Features
+
+* Implement chat context management in the UI, enabling users to switch between recent analyses and dynamically initialize chat sessions based on the active context. ([dc4e406](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/dc4e406266dfc3746b6383c0498b52e8365503ca))
+
 # [1.47.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.46.1...v1.47.0) (2026-01-04)
 
 
