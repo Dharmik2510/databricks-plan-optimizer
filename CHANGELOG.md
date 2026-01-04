@@ -1,3 +1,10 @@
+# [1.45.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.44.0...v1.45.0) (2026-01-04)
+
+
+### Features
+
+* Migrate optimization impact assessment to qualitative levels, removing numeric estimates from AI analysis and adding new UI components. ([1c93c15](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/1c93c15af7000777eea56ff95071b8055b20b5aa))
+
 # [1.44.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.43.0...v1.44.0) (2026-01-03)
 
 
