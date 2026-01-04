@@ -74,11 +74,45 @@ model Analysis {
   chatSessions      ChatSession[]
   workflowRuns      WorkflowRun[]
 
+  // Tier 1 Relations
+  runtimeBaseline   AnalysisRuntimeBaseline?
+  eventLog          AnalysisEventLog?
+
   @@index([userId])
   @@index([userId, createdAt])
   @@index([inputHash])
   @@index([status])
   @@map("analyses")
+}
+
+model AnalysisRuntimeBaseline {
+  id                        String   @id @default(cuid())
+  analysisId                String   @unique
+  analysis                  Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  
+  applicationId             String
+  baselineExecutionTimeSeconds Float
+  stages                    Json     // Array of stage metrics
+  bottlenecks               Json     // Array of identified bottlenecks
+  
+  createdAt                 DateTime @default(now())
+
+  @@map("analysis_runtime_baselines")
+}
+
+model AnalysisEventLog {
+  id               String   @id @default(cuid())
+  analysisId       String   @unique
+  analysis         Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  
+  originalFilename String
+  storagePath      String
+  parsed           Boolean  @default(false)
+  parse_error      String?
+  
+  createdAt        DateTime @default(now())
+
+  @@map("analysis_event_logs")
 }
 
 model ChatSession {

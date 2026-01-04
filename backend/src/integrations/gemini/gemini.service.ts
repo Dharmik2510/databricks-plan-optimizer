@@ -72,8 +72,8 @@ export interface AnalysisResult {
   }>;
 
   performancePrediction?: {
-    baselineExecutionTime: number;
-    predictedExecutionTime: number;
+    baselineExecutionTime: number; // Measured from event log (Tier 1)
+    predictedExecutionTime: number; // Modeled
     dataScaleImpact: Array<{
       dataSize: string;
       currentTime: number;
@@ -98,6 +98,16 @@ export interface AnalysisResult {
   };
 }
 
+export interface RuntimeMetrics {
+  totalRuntimeSeconds: number;
+  stages: {
+    stageId: number;
+    name: string;
+    durationSeconds: number;
+  }[];
+  bottlenecks: string[];
+}
+
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
@@ -119,81 +129,98 @@ export class GeminiService {
     this.logger.log('Gemini AI initialized');
   }
 
-  async analyzeDAG(content: string): Promise<AnalysisResult> {
+  async analyzeDAG(content: string, runtimeMetrics?: RuntimeMetrics): Promise<AnalysisResult> {
     if (!this.model) {
       throw new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
     }
 
-    const systemPrompt = `You are a Principal Data Engineer and Databricks Performance Architect.
+    const isTier1 = !!runtimeMetrics;
+
+    const basePrompt = `You are a Principal Data Engineer and Databricks Performance Architect.
 Analyze the provided Spark Physical Plan or SQL Explain output to find performance issues and optimization opportunities.
 
-**CRITICAL CONSTRAINTS - TIER 0 ACCURACY:**
+**CONTEXT:**
+Tier: ${isTier1 ? 'TIER 1 (Quantitative)' : 'TIER 0 (Qualitative)'}
+${isTier1 ? `
+RUNTIME METRICS (MEASURED FROM EVENT LOG):
+- Total Runtime: ${runtimeMetrics.totalRuntimeSeconds} seconds
+- Bottlenecks: ${JSON.stringify(runtimeMetrics.bottlenecks)}
+- Stage Durations: ${JSON.stringify(runtimeMetrics.stages.slice(0, 10))}...
+` : ''}
+
+**CRITICAL CONSTRAINTS:**
+${isTier1 ? `
+- You MUST use the provided runtime metrics as the baseline.
+- You MAY estimate time savings (in minutes/seconds) by modeling the impact of optimizations against the baseline.
+- You MUST labeling all time values as "(modeled)".
+- You MUST NOT estimate COST ($). Cost is strictly forbidden in Tier 1.
+` : `
 - You MUST NOT generate any numeric time or cost estimates.
 - You MUST NOT estimate seconds, minutes, hours, dollars, or specific percentages of improvement.
-- You MUST NOT fabricate execution times, cost savings, or prediction numbers.
 - Focus ONLY on qualitative impact based on observable plan structure.
+`}
 
 Your analysis MUST be returned as a **VALID JSON OBJECT**. Do not include markdown code blocks.
-
 The JSON structure must match this TypeScript interface exactly:
 
 \`\`\`typescript
 interface AnalysisResult {
-  summary: string; // Executive summary (2-3 sentences) - NO time/cost numbers
+  summary: string;
   
   // DAG Visualization Data
   dagNodes: { id: string; name: string; type: string; metric?: string }[];
   dagLinks: { source: string; target: string }[];
   
-  // Resource Impact (relative indicators only)
+  // Resource Impact
   resourceMetrics: { stageId: string; cpuPercentage: number; memoryMb: number }[];
   
-  // Optimization Tips - QUALITATIVE ONLY
+  // Optimization Tips
   optimizations: {
     title: string;
     severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-    description: string; // Explain the issue clearly - NO fabricated numbers
+    description: string;
     codeSuggestion?: string;
     originalPattern?: string;
     
-    // REQUIRED: Qualitative Impact Assessment
+    // Impact Assessment
     impactLevel: "Very High" | "High" | "Medium" | "Low";
-    impactReasoning: string; // 1-2 sentences: WHY this matters for performance
-    evidenceBasis: string[]; // What in the plan proves this? e.g., ["BroadcastNestedLoopJoin detected", "No join condition specified"]
+    impactReasoning: string;
+    evidenceBasis: string[];
     
-    confidence_score: number; // 0-100: How confident are you this is a real issue?
+    confidence_score: number;
     implementation_complexity: "Low" | "Medium" | "High";
-    affected_stages?: string[]; // IDs of dagNodes
+    affected_stages?: string[];
+    
+    // TIER 1 ONLY - Leave null for Tier 0
+    estimated_time_saved_seconds?: number; // Modeled savings
   }[];
   
-  // Cluster Recommendations (qualitative reasoning only)
+  // Cluster Recommendations
   clusterRecommendation?: {
-    current: { nodes: number; type: string }; // NO costPerHour
-    recommended: { nodes: number; type: string }; // NO costPerHour
-    reasoning: string; // WHY this change helps
-    expectedImprovement: string; // e.g., "Better parallelism for shuffle-heavy workloads" - NOT "40% faster"
+    current: { nodes: number; type: string };
+    recommended: { nodes: number; type: string };
+    reasoning: string;
+    expectedImprovement: string;
+  };
+  
+  // TIER 1 ONLY
+  performancePrediction?: {
+    baselineExecutionTime: number; // Set to ${isTier1 ? runtimeMetrics.totalRuntimeSeconds : '0'}
+    predictedExecutionTime: number; // Modeled result after optimizations
   };
 }
 \`\`\`
 
-**Impact Level Guidelines:**
-- **Very High**: Will cause job failure, OOM, or severe performance degradation (e.g., Cartesian product without join condition)
-- **High**: Significant bottleneck affecting majority of query execution (e.g., large shuffles, data skew)
-- **Medium**: Noticeable inefficiency worth addressing (e.g., suboptimal join order, missing filter pushdown)
-- **Low**: Minor improvement opportunity (e.g., partition count tuning)
-
 **Focus on detecting:**
-1. Cartesian Products (BroadcastNestedLoopJoin without condition) - Very High impact
-2. Shuffle Storms (Exchange hashpartitioning with high partition counts) - High impact
-3. Spill to Disk / Memory Pressure indicators - High impact
-4. Scan Inefficiency (missing filters, no partition pruning) - Medium impact
-5. Data Skew (uneven partition sizes) - Medium to High impact
+1. Cartesian Products
+2. Shuffle Storms
+3. Spill to Disk
+4. Scan Inefficiency
+5. Data Skew
 
 **IMPORTANT:**
-- Ensure the DAG is FULLY CONNECTED. No orphaned nodes.
-- Every optimization MUST have impactLevel, impactReasoning, and evidenceBasis populated.
-- Do NOT include whatIfScenarios, performancePrediction, historicalTrend, or estimatedDurationMin.
-- Never use phrases like "saves X seconds", "reduces by Y%", or "costs $Z less".
+- Ensure the DAG is FULLY CONNECTED.
+- ${isTier1 ? 'Use the measured stage durations to prioritize bottlenecks.' : 'Do not invent metrics.'}
 `;
 
     const prompt = `Analyze this Spark execution plan:\n\n${content}`;
@@ -201,8 +228,8 @@ interface AnalysisResult {
     try {
       const result = await this.model.generateContent({
         contents: [
-          { role: 'user', parts: [{ text: systemPrompt }] },
-          { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and provide qualitative impact assessments only. No fabricated time or cost estimates.' }] },
+          { role: 'user', parts: [{ text: basePrompt }] },
+          { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and provide results according to the specified Tier constraints.' }] },
           { role: 'user', parts: [{ text: prompt }] },
         ],
         generationConfig: {
@@ -234,8 +261,8 @@ interface AnalysisResult {
       // Sometimes the LLM fails to link the source scan to the next stage. We fix this locally.
       const repaired = this.repairDagConnectivity(parsed);
 
-      // TIER 0: Sanitize any numeric fields that might have slipped through
-      const sanitized = this.sanitizeNumericFields(repaired);
+      // Sanitize fields based on Tier
+      const sanitized = this.sanitizeNumericFields(repaired, isTier1);
 
       return sanitized;
     } catch (error) {
@@ -375,24 +402,31 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
   }
 
   /**
-   * TIER 0 ACCURACY: Sanitize any numeric cost/time fields that might have slipped through.
-   * This ensures no fabricated estimates are returned even if the LLM ignores constraints.
+   * TIER 0 vs TIER 1 Validation.
+   * Ensures no fabricated estimates are returned for Tier 0.
+   * Allows modeled time savings for Tier 1.
+   * Cost is ALWAYS removed (Tier 2 scope).
    */
-  private sanitizeNumericFields(result: AnalysisResult): AnalysisResult {
+  private sanitizeNumericFields(result: AnalysisResult, isTier1: boolean): AnalysisResult {
     return {
       ...result,
-      // Remove top-level numeric fields
+      // Remove deprecated / hallucination-prone top-level fields
       estimatedDurationMin: undefined,
-      performancePrediction: undefined,
       whatIfScenarios: undefined,
       historicalTrend: undefined,
+
+      // Performance Prediction only allowed in Tier 1
+      performancePrediction: isTier1 ? result.performancePrediction : undefined,
 
       // Sanitize optimizations
       optimizations: result.optimizations.map(opt => ({
         ...opt,
-        // Strip numeric estimates
-        estimated_time_saved_seconds: undefined,
+        // Tier 1 allows time savings. Tier 0 does not.
+        estimated_time_saved_seconds: isTier1 ? opt.estimated_time_saved_seconds : undefined,
+
+        // Cost is ALWAYS forbidden (Tier 2)
         estimated_cost_saved_usd: undefined,
+
         // Ensure qualitative fields have fallbacks
         impactLevel: opt.impactLevel || this.inferImpactLevel(opt.severity),
         impactReasoning: opt.impactReasoning || opt.description,

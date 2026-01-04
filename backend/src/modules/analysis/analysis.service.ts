@@ -5,20 +5,32 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GeminiService } from '../../integrations/gemini/gemini.service';
+import { GeminiService, RuntimeMetrics, AnalysisResult } from '../../integrations/gemini/gemini.service';
 import { CreateAnalysisDto, AnalysisQueryDto } from './dto';
 import { createHash } from 'crypto';
 import { AnalysisStatus, Severity, Prisma } from '@prisma/client';
-import { AnalysisResult } from '../../integrations/gemini/gemini.service';
+import { EventLogParser, ParsedEventLog } from './event-log.parser';
+import { Tier1ModelService, Optimization } from './tier1-model.service';
+import { AnalysisResponseSchema } from './analysis.schema';
+import * as fs from 'fs';
+import * as path from 'path';
+import Ajv from 'ajv';
 
 @Injectable()
 export class AnalysisService {
   private readonly logger = new Logger(AnalysisService.name);
+  private readonly ajv = new Ajv();
+  private validateProfile: any;
 
   constructor(
     private prisma: PrismaService,
     private gemini: GeminiService,
-  ) { }
+    private eventLogParser: EventLogParser,
+    private tier1Model: Tier1ModelService,
+  ) {
+    this.validateProfile = this.ajv.compile(AnalysisResponseSchema);
+    console.log('[AnalysisService] Initialized successfully');
+  }
 
   async create(userId: string, dto: CreateAnalysisDto) {
     // Generate hash for caching/deduplication
@@ -61,14 +73,14 @@ export class AnalysisService {
     return analysis;
   }
 
-  private async processAnalysis(analysisId: string, content: string, repoFiles: any[] = []) {
+  private async processAnalysis(analysisId: string, content: string, repoFiles: any[] = [], runtimeMetrics?: RuntimeMetrics, baseline?: ParsedEventLog) {
     const startTime = Date.now();
 
     try {
       this.logger.log(`Processing analysis: ${analysisId}`);
 
       // Call Gemini AI
-      const result = await this.gemini.analyzeDAG(content);
+      const result = await this.gemini.analyzeDAG(content, runtimeMetrics);
 
       // --- SMART CODE MAPPING ---
       if (repoFiles && repoFiles.length > 0 && result.dagNodes) {
@@ -76,6 +88,59 @@ export class AnalysisService {
         result.dagNodes = this.mapNodesToCode(result.dagNodes, repoFiles);
       }
       // --------------------------
+
+      // --- TIER 1 MODELING ---
+      let tierMode = "TIER0";
+      let baselineData = null;
+
+      if (baseline) {
+        tierMode = "TIER1";
+        // Calculate Time Savings
+        result.optimizations = this.tier1Model.calculateTimeSavings(
+          baseline,
+          result.optimizations as Optimization[],
+          baseline.baselineConfidence
+        ) as any;
+
+        baselineData = {
+          confidence: baseline.baselineConfidence,
+          totalRuntimeSeconds: baseline.totalRuntimeSeconds || null,
+          topBottlenecks: baseline.bottlenecks
+        };
+      } else {
+        // Enforce Tier 0 contract
+        result.optimizations = result.optimizations.map(opt => ({
+          ...opt,
+          timeSavings: this.getNullTimeSavings()
+        })) as any;
+
+        baselineData = {
+          confidence: "insufficient",
+          totalRuntimeSeconds: null,
+          topBottlenecks: []
+        };
+      }
+
+      // Construct Final Response
+      const finalResponse: any = {
+        ...result,
+        tierMode,
+        baseline: baselineData,
+        optimizations: result.optimizations,
+      };
+
+      // --- VALIDATION ---
+      const valid = this.validateProfile(finalResponse);
+      if (!valid) {
+        this.logger.error('Analysis response validation failed', this.validateProfile.errors);
+        // Fallback to safe Tier 0 if validation fails? 
+        // For now, allow but log error, or maybe strip savings.
+        // Let's strip savings if validation fails to match "Strict validation"
+        this.logger.warn('Stripping Tier 1 data due to validation failure to ensure safety.');
+        finalResponse.tierMode = "TIER0";
+        finalResponse.baseline = { confidence: "insufficient", totalRuntimeSeconds: null, topBottlenecks: [] };
+        finalResponse.optimizations = finalResponse.optimizations.map((opt: Optimization) => ({ ...opt, timeSavings: this.getNullTimeSavings() }));
+      }
 
       // Extract denormalized fields
       const severity = this.getHighestSeverity(result.optimizations);
@@ -87,7 +152,7 @@ export class AnalysisService {
         where: { id: analysisId },
         data: {
           status: 'COMPLETED',
-          result: result as unknown as Prisma.JsonObject,
+          result: finalResponse as unknown as Prisma.JsonObject,
           severity,
           optimizationCount,
           dagNodeCount,
@@ -129,6 +194,16 @@ export class AnalysisService {
         },
       });
     }
+  }
+
+  private getNullTimeSavings() {
+    return {
+      estimatedSecondsSaved: null,
+      estimatedPercentSaved: null,
+      estimateBasis: null,
+      confidence: null,
+      evidenceStageIds: []
+    };
   }
 
   // Heuristic to link Plan Nodes -> Code Files
@@ -413,4 +488,100 @@ export class AnalysisService {
       analysisId,
     };
   }
+
+  async uploadEventLog(userId: string, analysisId: string, fileBuffer: Buffer, originalFilename: string) {
+    const analysis = await this.prisma.analysis.findFirst({
+      where: { id: analysisId, userId },
+    });
+
+    if (!analysis) {
+      throw new NotFoundException('Analysis not found');
+    }
+
+    // 1. Save file temporarily (in real prod, upload to S3/GCS)
+    const tempPath = `/tmp/${analysisId}_${originalFilename}`;
+    require('fs').writeFileSync(tempPath, fileBuffer);
+
+    try {
+      // 2. Parse Log
+      this.logger.log(`Parsing event log for analysis ${analysisId}...`);
+      const parsed = await this.eventLogParser.parseLogFile(tempPath);
+
+      // 3. Save Baseline
+      await this.prisma.analysisRuntimeBaseline.upsert({
+        where: { analysisId },
+        create: {
+          analysisId,
+          applicationId: parsed.applicationId,
+          baselineExecutionTimeSeconds: parsed.totalRuntimeSeconds,
+          stages: parsed.stages as any,
+          bottlenecks: parsed.bottlenecks as any
+        },
+        update: {
+          applicationId: parsed.applicationId,
+          baselineExecutionTimeSeconds: parsed.totalRuntimeSeconds,
+          stages: parsed.stages as any,
+          bottlenecks: parsed.bottlenecks as any
+        }
+      });
+
+      // 4. Record Event Log
+      await this.prisma.analysisEventLog.upsert({
+        where: { analysisId },
+        create: {
+          analysisId,
+          originalFilename,
+          storagePath: tempPath, // In real app, S3 URL
+          parsed: true
+        },
+        update: {
+          originalFilename,
+          storagePath: tempPath,
+          parsed: true
+        }
+      });
+
+      // 5. Re-Analyze in Tier 1 Mode
+      this.logger.log(`Re-analyzing ${analysisId} with Tier 1 Runtime Metrics...`);
+      await this.prisma.analysis.update({
+        where: { id: analysisId },
+        data: { status: 'PROCESSING' }
+      });
+
+      const runtimeMetrics = {
+        totalRuntimeSeconds: parsed.totalRuntimeSeconds,
+        stages: parsed.stages.map(s => ({
+          stageId: s.stageId,
+          name: s.name,
+          durationSeconds: s.durationSeconds
+        })),
+        bottlenecks: parsed.bottlenecks
+      };
+
+      this.processAnalysis(analysisId, analysis.inputContent, [], runtimeMetrics, parsed).catch(err => {
+        this.logger.error(`Tier 1 Re-analysis failed: ${err}`);
+        // Revert status to completed if fails? Or keep failed.
+      });
+
+      return { success: true, message: 'Event log processed. Tier 1 Analysis started.' };
+
+    } catch (error) {
+      this.logger.error(`Event log upload failed: ${error}`);
+      throw new BadRequestException('Failed to parse event log. Ensure it is a valid Spark event log (JSON/JSON.gz).');
+      // cleanup temp file if needed, or keep for debugging
+      // require('fs').unlinkSync(tempPath);
+    }
+  }
+
+  async useDemoEventLog(userId: string, analysisId: string) {
+    const demoFilePath = path.join(process.cwd(), 'test/fixtures/demo_event_log.json');
+
+    if (!fs.existsSync(demoFilePath)) {
+      throw new BadRequestException('Demo event log file not found on server. Path: ' + demoFilePath);
+    }
+
+    const fileBuffer = fs.readFileSync(demoFilePath);
+    return this.uploadEventLog(userId, analysisId, fileBuffer, 'demo_event_log.json');
+  }
 }
+

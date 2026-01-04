@@ -7,6 +7,7 @@ import { AnalysisResult, AppState } from '../../shared/types';
 
 interface AnalysisState {
   // State
+  analysisId: string | null;
   result: AnalysisResult | null;
   appState: AppState;
   error: string | null;
@@ -15,6 +16,7 @@ interface AnalysisState {
   inputMode: 'file' | 'text';
 
   // Actions
+  setAnalysisId: (id: string | null) => void;
   setResult: (result: AnalysisResult | null) => void;
   setAppState: (state: AppState) => void;
   setError: (error: string | null) => void;
@@ -25,6 +27,7 @@ interface AnalysisState {
 }
 
 const initialState = {
+  analysisId: null,
   result: null,
   appState: AppState.IDLE,
   error: null,
@@ -38,6 +41,7 @@ export const useAnalysisStore = create<AnalysisState>()(
     (set) => ({
       ...initialState,
 
+      setAnalysisId: (analysisId) => set({ analysisId }),
       setResult: (result) => set({ result }),
       setAppState: (appState) => set({ appState }),
       setError: (error) => set({ error }),

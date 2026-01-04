@@ -122,7 +122,7 @@ export const client = {
       throw new Error("Analysis timed out or incomplete. Please check the 'Analysis List' for status.");
     }
 
-    return analysis.result;
+    return { result: analysis.result, id: analysis.id };
   },
 
   predictAtScale: (data: any, size: number) => predictiveEngine.predictAtScale(data, size)

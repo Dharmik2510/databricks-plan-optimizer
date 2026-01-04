@@ -1,0 +1,116 @@
+{
+    "Event": "SparkListenerApplicationStart",
+    "App ID": "app-20231225100000-0000",
+    "Timestamp": 1703500000000
+}
+{
+    "Event": "SparkListenerStageSubmitted",
+    "Stage Info": {
+        "Stage ID": 0,
+        "Stage Name": "FileScan - Read Transactions",
+        "Submission Time": 1703500001000,
+        "Number of Tasks": 200
+    }
+}
+{
+    "Event": "SparkListenerTaskEnd",
+    "Stage ID": 0,
+    "Task Info": {
+        "Task ID": 0,
+        "Duration": 1500
+    },
+    "Task Metrics": {
+        "Shuffle Write Metrics": {
+            "Shuffle Bytes Written": 52428800
+        }
+    }
+}
+{
+    "Event": "SparkListenerTaskEnd",
+    "Stage ID": 0,
+    "Task Info": {
+        "Task ID": 1,
+        "Duration": 1450
+    },
+    "Task Metrics": {
+        "Shuffle Write Metrics": {
+            "Shuffle Bytes Written": 52428800
+        }
+    }
+}
+{
+    "Event": "SparkListenerStageCompleted",
+    "Stage Info": {
+        "Stage ID": 0,
+        "Submission Time": 1703500001000,
+        "Completion Time": 1703500005000
+    }
+}
+{
+    "Event": "SparkListenerStageSubmitted",
+    "Stage Info": {
+        "Stage ID": 1,
+        "Stage Name": "Exchange & Sort - Huge Shuffle",
+        "Submission Time": 1703500005500,
+        "Number of Tasks": 200
+    }
+}
+{
+    "Event": "SparkListenerTaskEnd",
+    "Stage ID": 1,
+    "Task Info": {
+        "Task ID": 200,
+        "Duration": 120000
+    },
+    "Task Metrics": {
+        "Shuffle Read Metrics": {
+            "Remote Bytes Read": 524288000
+        },
+        "Memory Bytes Spilled": 1073741824,
+        "Disk Bytes Spilled": 1073741824
+    }
+}
+{
+    "Event": "SparkListenerTaskEnd",
+    "Stage ID": 1,
+    "Task Info": {
+        "Task ID": 201,
+        "Duration": 5000
+    },
+    "Task Metrics": {
+        "Shuffle Read Metrics": {
+            "Remote Bytes Read": 5242880
+        },
+        "Memory Bytes Spilled": 0,
+        "Disk Bytes Spilled": 0
+    }
+}
+{
+    "Event": "SparkListenerStageCompleted",
+    "Stage Info": {
+        "Stage ID": 1,
+        "Submission Time": 1703500005500,
+        "Completion Time": 1703500125500
+    }
+}
+{
+    "Event": "SparkListenerStageSubmitted",
+    "Stage Info": {
+        "Stage ID": 2,
+        "Stage Name": "Project & Write - Final",
+        "Submission Time": 1703500126000,
+        "Number of Tasks": 1
+    }
+}
+{
+    "Event": "SparkListenerStageCompleted",
+    "Stage Info": {
+        "Stage ID": 2,
+        "Submission Time": 1703500126000,
+        "Completion Time": 1703500130000
+    }
+}
+{
+    "Event": "SparkListenerApplicationEnd",
+    "Timestamp": 1703500130000
+}

@@ -104,6 +104,22 @@ export const analysisApi = {
     return apiClient.delete(`/analyses/${id}`);
   },
 
+  uploadEventLog: async (id: string, file: File): Promise<{ success: boolean; message: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    // apiClient likely handles Content-Type for FormData automatically or we set it
+    // If apiClient is axios/fetch wrapper, FormData usually triggers multipart
+    return apiClient.post(`/analyses/${id}/event-log`, formData, {
+      headers: {
+        // 'Content-Type': 'multipart/form-data' // Often better to let browser set boundary
+      }
+    });
+  },
+
+  useDemoEventLog: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post(`/analyses/${id}/event-log/demo`);
+  },
+
   /**
    * Validate a physical plan using AI
    */

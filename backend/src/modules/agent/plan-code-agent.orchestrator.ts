@@ -46,11 +46,8 @@ export class PlanCodeAgentOrchestrator {
     constructor(
         private readonly mappingOrchestrator: MappingOrchestrator
     ) {
-        // Debug Log
-        console.log('DetailedDebug: PlanCodeAgentOrchestrator constructor started');
         this.planParser = new PlanParserService();
         this.logger.log('✅ Plan-Code Agent Orchestrator initialized with LangGraph workflow');
-        console.log('DetailedDebug: PlanCodeAgentOrchestrator constructor finished');
     }
 
     /**

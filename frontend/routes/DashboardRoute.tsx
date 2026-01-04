@@ -14,6 +14,8 @@ import {
   PlayCircle,
   Sparkles,
   ChevronDown,
+  CheckCircle, // Added
+  Ban,         // Added
 } from 'lucide-react';
 import { ClusterFinder } from '../components/inputs/ClusterFinder';
 import { EnhancedDagVisualizer } from '../components/EnhancedDagVisualizer';
@@ -24,16 +26,24 @@ import { PlanValidationFlow } from '../components/validation';
 import { client } from '../api';
 import { AppState, ActiveTab } from '../../shared/types';
 import { useToast } from '../design-system/components';
+import { useTheme } from '../ThemeContext';
 import { useAnalysisStore } from '../store/useAnalysisStore';
 import { usePredictionStore } from '../store/usePredictionStore';
 import { useRepositoryStore } from '../store/useRepositoryStore';
-import { useClusterStore } from '../store/useClusterStore';
-import { useUIStore } from '../store/useUIStore';
-import { useValidationStore } from '../store/useValidationStore';
+import { useClusterStore } from '../store/useClusterStore'; // Restored
+import { useUIStore } from '../store/useUIStore'; // Restored
+import { useValidationStore } from '../store/useValidationStore'; // Restored
+import { EventLogUploadModal } from '../components/modals/EventLogUploadModal';
+import { AnalysisShowcase } from '../components/AnalysisShowcase';
 
 
 export const DashboardRoute: React.FC = () => {
+  const { theme } = useTheme();
   const { addToast } = useToast();
+  const [isUploadModalOpen, setIsUploadModalOpen] = React.useState(false);
+  const [isReanalyzing, setIsReanalyzing] = React.useState(false);
+  // Banner state
+  const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
 
   // Analysis Store
   const {
@@ -43,12 +53,14 @@ export const DashboardRoute: React.FC = () => {
     analysisTitle,
     textContent,
     inputMode,
+    analysisId,
     setResult,
     setAppState,
     setError,
     setAnalysisTitle,
     setTextContent,
     setInputMode,
+    setAnalysisId,
   } = useAnalysisStore();
 
   // TIER 0: Prediction store removed - no fabricated predictions
@@ -158,7 +170,7 @@ export const DashboardRoute: React.FC = () => {
         }
       }
 
-      const data = await client.analyzeDag(
+      const { result: data, id } = await client.analyzeDag(
         textContent,
         currentRepoFiles,
         {
@@ -172,6 +184,8 @@ export const DashboardRoute: React.FC = () => {
         clusterContext
       );
       setResult(data);
+      setAnalysisId(id);
+
       // TIER 0: Removed prediction calculation - no fabricated time/cost estimates
       setAppState(AppState.SUCCESS);
       setActiveTab(ActiveTab.DASHBOARD);
@@ -216,6 +230,39 @@ export const DashboardRoute: React.FC = () => {
       title: 'Demo Loaded',
       description: 'Demo execution plan loaded successfully',
     });
+  };
+
+  const handleUploadSuccess = async () => {
+    addToast({ type: 'success', title: 'Upload Complete', description: 'Re-analyzing with runtime metrics...' });
+    setIsReanalyzing(true);
+    // Poll for completion
+    try {
+      if (!analysisId) return;
+      const MAX_RETRIES = 30;
+      let retries = 0;
+      while (retries < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, 2000));
+        const status = await client.get(`/analyses/${analysisId}/status`) as any;
+        if (status.status === 'COMPLETED') {
+          const freshAnalysis = await client.get(`/analyses/${analysisId}`) as any;
+          setResult(freshAnalysis.result);
+          // Stay on SUCCESS state, just updated data
+          setAppState(AppState.SUCCESS);
+          setIsReanalyzing(false);
+          setUploadStatus('success'); // Added
+          addToast({ type: 'success', title: 'Analysis Updated', description: 'Runtime metrics applied successfully.' });
+          break;
+        }
+        if (status.status === 'FAILED') throw new Error(status.errorMessage);
+        retries++;
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setIsReanalyzing(false);
+      setUploadStatus('error'); // Added
+      // Keep showing dashboard but with error toast
+      addToast({ type: 'error', title: 'Re-analysis Failed', description: err.message });
+    }
   };
 
   // TIER 0: Simplified enrichOptimizations - no cost estimation from fabricated time savings
@@ -310,7 +357,65 @@ export const DashboardRoute: React.FC = () => {
 
       {result && appState === AppState.SUCCESS && (
         <div className="space-y-8 animate-fade-in pb-20" id="dashboard-container">
+
+          {/* 1. EXECUTIVE SUMMARY (Top) */}
           <ExecutiveSummary summary={result.summary} />
+
+          {/* 2. TIER 1 BANNER (Below Summary) - Dynamic Colors */}
+          <div className={`rounded-2xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg mx-1 transition-all duration-500 ${uploadStatus === 'success'
+            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-emerald-500/20'
+            : uploadStatus === 'error'
+              ? 'bg-gradient-to-r from-red-500 to-orange-600 shadow-red-500/20'
+              : 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-indigo-500/20'
+            }`}>
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-xl backdrop-blur-sm text-white ${uploadStatus === 'success' ? 'bg-emerald-600/30' : uploadStatus === 'error' ? 'bg-red-600/30' : 'bg-white/20'
+                }`}>
+                {isReanalyzing ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                ) : uploadStatus === 'success' ? (
+                  <CheckCircle className="w-6 h-6" />
+                ) : uploadStatus === 'error' ? (
+                  <Ban className="w-6 h-6" />
+                ) : (
+                  <Upload className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">
+                  {isReanalyzing ? 'Processing Event Log...'
+                    : uploadStatus === 'success' ? 'Runtime Data Integrated'
+                      : uploadStatus === 'error' ? 'Event Log Rejected'
+                        : 'Improve Accuracy with Runtime Data'}
+                </h3>
+                <p className="text-white/80 text-sm">
+                  {isReanalyzing
+                    ? 'Extracting actual execution times and resource metrics. This may take a few seconds.'
+                    : uploadStatus === 'success' ? 'Analysis updated with actual stage durations and skew metrics.'
+                      : uploadStatus === 'error' ? 'The uploaded file was not a valid Spark event log. Please try again.'
+                        : 'Upload a Spark Event Log to unlock quantitative execution times and bottleneck analysis.'}
+                </p>
+              </div>
+            </div>
+            {!isReanalyzing && (
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                className={`px-5 py-2.5 font-bold rounded-xl shadow-sm transition-colors whitespace-nowrap ${uploadStatus === 'error' ? 'bg-white text-red-600 hover:bg-red-50' :
+                    uploadStatus === 'success' ? 'bg-white text-emerald-600 hover:bg-emerald-50' :
+                      'bg-white text-indigo-600 hover:bg-indigo-50'
+                  }`}
+              >
+                {uploadStatus === 'error' ? 'Retry Upload' : uploadStatus === 'success' ? 'Upload New Log' : 'Upload Log'}
+              </button>
+            )}
+          </div>
+
+          {/* 3. PLAN ANALYSIS REPORT (Only if Tier 1) */}
+          {result.tierMode === 'TIER1' && (
+            <AnalysisShowcase result={result} darkMode={theme === 'dark'} />
+          )}
+
+          {/* 4. DAG VISUALIZATION (Below Report) */}
           <div id="dag-visualizer-section">
             <EnhancedDagVisualizer
               nodes={result.dagNodes}
@@ -323,6 +428,8 @@ export const DashboardRoute: React.FC = () => {
               onMapToCode={() => setActiveTab(ActiveTab.CODE_MAP)}
             />
           </div>
+
+          {/* 5. OPTIMIZATIONS */}
           <OptimizationPanel
             optimizations={enrichOptimizations(result.optimizations)}
             onViewInDag={(opt) => {
@@ -345,6 +452,14 @@ export const DashboardRoute: React.FC = () => {
           {/* TIER 0: PredictivePanel and OptimizationPlayground removed - rely on fabricated predictions */}
         </div>
       )}
+
+      {/* Modal */}
+      <EventLogUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        analysisId={analysisId || ''}
+        onSuccess={handleUploadSuccess}
+      />
     </>
   );
 };

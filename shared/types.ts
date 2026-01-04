@@ -53,6 +53,21 @@ export interface DependencyInfo {
   nestedDependencies?: string[]; // Dependencies of dependencies
 }
 
+// Tier 1 Analysis Types
+export interface TimeSavings {
+  estimatedSecondsSaved: number | null;
+  estimatedPercentSaved: number | null;
+  estimateBasis: 'measured_baseline' | null;
+  confidence: number | null;
+  evidenceStageIds: number[];
+}
+
+export interface AnalysisBaseline {
+  confidence: 'measured' | 'approximate' | 'insufficient';
+  totalRuntimeSeconds: number | null;
+  topBottlenecks: string[];
+}
+
 export interface OptimizationTip {
   title: string;
   severity: Severity;
@@ -69,6 +84,10 @@ export interface OptimizationTip {
   confidence_score?: number; // 0-100
   implementation_complexity?: 'Low' | 'Medium' | 'High';
   affected_stages?: string[];
+
+  // Tier 1 Data
+  timeSavings?: TimeSavings;
+  affectedStageIds?: string[];
 
   // DEPRECATED (Tier 0): These fields are no longer populated
   // Will be removed in future version. Use impactLevel instead.
@@ -134,8 +153,6 @@ export interface ClusterRecommendation {
   expectedImprovement: string;
 }
 
-
-
 export interface QueryRewrite {
   original: string;
   rewritten: string;
@@ -167,6 +184,10 @@ export interface AnalysisResult {
   optimizations: OptimizationTip[];
   estimatedDurationMin?: number;
 
+  // Tier 1 Data
+  tierMode?: 'TIER0' | 'TIER1';
+  baseline?: AnalysisBaseline;
+
   // Enhanced Code Mappings
   codeMappings?: EnhancedCodeSnippet[]; // All code mappings
   repositoryAnalysis?: RepositoryAnalysis; // Repo structure analysis
@@ -183,6 +204,7 @@ export interface AnalysisResult {
   clusterRecommendation?: ClusterRecommendation;
   sparkConfigRecommendation?: SparkConfigRecommendation;
   queryRewrites?: QueryRewrite[];
+  performancePrediction?: PerformancePrediction;
 }
 
 export interface ChatMessage {

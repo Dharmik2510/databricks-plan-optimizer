@@ -10,7 +10,12 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express'; // Ensure types available
 import { AnalysisService } from './analysis.service';
 import { CreateAnalysisDto, AnalysisQueryDto, UpdateAnalysisDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards';
@@ -103,6 +108,33 @@ export class AnalysisController {
     @Body() dto: UpdateAnalysisDto,
   ) {
     return this.analysisService.update(user.id, id, dto);
+  }
+
+  /**
+   * Upload Spark Event Log (Tier 1)
+   * POST /api/v1/analyses/:id/event-log
+   */
+  @Post(':id/event-log')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  async uploadEventLog(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    return this.analysisService.uploadEventLog(user.id, id, file.buffer, file.originalname);
+  }
+
+  @Post(':id/event-log/demo')
+  @HttpCode(HttpStatus.OK)
+  async useDemoEventLog(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id') id: string,
+  ) {
+    return this.analysisService.useDemoEventLog(user.id, id);
   }
 
   /**

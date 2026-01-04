@@ -1,0 +1,89 @@
+{
+    "parser": {
+        "maxBottlenecks": 20,
+        "minReliableRuntimeSeconds": 30,
+        "useStageDerivedRuntimeFallback": true
+    },
+    "bottleneckRules": {
+        "dominantStagePercent": 0.30,
+        "dominantStageMinSeconds": 60,
+        "shuffleHeavyBytesThreshold": 268435456,
+        "spillHeavyDiskBytesThreshold": 104857600,
+        "spillHeavyMemoryBytesThreshold": 268435456,
+        "skewMinTasks": 10,
+        "skewRatioThreshold": 5.0,
+        "skewP95MinMs": 10000
+    },
+    "savingsModel": {
+        "stageSelection": {
+            "preferDominantStagesFirst": true,
+            "maxEvidenceStagesPerOptimization": 5
+        },
+        "reductionFactors": {
+            "shuffle": {
+                "min": 0.10,
+                "max": 0.35
+            },
+            "spill": {
+                "min": 0.10,
+                "max": 0.30
+            },
+            "skew": {
+                "min": 0.15,
+                "max": 0.40
+            },
+            "scan": {
+                "min": 0.05,
+                "max": 0.25
+            }
+        },
+        "caps": {
+            "maxPerStagePercent": 0.50,
+            "maxOverallPercent": 0.60
+        },
+        "confidence": {
+            "measuredBaselineBoost": 15,
+            "approxBaselinePenalty": 15,
+            "perEvidenceStageBoost": 8,
+            "maxConfidence": 90,
+            "minConfidenceWhenQuantified": 40
+        }
+    },
+    "keywordMapping": {
+        "shuffle": [
+            "exchange",
+            "shuffle",
+            "sortmergejoin",
+            "repartition",
+            "coalesce partitions",
+            "aqe",
+            "skew join",
+            "broadcast"
+        ],
+        "spill": [
+            "spill",
+            "oom",
+            "memory pressure",
+            "gc",
+            "aggregate",
+            "hashaggregate",
+            "sortaggregate"
+        ],
+        "skew": [
+            "skew",
+            "salting",
+            "skew join",
+            "adaptive",
+            "aqe skew"
+        ],
+        "scan": [
+            "scan",
+            "filescan",
+            "partition pruning",
+            "predicate pushdown",
+            "filter",
+            "z-order",
+            "data skipping"
+        ]
+    }
+}

@@ -114,15 +114,34 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
 
     // Build headers with observability context
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+    const headers: Record<string, string> = {
       'X-Session-ID': this.sessionId,
       'X-Correlation-ID': this.correlationId,
-      ...options.headers,
     };
 
+    // Only set Content-Type to JSON if body is NOT FormData
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    // Merge custom headers
+    if (options.headers) {
+      const customHeaders = options.headers;
+      if (customHeaders instanceof Headers) {
+        customHeaders.forEach((value, key) => {
+          headers[key] = value;
+        });
+      } else if (Array.isArray(customHeaders)) {
+        customHeaders.forEach(([key, value]) => {
+          headers[key] = value;
+        });
+      } else {
+        Object.assign(headers, customHeaders);
+      }
+    }
+
     if (this.accessToken) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.accessToken}`;
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
     let response = await fetch(url, { ...options, headers });
@@ -139,7 +158,7 @@ class ApiClient {
 
       if (newToken) {
         // Retry with new token
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
+        headers['Authorization'] = `Bearer ${newToken}`;
         response = await fetch(url, { ...options, headers });
       } else {
         // Redirect to login
@@ -165,21 +184,25 @@ class ApiClient {
     return data;
   }
 
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+  async get<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  async post<T>(endpoint: string, body?: any): Promise<T> {
+  async post<T>(endpoint: string, body?: any, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return this.request<T>(endpoint, {
+      ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
     });
   }
 
-  async patch<T>(endpoint: string, body?: any): Promise<T> {
+  async patch<T>(endpoint: string, body?: any, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return this.request<T>(endpoint, {
+      ...options,
       method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
     });
   }
 
@@ -208,6 +231,13 @@ class ApiClient {
 
   async updateAnalysis(id: string, data: { title?: string }) {
     return this.patch<any>(`/analyses/${id}`, data);
+  }
+
+  async uploadEventLog(analysisId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    // Note: Content-Type header is handled automatically for FormData
+    return this.post<{ success: boolean; message: string }>(`/analyses/${analysisId}/event-log`, formData);
   }
 }
 
