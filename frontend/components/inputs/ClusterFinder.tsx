@@ -159,7 +159,7 @@ export const ClusterFinder: React.FC<Props> = ({
                     </div>
 
                     {/* Main Grid */}
-                    <div className="flex-1 w-full relative">
+                    <div className="flex-1 w-full relative flex flex-col">
                         {/* Mobile Filter Toggle Overlay Button (if we wanted floating, but better in header) */}
                         <InstanceGrid
                             instances={filteredInstances}

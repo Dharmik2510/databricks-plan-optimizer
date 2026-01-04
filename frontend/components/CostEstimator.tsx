@@ -317,14 +317,14 @@ export const CostEstimator: React.FC<Props> = ({
 
                 <div className="space-y-10">
                   {/* Cost Per Run */}
-                  <div className="space-y-1">
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">Cost Per Run</span>
+                  <div>
+                    <span className="text-sm font-bold text-slate-400 uppercase tracking-wide block mb-1">Cost Per Run</span>
                     <div className="flex items-baseline gap-1 break-words">
-                      <span className="text-5xl md:text-6xl font-extrabold text-white tracking-tighter tabular-nums drop-shadow-2xl">
+                      <span className="text-4xl md:text-5xl font-extrabold text-white tracking-tighter tabular-nums drop-shadow-2xl">
                         {formatCurrency(costs.currentCostPerRun)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-2 text-indigo-200/60 text-sm font-mono bg-white/5 w-fit px-3 py-1 rounded-lg border border-white/5">
+                    <div className="flex items-center gap-4 mt-6 text-indigo-200/60 text-sm font-mono bg-white/5 w-fit px-3 py-1 rounded-lg border border-white/5">
                       <span>{numNodes} Nodes</span>
                       <span>•</span>
                       <span>{duration}m Duration</span>

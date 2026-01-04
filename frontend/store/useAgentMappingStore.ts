@@ -298,7 +298,7 @@ export const useAgentMappingStore = create<AgentMappingState>()(
 
                     switch (event.type) {
                         case 'job_started':
-                            handleJobStarted(set, event);
+                            handleJobStarted(set, get, event);
                             break;
                         case 'stage_started':
                             handleStageStarted(set, event);
@@ -403,8 +403,17 @@ export const useAgentMappingStore = create<AgentMappingState>()(
 // Event Handlers
 // ============================================================================
 
-function handleJobStarted(set: any, event: AgentEvent) {
-    const { totalNodes, repoUrl, commitHash } = event.data;
+function handleJobStarted(set: any, get: any, event: AgentEvent) {
+    const { totalNodes, repoUrl, commitHash, jobId } = event.data;
+
+    // AVOID FLASH: If we are already tracking this job, don't reset the state!
+    // The backend sends 'job_started' on every reconnection, which causes the UI to
+    // flash back to "Load Repo" for 1 second before fast-forwarding.
+    const currentJobId = get().jobId;
+    if (currentJobId === jobId && get().stages.length > 0) {
+        console.log('[AgentStore] Ignoring job_started for existing job to prevent state reset');
+        return;
+    }
 
     // Create initial stages matching the wireframe design
     const initialStages: TimelineStage[] = [

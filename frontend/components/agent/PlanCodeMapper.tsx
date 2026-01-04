@@ -231,10 +231,15 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
         setViewMode('input');
     };
 
+    const isConnected = useAgentMappingStore(state => state.isConnected);
+
     const handleResumeJob = () => {
         if (storeJobId) {
-            const authToken = localStorage.getItem('accessToken') || '';
-            connectSSE(storeJobId, authToken);
+            // Only connect if not completed/failed AND not already connected
+            if (['initializing', 'running', 'paused'].includes(storeStatus) && !isConnected) {
+                const authToken = localStorage.getItem('accessToken') || '';
+                connectSSE(storeJobId, authToken);
+            }
             setViewMode('agentic_workspace');
         }
     };
@@ -305,16 +310,26 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
     return (
         <div className="h-full p-4 md:p-8 bg-slate-50 dark:bg-slate-900 overflow-y-auto">
             <div className="max-w-3xl mx-auto">
-                {/* Helper Banner for Active Job */}
-                {storeJobId && ['initializing', 'running', 'paused'].includes(storeStatus) && (
+                {/* Helper Banner for Active/Completed Job */}
+                {storeJobId && ['initializing', 'running', 'paused', 'completed', 'failed'].includes(storeStatus) && (
                     <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in-down">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg animate-pulse">
-                                <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                            <div className={`p-2 rounded-lg ${storeStatus === 'completed' ? 'bg-emerald-100 dark:bg-emerald-900/40' : storeStatus === 'failed' ? 'bg-red-100 dark:bg-red-900/40' : 'bg-indigo-100 dark:bg-indigo-900/40 animate-pulse'}`}>
+                                {storeStatus === 'completed' ? (
+                                    <Target className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                ) : storeStatus === 'failed' ? (
+                                    <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                ) : (
+                                    <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                )}
                             </div>
                             <div>
-                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Analysis in Progress</h4>
-                                <p className="text-xs text-slate-600 dark:text-slate-400">A mapping job is currently running in the background.</p>
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                                    {storeStatus === 'completed' ? 'Mapping Completed' : storeStatus === 'failed' ? 'Mapping Failed' : 'Mapping in Progress'}
+                                </h4>
+                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                    {storeStatus === 'completed' ? 'Your code mapping is ready to view.' : storeStatus === 'failed' ? 'The last mapping job failed.' : 'A mapping job is currently running in the background.'}
+                                </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -326,9 +341,9 @@ export const PlanCodeMapper: React.FC<PlanCodeMapperProps> = ({ onBack, initialP
                             </button>
                             <button
                                 onClick={handleResumeJob}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-2"
+                                className={`px-4 py-2 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-2 ${storeStatus === 'completed' ? 'bg-emerald-600 hover:bg-emerald-700' : storeStatus === 'failed' ? 'bg-slate-600 hover:bg-slate-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                             >
-                                Resume Mapping
+                                {storeStatus === 'completed' ? 'View Results' : storeStatus === 'failed' ? 'View Error' : 'Resume Mapping'}
                                 <ChevronRight className="w-3 h-3" />
                             </button>
                         </div>

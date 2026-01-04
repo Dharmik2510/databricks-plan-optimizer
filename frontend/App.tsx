@@ -332,8 +332,11 @@ function AppContent() {
               {activeTab === ActiveTab.HISTORY && (
                 <HistoryPage
                   onNewAnalysis={goToNewAnalysis}
-                  onSelectAnalysis={(_id, data) => {
+                  onSelectAnalysis={(_id, data, planContent) => {
                     useAnalysisStore.getState().setResult(data);
+                    if (planContent) {
+                      useAnalysisStore.getState().setTextContent(planContent);
+                    }
                     setAppState(AppState.SUCCESS);
                     setActiveTab(ActiveTab.DASHBOARD);
                   }}
@@ -585,7 +588,7 @@ const Sidebar = ({
               />
               <SidebarItem
                 icon={DollarSign}
-                label="Cost Management"
+                label="Cost Calculator"
                 active={activeTab === ActiveTab.COST}
                 onClick={() => setActiveTab(ActiveTab.COST)}
               />

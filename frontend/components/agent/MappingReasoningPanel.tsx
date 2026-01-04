@@ -7,7 +7,8 @@
  */
 
 import React from 'react';
-import { CheckCircle2, XCircle, Code, ExternalLink } from 'lucide-react';
+import { CheckCircle2, XCircle, Code, ExternalLink, Loader2 } from 'lucide-react';
+import { useAgentMappingStore } from '../../store/useAgentMappingStore';
 import { cn } from '../../lib/utils';
 
 interface MappingReasoningPanelProps {
@@ -15,9 +16,32 @@ interface MappingReasoningPanelProps {
 }
 
 export const MappingReasoningPanel: React.FC<MappingReasoningPanelProps> = ({ node }) => {
+    const status = useAgentMappingStore(state => state.status);
+
     if (!node || !node.mapping) {
+        if (status === 'running' || status === 'initializing') {
+            return (
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping" />
+                        <div className="relative bg-white dark:bg-slate-900 p-4 rounded-full border-2 border-indigo-100 dark:border-indigo-500/30 shadow-xl">
+                            <Loader2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                        </div>
+                    </div>
+                    <div className="space-y-2 max-w-sm">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white animate-pulse">
+                            Analyzing Workflow...
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            The agent is currently processing the codebase and reasoning about DAG mappings. Select a mapped node to see the details.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
         return (
-            <div className="p-8 text-center text-slate-400 dark:text-slate-600">
+            <div className="p-8 text-center text-slate-400 dark:text-slate-600 h-full flex flex-col items-center justify-center">
                 <Code className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <div className="text-sm">Select a mapped node to view reasoning</div>
             </div>
@@ -31,7 +55,7 @@ export const MappingReasoningPanel: React.FC<MappingReasoningPanelProps> = ({ no
             {/* Header */}
             <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-                    Why map "{node.operatorType}" to {mapping.symbol}()?
+                    Why map {node.operatorType === 'custom' ? 'this node' : `"${node.operatorType}"`} to {mapping.symbol ? `${mapping.symbol}()` : 'this code'}?
                 </h2>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                     Detailed confidence breakdown and evidence
@@ -98,10 +122,6 @@ export const MappingReasoningPanel: React.FC<MappingReasoningPanelProps> = ({ no
                         <div className="text-xs text-slate-400 font-mono">
                             {mapping.file}:{mapping.lines}
                         </div>
-                        <button className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                            <ExternalLink className="w-3 h-3" />
-                            View Full File
-                        </button>
                     </div>
 
                     {mapping.codeSnippet ? (

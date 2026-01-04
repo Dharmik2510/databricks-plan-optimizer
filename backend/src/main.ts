@@ -64,6 +64,14 @@ async function bootstrap() {
   const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000');
   const allowedOrigins = corsOrigin.split(',').map(origin => origin.trim()).filter(Boolean);
 
+  // Explicitly allow production domains
+  const productionDomains = ['https://brickoptima.com', 'https://www.brickoptima.com'];
+  productionDomains.forEach(domain => {
+    if (!allowedOrigins.includes(domain)) {
+      allowedOrigins.push(domain);
+    }
+  });
+
   logger.log(`🔐 CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
   app.enableCors({
@@ -90,7 +98,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'X-Session-ID', 'X-Request-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'X-Session-ID', 'X-Request-ID', 'Cache-Control'],
     exposedHeaders: ['X-Correlation-ID', 'X-Request-ID'],
   });
 

@@ -71,7 +71,7 @@ const HistoryRow = ({ index, style, history, editingId, editTitle, setEditTitle,
 };
 
 interface HistoryPageProps {
-    onSelectAnalysis: (id: string, result: any) => void;
+    onSelectAnalysis: (id: string, result: any, planContent?: string) => void;
     onNewAnalysis: () => void;
 }
 
@@ -148,7 +148,7 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ onSelectAnalysis, onNewAnalys
         try {
             const fullAnalysis = await client.get(`/analyses/${id}`);
             if (fullAnalysis && (fullAnalysis as any).result) {
-                onSelectAnalysis(id, (fullAnalysis as any).result);
+                onSelectAnalysis(id, (fullAnalysis as any).result, (fullAnalysis as any).inputContent);
             } else {
                 console.error("Analysis result is empty");
             }
