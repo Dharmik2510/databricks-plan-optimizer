@@ -1,3 +1,10 @@
+## [1.46.1](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.46.0...v1.46.1) (2026-01-04)
+
+
+### Bug Fixes
+
+* Prevent UI flashing on job start and remove agent retry and settings controls. ([1de3a73](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/1de3a7380ba4f9635f775032eb028100ae3283f2))
+
 # [1.46.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.45.0...v1.46.0) (2026-01-04)
 
 
