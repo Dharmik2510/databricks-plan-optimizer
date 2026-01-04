@@ -10,7 +10,7 @@ export class ChatService {
   constructor(
     private prisma: PrismaService,
     private gemini: GeminiService,
-  ) {}
+  ) { }
 
   async createSession(userId: string, dto: CreateChatSessionDto) {
     // If analysisId provided, verify it belongs to user
@@ -147,10 +147,24 @@ export class ChatService {
     if (session.analysis?.result) {
       const result = session.analysis.result as any;
       context = `Analysis Summary: ${result.summary || 'No summary'}\n`;
-      
+
       if (result.optimizations?.length) {
-        context += `Found ${result.optimizations.length} optimization opportunities.\n`;
-        context += 'Key issues: ' + result.optimizations.map((o: any) => o.title).join(', ') + '\n';
+        context += `\n--- DETAILED FINDINGS ---\n`;
+        context += `Found ${result.optimizations.length} optimization opportunities:\n\n`;
+
+        result.optimizations.forEach((o: any, index: number) => {
+          context += `${index + 1}. [${o.severity}] ${o.title}\n`;
+          context += `   Description: ${o.description}\n`;
+          context += `   Reasoning: ${o.impactReasoning || o.reasoning || 'N/A'}\n`;
+          if (o.codeSuggestion) {
+            context += `   Suggested Fix: ${o.codeSuggestion}\n`;
+          }
+          if (o.affected_stages?.length) {
+            context += `   Affected Stages: ${o.affected_stages.join(', ')}\n`;
+          }
+          context += '\n';
+        });
+        context += `--------------------------\n`;
       }
     }
 
@@ -210,11 +224,11 @@ export class ChatService {
     // Generate a title from the first message
     const maxLength = 50;
     const cleaned = content.replace(/\n/g, ' ').trim();
-    
+
     if (cleaned.length <= maxLength) {
       return cleaned;
     }
-    
+
     return cleaned.substring(0, maxLength - 3) + '...';
   }
 }

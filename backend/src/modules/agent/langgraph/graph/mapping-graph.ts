@@ -26,8 +26,6 @@ import { confidenceGateNode, routeByConfidence } from '../nodes/confidence-gate.
 import { finalMappingNode } from '../nodes/final-mapping.node';
 import { Logger } from '@nestjs/common';
 import { WorkflowLoggerService } from '../../../../common/logging/workflow-logger.service';
-import { PrismaService } from '../../../../prisma/prisma.service';
-import { AppLoggerService } from '../../../../common/logging/app-logger.service';
 
 // ============================================================================
 // Graph Builder
@@ -176,14 +174,9 @@ export function compileGraph(options?: {
 export async function invokeGraph(
   graph: any,
   initialState: Partial<MappingState>,
+  workflowLogger: WorkflowLoggerService,
 ): Promise<MappingState> {
   const logger = new Logger('InvokeGraph');
-
-  // Initialize workflow logger
-  const appLogger = new AppLoggerService();
-  const prisma = new PrismaService();
-  const workflowLogger = new WorkflowLoggerService(appLogger, prisma);
-
   let workflowRunId: string | undefined;
 
   try {
@@ -252,14 +245,9 @@ export async function invokeGraph(
 export async function* streamGraph(
   graph: any,
   initialState: Partial<MappingState>,
+  workflowLogger: WorkflowLoggerService,
 ): AsyncGenerator<{ node: string; state: Partial<MappingState> }> {
   const logger = new Logger('StreamGraph');
-
-  // Initialize workflow logger
-  const appLogger = new AppLoggerService();
-  const prisma = new PrismaService();
-  const workflowLogger = new WorkflowLoggerService(appLogger, prisma);
-
   let workflowRunId: string | undefined;
 
   try {

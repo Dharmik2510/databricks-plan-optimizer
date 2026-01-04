@@ -27,6 +27,7 @@ import {
   createPausedEvent,
   createResumedEvent,
 } from '../events';
+import { WorkflowLoggerService } from '../../../../common/logging/workflow-logger.service';
 
 // ============================================================================
 // Configuration
@@ -81,7 +82,9 @@ export class MappingOrchestrator {
   private readonly jobs: Map<string, JobStatus> = new Map();
   private graphInitialized: Promise<void>;
 
-  constructor() {
+  constructor(
+    private readonly workflowLogger: WorkflowLoggerService,
+  ) {
     // Compile graph once at startup with Supabase checkpointer
     // CRITICAL: Handle potential rejection to avoid UnhandledPromiseRejection causing crash
     this.graphInitialized = this.initializeGraph().catch(err => {
@@ -512,7 +515,7 @@ export class MappingOrchestrator {
     };
 
     // Invoke graph
-    const result = await invokeGraph(this.graph, nodeState);
+    const result = await invokeGraph(this.graph, nodeState, this.workflowLogger);
 
     return {
       mappings: result.completedMappings,
@@ -591,7 +594,7 @@ export class MappingOrchestrator {
     };
 
     // Stream graph execution
-    for await (const chunk of streamGraph(this.graph, initialState)) {
+    for await (const chunk of streamGraph(this.graph, initialState, this.workflowLogger)) {
       // Update job status
       this.updateJobStatus(jobId, {
         progress: {
