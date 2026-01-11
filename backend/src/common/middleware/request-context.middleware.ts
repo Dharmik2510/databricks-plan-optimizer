@@ -12,6 +12,7 @@ export interface RequestContext {
   correlationId: string;
   sessionId?: string;
   userId?: string;
+  orgId?: string;
   traceId?: string;
   spanId?: string;
   feature?: string;
@@ -91,6 +92,13 @@ export function setRequestContextUser(userId: string): void {
   const context = getRequestContext();
   if (context) {
     context.userId = userId;
+  }
+}
+
+export function setRequestContextOrg(orgId: string): void {
+  const context = getRequestContext();
+  if (context) {
+    context.orgId = orgId;
   }
 }
 

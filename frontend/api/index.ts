@@ -29,6 +29,9 @@ export type {
   SendMessageResponse
 } from './chat';
 
+export { historicalApi } from './historical';
+export { orgConnectionsApi } from './orgConnections';
+
 // Facade Client for backward compatibility/ease of use in App.tsx
 export const client = {
   get: <T>(url: string) => apiClient.get<T>(url),

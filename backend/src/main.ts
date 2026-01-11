@@ -19,7 +19,7 @@ import { AppLoggerService } from './common/logging/app-logger.service';
 import { ErrorReportingFilter } from './common/filters/error-reporting.filter';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { TracingInterceptor } from './common/interceptors/tracing.interceptor';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, Request, Response, NextFunction } from 'express';
 
 if (!globalThis.fetch) {
   globalThis.fetch = fetch as any;
@@ -56,6 +56,7 @@ async function bootstrap() {
   app.useGlobalFilters(new ErrorReportingFilter(logger));
 
   const configService = app.get(ConfigService);
+  const nodeEnv = configService.get<string>('NODE_ENV') || process.env.NODE_ENV || 'development';
 
   // Security headers
   app.use(helmet());
@@ -74,6 +75,15 @@ async function bootstrap() {
 
   logger.log(`🔐 CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
+  const allowAnyOrigin = allowedOrigins.includes('*') && nodeEnv !== 'production';
+
+  if (nodeEnv !== 'production') {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+      next();
+    });
+  }
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, Postman, server-to-server)
@@ -82,7 +92,7 @@ async function bootstrap() {
       }
 
       // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (allowedOrigins.includes(origin) || allowAnyOrigin) {
         return callback(null, true);
       }
 
@@ -127,7 +137,7 @@ async function bootstrap() {
     port,
     apiPrefix: '/api/v1',
     corsOrigin,
-    nodeEnv: process.env.NODE_ENV,
+    nodeEnv,
     otelEnabled: process.env.OTEL_ENABLED === 'true',
   });
   logger.log(`🚀 BrickOptima API running on http://0.0.0.0:${port}`);

@@ -95,6 +95,7 @@ export class AppLoggerService implements NestLoggerService {
           traceId: context.traceId,
           spanId: context.spanId,
           userId: context.userId,
+          orgId: context.orgId,
           sessionId: context.sessionId,
           feature: context.feature,
 
@@ -121,16 +122,22 @@ export class AppLoggerService implements NestLoggerService {
       'secret',
       'apiKey',
       'api_key',
+      'x-api-key',
       'authorization',
       'auth',
       'accessToken',
       'refreshToken',
       'jwt',
       'bearer',
+      'cookie',
+      'set-cookie',
+      'header',
       'creditCard',
       'ssn',
       'privateKey',
       'private_key',
+      'mcp',
+      'kms',
     ];
 
     return winston.format((info) => {

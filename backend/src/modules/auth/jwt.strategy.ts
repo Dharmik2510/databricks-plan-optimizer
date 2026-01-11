@@ -3,11 +3,14 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { setRequestContextUser } from '../../common/middleware/request-context.middleware';
+import { setRequestContextOrg, setRequestContextUser } from '../../common/middleware/request-context.middleware';
+import { resolveOrgIdFromSettings } from '../../common/tenancy/tenancy.utils';
 
 export interface JwtPayload {
   sub: string; // User ID
   email: string;
+  org_id?: string;
+  role?: string;
   iat?: number;
   exp?: number;
 }
@@ -59,13 +62,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User account is deactivated');
     }
 
+    const orgId = resolveOrgIdFromSettings(user.settings, user.id) || undefined;
+
     // Set user in request context for logging
     setRequestContextUser(user.id);
+    if (orgId) {
+      setRequestContextOrg(orgId);
+    }
 
     // Track or update user session
     await this.trackSession(request, user.id);
 
-    return user;
+    return {
+      ...user,
+      orgId,
+    };
   }
 
   /**

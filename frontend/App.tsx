@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Plus,
   FileClock,
+  History,
   Home,
   FileCode2,
   Shield,
@@ -41,6 +42,7 @@ const LiveMonitor = lazy(() => import('./components/LiveMonitor').then(m => ({ d
 const PlanCodeMapper = lazy(() => import('./components/agent/PlanCodeMapper').then(m => ({ default: m.PlanCodeMapper })));
 const AdvancedInsights = lazy(() => import('./components/AdvancedInsights').then(m => ({ default: m.AdvancedInsights })));
 const HistoryPage = lazy(() => import('./components/HistoryPage'));
+const HistoricalPage = lazy(() => import('./components/historical/HistoricalPage'));
 const UserGuideModal = lazy(() => import('./components/guide/UserGuideModal').then(m => ({ default: m.UserGuideModal })));
 const ComingSoonModal = lazy(() => import('./components/common/ComingSoonModal').then(m => ({ default: m.ComingSoonModal })));
 const AuthPage = lazy(() => import('./components/auth/AuthPage').then(m => ({ default: m.AuthPage })));
@@ -198,6 +200,15 @@ function AppContent() {
       category: 'Navigation',
     },
     {
+      id: 'historical',
+      label: 'Historical Analysis',
+      description: 'Analyze or compare Spark batch runs',
+      icon: <History className="h-4 w-4" />,
+      action: () => setActiveTab(ActiveTab.HISTORICAL),
+      category: 'Navigation',
+      keywords: ['batch', 'compare', 'runs'],
+    },
+    {
       id: 'chat',
       label: 'AI Consultant',
       description: 'Ask AI about your query',
@@ -341,6 +352,9 @@ function AppContent() {
                     setActiveTab(ActiveTab.DASHBOARD);
                   }}
                 />
+              )}
+              {activeTab === ActiveTab.HISTORICAL && (
+                <HistoricalPage />
               )}
               {activeTab === ActiveTab.CHAT && (
                 <div className="max-w-4xl mx-auto h-full">
@@ -559,6 +573,12 @@ const Sidebar = ({
                 label="History"
                 active={activeTab === ActiveTab.HISTORY}
                 onClick={() => setActiveTab(ActiveTab.HISTORY)}
+              />
+              <SidebarItem
+                icon={History}
+                label="Historical"
+                active={activeTab === ActiveTab.HISTORICAL}
+                onClick={() => setActiveTab(ActiveTab.HISTORICAL)}
               />
               <div className="h-px bg-slate-800 my-2 mx-3"></div>
               <SidebarItem

@@ -327,6 +327,28 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
     }
   }
 
+  async generateHistoricalNarrative(prompt: string): Promise<string> {
+    if (!this.model) {
+      throw new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
+    }
+
+    try {
+      const result = await this.model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 2048,
+        },
+      });
+
+      const text = result.response.text();
+      return text || 'I apologize, but I could not generate a response. Please try again.';
+    } catch (error) {
+      this.logger.error('Gemini historical narrative failed:', error);
+      throw error;
+    }
+  }
+
   /**
    * Post-processing heuristic to connect orphan nodes.
    * Specifically targets "Scan" nodes that have no outgoing links and connects them

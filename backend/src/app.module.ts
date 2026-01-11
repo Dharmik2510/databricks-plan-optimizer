@@ -17,14 +17,20 @@ import { AdminModule } from './modules/admin/admin.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { EducationModule } from './modules/education/education.module';
 import { DbrModule } from './modules/dbr/dbr.module';
+import { HistoricalModule } from './modules/historical/historical.module';
+import { OrgConnectionsModule } from './modules/org-connections/org-connections.module';
 
 // Observability imports
 import { LoggingModule } from './common/logging/logging.module';
 import { MonitoringModule } from './common/monitoring/monitoring.module'; // Phase 5
+import { SupabaseModule } from './common/supabase/supabase.module';
+import { SecurityModule } from './common/security/security.module';
+import { AuditModule } from './common/audit/audit.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppLoggerService } from './common/logging/app-logger.service';
+import { McpModule } from './integrations/mcp/mcp.module';
 
 @Module({
   imports: [
@@ -49,6 +55,10 @@ import { AppLoggerService } from './common/logging/app-logger.service';
     // Core modules
     LoggingModule, // Observability: Global logging
     MonitoringModule, // Phase 5: Cloud Monitoring, Tracing, Custom Metrics
+    SupabaseModule,
+    SecurityModule,
+    AuditModule,
+    McpModule,
     PrismaModule,
     HealthModule,
 
@@ -64,6 +74,8 @@ import { AppLoggerService } from './common/logging/app-logger.service';
     FeedbackModule,
     EducationModule,
     DbrModule,
+    HistoricalModule,
+    OrgConnectionsModule,
 
     // Integration modules
     GeminiModule,

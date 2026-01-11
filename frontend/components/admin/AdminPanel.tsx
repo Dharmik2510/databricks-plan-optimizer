@@ -6,8 +6,9 @@ import AnalysisManagement from './analyses/AnalysisManagement';
 import FeedbackManagement from './feedback/FeedbackManagement';
 import SystemHealth from './health/SystemHealth';
 import GlobalSettings from './settings/GlobalSettings';
+import OrgConnectionsPage from './connections/OrgConnectionsPage';
 
-type AdminView = 'dashboard' | 'users' | 'analyses' | 'health' | 'feedback' | 'settings';
+type AdminView = 'dashboard' | 'users' | 'analyses' | 'health' | 'feedback' | 'settings' | 'connections';
 
 const AdminPanel: React.FC = () => {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -35,6 +36,8 @@ const AdminPanel: React.FC = () => {
         return <FeedbackManagement />;
       case 'settings':
         return <GlobalSettings />;
+      case 'connections':
+        return <OrgConnectionsPage />;
       default:
         return <AdminDashboard onNavigateToUsers={() => setActiveView('users')} onNavigateToAnalyses={() => setActiveView('analyses')} />;
     }
@@ -48,4 +51,3 @@ const AdminPanel: React.FC = () => {
 };
 
 export default AdminPanel;
-

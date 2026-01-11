@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Users, BarChart3, Lock, Activity, Settings, HelpCircle, FileText } from 'lucide-react';
+import { Shield, Users, BarChart3, Lock, Activity, Settings, HelpCircle, FileText, PlugZap } from 'lucide-react';
 import { cn } from '../../../design-system/utils';
 
 interface AdminSidebarProps {
@@ -12,6 +12,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeView, onNaviga
         { id: 'dashboard', label: 'Overview', icon: BarChart3 },
         { id: 'users', label: 'User Management', icon: Users },
         { id: 'analyses', label: 'Analyses & Jobs', icon: FileText },
+        { id: 'connections', label: 'Connections', icon: PlugZap },
         { id: 'health', label: 'System Health', icon: Activity },
         { id: 'feedback', label: 'Feedback', icon: HelpCircle },
         { id: 'settings', label: 'Settings', icon: Settings },

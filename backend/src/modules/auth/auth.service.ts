@@ -12,6 +12,8 @@ import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import { resolveOrgIdFromSettings } from '../../common/tenancy/tenancy.utils';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -125,7 +127,13 @@ export class AuthService {
     }
 
     // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
+    const orgId = resolveOrgIdFromSettings(undefined, user.id) || undefined;
+    const tokens = await this.generateTokens({
+      userId: user.id,
+      email: user.email,
+      orgId,
+      role: UserRole.USER,
+    });
 
     return {
       user,
@@ -162,12 +170,15 @@ export class AuthService {
     this.logger.log(`User logged in: ${user.email}`);
 
     // Generate tokens
-    const tokens = await this.generateTokens(
-      user.id,
-      user.email,
+    const orgId = resolveOrgIdFromSettings(user.settings, user.id) || undefined;
+    const tokens = await this.generateTokens({
+      userId: user.id,
+      email: user.email,
+      orgId,
+      role: user.role,
       userAgent,
       ipAddress,
-    );
+    });
 
     return {
       user: {
@@ -237,12 +248,15 @@ export class AuthService {
       }
 
       // Generate tokens
-      const tokens = await this.generateTokens(
-        user.id,
-        user.email,
+      const orgId = resolveOrgIdFromSettings(user.settings, user.id) || undefined;
+      const tokens = await this.generateTokens({
+        userId: user.id,
+        email: user.email,
+        orgId,
+        role: user.role,
         userAgent,
         ipAddress,
-      );
+      });
 
       return {
         user: {
@@ -308,12 +322,15 @@ export class AuthService {
     });
 
     // Generate new tokens
-    const tokens = await this.generateTokens(
-      storedToken.userId,
-      storedToken.user.email,
-      storedToken.userAgent || undefined,
-      storedToken.ipAddress || undefined,
-    );
+    const orgId = resolveOrgIdFromSettings(storedToken.user.settings, storedToken.userId) || undefined;
+    const tokens = await this.generateTokens({
+      userId: storedToken.userId,
+      email: storedToken.user.email,
+      orgId,
+      role: storedToken.user.role,
+      userAgent: storedToken.userAgent || undefined,
+      ipAddress: storedToken.ipAddress || undefined,
+    });
 
     this.logger.log(`Tokens refreshed for user: ${storedToken.user.email}`);
 
@@ -363,17 +380,22 @@ export class AuthService {
     return sessions;
   }
 
-  private async generateTokens(
-    userId: string,
-    email: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ) {
+  private async generateTokens(params: {
+    userId: string;
+    email: string;
+    orgId?: string;
+    role?: UserRole;
+    userAgent?: string;
+    ipAddress?: string;
+  }) {
+    const { userId, email, orgId, role, userAgent, ipAddress } = params;
     // Generate access token (short-lived)
     const accessToken = this.jwtService.sign(
       {
         sub: userId,
         email,
+        org_id: orgId,
+        role,
       },
       {
         secret: this.configService.get<string>('JWT_SECRET'),

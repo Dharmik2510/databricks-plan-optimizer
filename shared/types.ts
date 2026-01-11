@@ -231,6 +231,7 @@ export enum ActiveTab {
   REPO = 'REPO',
   LIVE = 'LIVE',
   HISTORY = 'HISTORY',
+  HISTORICAL = 'HISTORICAL',
   CODE_MAP = 'CODE_MAP',
   ADMIN = 'ADMIN',
   MY_TICKETS = 'MY_TICKETS',

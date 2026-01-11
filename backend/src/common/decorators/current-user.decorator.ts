@@ -7,6 +7,7 @@ export interface CurrentUserData {
   name: string;
   avatar?: string;
   role?: UserRole;
+  orgId?: string;
   isActive?: boolean;
   settings?: any;
   analysisCount?: number;
