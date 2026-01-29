@@ -113,28 +113,66 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private genAI: GoogleGenerativeAI | null = null;
   private model: any = null;
+  private readonly modelName = 'gemini-2.0-flash-exp';
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-
-    if (!apiKey) {
-      this.logger.warn('GEMINI_API_KEY not configured - AI features disabled');
-      return;
-    }
-
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    // Use the experimental flash model for speed and larger context window if needed, 
-    // or fallback to 'gemini-pro' if stability is preferred.
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    this.logger.log('Gemini AI initialized');
+    this.initializeGeminiClient();
   }
 
+  /**
+   * Initialize Gemini AI client with API key validation
+   */
+  private initializeGeminiClient(): void {
+    try {
+      const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+
+      if (!apiKey) {
+        this.logger.warn('❌ GEMINI_API_KEY not configured - AI features disabled');
+        return;
+      }
+
+      this.logger.log(`🔧 Initializing Gemini AI with model: ${this.modelName}`);
+
+      this.genAI = new GoogleGenerativeAI(apiKey);
+      this.model = this.genAI.getGenerativeModel({ model: this.modelName });
+
+      this.logger.log(`✅ Gemini AI initialized successfully | Model: ${this.modelName}`);
+    } catch (error) {
+      this.logger.error('❌ Failed to initialize Gemini AI client', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      // Don't throw - allow service to start without AI
+      this.model = null;
+      this.genAI = null;
+    }
+  }
+
+  /**
+   * Analyze DAG with comprehensive error handling and logging
+   */
   async analyzeDAG(content: string, runtimeMetrics?: RuntimeMetrics): Promise<AnalysisResult> {
+    const operationType = 'DAG_ANALYSIS';
+    const tier = runtimeMetrics ? 'TIER_1' : 'TIER_0';
+
+    this.logger.log(`🚀 Starting ${operationType} | Tier: ${tier} | ContentLength: ${content.length} chars | HasMetrics: ${!!runtimeMetrics}`);
+
     if (!this.model) {
-      throw new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
+      const error = new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
+      this.logger.error(`❌ ${operationType} failed - Model not initialized`, {
+        error: error.message,
+        tier,
+      });
+      throw error;
     }
 
     const isTier1 = !!runtimeMetrics;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    if (isTier1 && runtimeMetrics) {
+      this.logger.log(`📊 Runtime metrics provided | TotalRuntime: ${runtimeMetrics.totalRuntimeSeconds}s | Stages: ${runtimeMetrics.stages.length} | Bottlenecks: ${runtimeMetrics.bottlenecks.length}`);
+    }
 
     const basePrompt = `You are a Principal Data Engineer and Databricks Performance Architect.
 Analyze the provided Spark Physical Plan or SQL Explain output to find performance issues and optimization opportunities.
@@ -166,14 +204,14 @@ The JSON structure must match this TypeScript interface exactly:
 \`\`\`typescript
 interface AnalysisResult {
   summary: string;
-  
+
   // DAG Visualization Data
   dagNodes: { id: string; name: string; type: string; metric?: string }[];
   dagLinks: { source: string; target: string }[];
-  
+
   // Resource Impact
   resourceMetrics: { stageId: string; cpuPercentage: number; memoryMb: number }[];
-  
+
   // Optimization Tips
   optimizations: {
     title: string;
@@ -181,20 +219,20 @@ interface AnalysisResult {
     description: string;
     codeSuggestion?: string;
     originalPattern?: string;
-    
+
     // Impact Assessment
     impactLevel: "Very High" | "High" | "Medium" | "Low";
     impactReasoning: string;
     evidenceBasis: string[];
-    
+
     confidence_score: number;
     implementation_complexity: "Low" | "Medium" | "High";
     affected_stages?: string[];
-    
+
     // TIER 1 ONLY - Leave null for Tier 0
     estimated_time_saved_seconds?: number; // Modeled savings
   }[];
-  
+
   // Cluster Recommendations
   clusterRecommendation?: {
     current: { nodes: number; type: string };
@@ -202,7 +240,7 @@ interface AnalysisResult {
     reasoning: string;
     expectedImprovement: string;
   };
-  
+
   // TIER 1 ONLY
   performancePrediction?: {
     baselineExecutionTime: number; // Set to ${isTier1 ? runtimeMetrics.totalRuntimeSeconds : '0'}
@@ -225,58 +263,200 @@ interface AnalysisResult {
 
     const prompt = `Analyze this Spark execution plan:\n\n${content}`;
 
-    try {
-      const result = await this.model.generateContent({
-        contents: [
-          { role: 'user', parts: [{ text: basePrompt }] },
-          { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and provide results according to the specified Tier constraints.' }] },
-          { role: 'user', parts: [{ text: prompt }] },
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 8192,
-        },
-      });
+    while (retryCount <= maxRetries) {
+      try {
+        if (retryCount > 0) {
+          this.logger.log(`🔄 Retry attempt ${retryCount}/${maxRetries} for ${operationType}`);
+        }
 
-      const text = result.response.text();
-      if (!text) throw new Error('Empty response from Gemini');
+        this.logger.log(`📤 Sending API request | Operation: ${operationType} | Attempt: ${retryCount + 1} | MaxTokens: 8192 | Temperature: 0.2`);
 
-      // Clean markdown formatting if present
-      let cleaned = text.trim();
-      if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
-      if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
-      if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
-      cleaned = cleaned.trim();
+        const startTime = Date.now();
+        const result = await this.model.generateContent({
+          contents: [
+            { role: 'user', parts: [{ text: basePrompt }] },
+            { role: 'model', parts: [{ text: 'Understood. I will analyze the plan and provide results according to the specified Tier constraints.' }] },
+            { role: 'user', parts: [{ text: prompt }] },
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+          },
+        });
 
-      const parsed = JSON.parse(cleaned) as AnalysisResult;
+        const responseTime = Date.now() - startTime;
+        this.logger.log(`✅ API request successful | Operation: ${operationType} | ResponseTime: ${responseTime}ms`);
 
-      // Basic validation
-      if (!parsed.summary || !parsed.dagNodes || !parsed.optimizations) {
-        throw new Error('Invalid response structure: Missing core fields');
+        const text = result.response.text();
+
+        if (!text || text.trim().length === 0) {
+          throw new Error('Empty response from Gemini API');
+        }
+
+        this.logger.log(`📥 Received response | Operation: ${operationType} | ResponseLength: ${text.length} chars`);
+
+        // Clean markdown formatting if present
+        this.logger.log(`🧹 Cleaning response format | Operation: ${operationType}`);
+        let cleaned = text.trim();
+        const hadMarkdown = cleaned.startsWith('```');
+
+        if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+        if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+        if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+        cleaned = cleaned.trim();
+
+        if (hadMarkdown) {
+          this.logger.log(`🔧 Removed markdown code blocks from response`);
+        }
+
+        // Parse JSON response
+        this.logger.log(`🔍 Parsing JSON response | Operation: ${operationType}`);
+        let parsed: AnalysisResult;
+
+        try {
+          parsed = JSON.parse(cleaned) as AnalysisResult;
+        } catch (parseError) {
+          this.logger.error(`❌ JSON parsing failed | Operation: ${operationType}`, {
+            error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+            responsePreview: cleaned.substring(0, 500),
+            responseLength: cleaned.length,
+          });
+          throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
+
+        // Validate response structure
+        this.logger.log(`✅ Validating response structure | Operation: ${operationType}`);
+
+        if (!parsed.summary || !parsed.dagNodes || !parsed.optimizations) {
+          this.logger.error(`❌ Invalid response structure | Operation: ${operationType}`, {
+            hasSummary: !!parsed.summary,
+            hasDagNodes: !!parsed.dagNodes,
+            hasOptimizations: !!parsed.optimizations,
+            keys: Object.keys(parsed),
+          });
+          throw new Error('Invalid response structure: Missing core fields (summary, dagNodes, or optimizations)');
+        }
+
+        this.logger.log(`✅ Response validation passed | DagNodes: ${parsed.dagNodes.length} | DagLinks: ${parsed.dagLinks?.length || 0} | Optimizations: ${parsed.optimizations.length}`);
+
+        // Log optimization details
+        if (parsed.optimizations.length > 0) {
+          const severityCounts = parsed.optimizations.reduce((acc, opt) => {
+            acc[opt.severity] = (acc[opt.severity] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+
+          this.logger.log(`📊 Optimization breakdown | ${Object.entries(severityCounts).map(([sev, count]) => `${sev}: ${count}`).join(' | ')}`);
+        }
+
+        // Repair DAG connectivity
+        this.logger.log(`🔧 Repairing DAG connectivity | Operation: ${operationType}`);
+        const repaired = this.repairDagConnectivity(parsed);
+
+        // Sanitize fields based on Tier
+        this.logger.log(`🧹 Sanitizing numeric fields | Tier: ${tier} | Operation: ${operationType}`);
+        const sanitized = this.sanitizeNumericFields(repaired, isTier1);
+
+        this.logger.log(`✅ ${operationType} completed successfully | Tier: ${tier} | TotalTime: ${responseTime}ms | Nodes: ${sanitized.dagNodes.length} | Optimizations: ${sanitized.optimizations.length}`);
+
+        return sanitized;
+
+      } catch (error) {
+        retryCount++;
+
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        // Check for specific error types
+        if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate limit')) {
+          this.logger.error(`❌ Rate limit error | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            retryCount,
+            nextRetryIn: retryCount <= maxRetries ? `${retryCount * 2}s` : 'N/A',
+          });
+
+          if (retryCount <= maxRetries) {
+            const waitTime = retryCount * 2000; // Exponential backoff: 2s, 4s, 6s
+            this.logger.log(`⏳ Waiting ${waitTime}ms before retry due to rate limiting`);
+            await this.sleep(waitTime);
+            continue;
+          }
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('ECONNRESET')) {
+          this.logger.error(`❌ Timeout error | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            retryCount,
+          });
+
+          if (retryCount <= maxRetries) {
+            const waitTime = 1000;
+            this.logger.log(`⏳ Waiting ${waitTime}ms before retry due to timeout`);
+            await this.sleep(waitTime);
+            continue;
+          }
+        } else if (errorMessage.includes('quota') || errorMessage.includes('limit exceeded')) {
+          this.logger.error(`❌ Token/Quota limit error | Operation: ${operationType}`, {
+            error: errorMessage,
+            tier,
+            contentLength: content.length,
+            maxOutputTokens: 8192,
+          });
+          // Don't retry quota errors
+        } else if (errorMessage.includes('Empty response')) {
+          this.logger.error(`❌ Empty response from API | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            retryCount,
+          });
+
+          if (retryCount <= maxRetries) {
+            await this.sleep(1000);
+            continue;
+          }
+        } else {
+          this.logger.error(`❌ ${operationType} failed | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            stack: errorStack,
+            tier,
+            contentLength: content.length,
+            hasRuntimeMetrics: !!runtimeMetrics,
+          });
+        }
+
+        // If this was the last retry, throw the error
+        if (retryCount > maxRetries) {
+          this.logger.error(`❌ ${operationType} failed after ${maxRetries} retries | Tier: ${tier}`, {
+            finalError: errorMessage,
+            totalAttempts: retryCount,
+          });
+          throw error;
+        }
       }
-
-      this.logger.log(`Analysis completed: ${parsed.dagNodes.length} nodes, ${parsed.optimizations.length} optimizations`);
-
-      // EXPERIMENTAL: Deterministic Repair for Orphan Scans
-      // Sometimes the LLM fails to link the source scan to the next stage. We fix this locally.
-      const repaired = this.repairDagConnectivity(parsed);
-
-      // Sanitize fields based on Tier
-      const sanitized = this.sanitizeNumericFields(repaired, isTier1);
-
-      return sanitized;
-    } catch (error) {
-      this.logger.error('Gemini analysis failed:', error);
-      throw error;
     }
+
+    // Should never reach here, but TypeScript requires it
+    throw new Error(`${operationType} failed after maximum retries`);
   }
 
+  /**
+   * Chat interface with comprehensive error handling
+   */
   async chat(message: string, analysisContext?: string, conversationHistory?: string): Promise<string> {
+    const operationType = 'CHAT';
+
+    this.logger.log(`🚀 Starting ${operationType} | MessageLength: ${message.length} chars | HasContext: ${!!analysisContext} | HasHistory: ${!!conversationHistory}`);
+
     if (!this.model) {
-      throw new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
+      const error = new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
+      this.logger.error(`❌ ${operationType} failed - Model not initialized`, {
+        error: error.message,
+      });
+      throw error;
     }
 
-    let systemPrompt = `You are a Spark Performance Consultant for Databricks.
+    let retryCount = 0;
+    const maxRetries = 2;
+
+    try {
+      let systemPrompt = `You are a Spark Performance Consultant for Databricks.
 Help users optimize their workloads with expertise in:
 - Join strategies (Broadcast, Shuffle Hash, Sort Merge)
 - Partition optimization and data skew
@@ -286,67 +466,231 @@ Help users optimize their workloads with expertise in:
 
 Be concise, technical, and actionable. Use code examples when helpful.`;
 
-    if (analysisContext) {
-      systemPrompt += `\n\nContext from user's analysis:\n${analysisContext}`;
-    }
+      if (analysisContext) {
+        systemPrompt += `\n\nContext from user's analysis:\n${analysisContext}`;
+        this.logger.log(`📎 Analysis context attached | Length: ${analysisContext.length} chars`);
+      }
 
-    const contents: any[] = [
-      { role: 'user', parts: [{ text: systemPrompt }] },
-      { role: 'model', parts: [{ text: 'Ready to help optimize your Spark workloads.' }] },
-    ];
+      const contents: any[] = [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: 'Ready to help optimize your Spark workloads.' }] },
+      ];
 
-    // Add conversation history if available
-    if (conversationHistory) {
-      const lines = conversationHistory.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('USER:')) {
-          contents.push({ role: 'user', parts: [{ text: line.slice(5).trim() }] });
-        } else if (line.startsWith('ASSISTANT:')) {
-          contents.push({ role: 'model', parts: [{ text: line.slice(10).trim() }] });
+      // Add conversation history if available
+      if (conversationHistory) {
+        const lines = conversationHistory.split('\n');
+        let historyMessageCount = 0;
+
+        for (const line of lines) {
+          if (line.startsWith('USER:')) {
+            contents.push({ role: 'user', parts: [{ text: line.slice(5).trim() }] });
+            historyMessageCount++;
+          } else if (line.startsWith('ASSISTANT:')) {
+            contents.push({ role: 'model', parts: [{ text: line.slice(10).trim() }] });
+            historyMessageCount++;
+          }
+        }
+
+        this.logger.log(`📜 Conversation history loaded | Messages: ${historyMessageCount}`);
+      }
+
+      // Add current message
+      contents.push({ role: 'user', parts: [{ text: message }] });
+
+      while (retryCount <= maxRetries) {
+        try {
+          if (retryCount > 0) {
+            this.logger.log(`🔄 Retry attempt ${retryCount}/${maxRetries} for ${operationType}`);
+          }
+
+          this.logger.log(`📤 Sending chat request | Attempt: ${retryCount + 1} | MaxTokens: 2048 | Temperature: 0.7 | ConversationParts: ${contents.length}`);
+
+          const startTime = Date.now();
+          const result = await this.model.generateContent({
+            contents,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            },
+          });
+
+          const responseTime = Date.now() - startTime;
+          this.logger.log(`✅ Chat request successful | ResponseTime: ${responseTime}ms`);
+
+          const text = result.response.text();
+
+          if (!text || text.trim().length === 0) {
+            throw new Error('Empty response from Gemini API');
+          }
+
+          this.logger.log(`✅ ${operationType} completed successfully | ResponseLength: ${text.length} chars | TotalTime: ${responseTime}ms`);
+
+          return text;
+
+        } catch (error) {
+          retryCount++;
+
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const errorStack = error instanceof Error ? error.stack : undefined;
+
+          if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate limit')) {
+            this.logger.error(`❌ Rate limit error | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+              error: errorMessage,
+              retryCount,
+            });
+
+            if (retryCount <= maxRetries) {
+              const waitTime = retryCount * 2000;
+              this.logger.log(`⏳ Waiting ${waitTime}ms before retry due to rate limiting`);
+              await this.sleep(waitTime);
+              continue;
+            }
+          } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+            this.logger.error(`❌ Timeout error | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+              error: errorMessage,
+              retryCount,
+            });
+
+            if (retryCount <= maxRetries) {
+              await this.sleep(1000);
+              continue;
+            }
+          } else {
+            this.logger.error(`❌ ${operationType} failed | Attempt: ${retryCount}/${maxRetries}`, {
+              error: errorMessage,
+              stack: errorStack,
+              messageLength: message.length,
+            });
+          }
+
+          if (retryCount > maxRetries) {
+            this.logger.error(`❌ ${operationType} failed after ${maxRetries} retries`, {
+              finalError: errorMessage,
+            });
+            throw error;
+          }
         }
       }
-    }
 
-    // Add current message
-    contents.push({ role: 'user', parts: [{ text: message }] });
+      return 'I apologize, but I could not generate a response. Please try again.';
 
-    try {
-      const result = await this.model.generateContent({
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(`❌ ${operationType} failed with unhandled error`, {
+        error: errorMessage,
+        stack: errorStack,
+        messageLength: message.length,
+        hasContext: !!analysisContext,
+        hasHistory: !!conversationHistory,
       });
 
-      const text = result.response.text();
-      return text || 'I apologize, but I could not generate a response. Please try again.';
-    } catch (error) {
-      this.logger.error('Gemini chat failed:', error);
       throw error;
     }
   }
 
+  /**
+   * Generate historical narrative with comprehensive error handling
+   */
   async generateHistoricalNarrative(prompt: string): Promise<string> {
+    const operationType = 'HISTORICAL_NARRATIVE';
+
+    this.logger.log(`🚀 Starting ${operationType} | PromptLength: ${prompt.length} chars`);
+
     if (!this.model) {
-      throw new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
-    }
-
-    try {
-      const result = await this.model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 2048,
-        },
+      const error = new Error('Gemini AI not configured. Please set GEMINI_API_KEY.');
+      this.logger.error(`❌ ${operationType} failed - Model not initialized`, {
+        error: error.message,
       });
-
-      const text = result.response.text();
-      return text || 'I apologize, but I could not generate a response. Please try again.';
-    } catch (error) {
-      this.logger.error('Gemini historical narrative failed:', error);
       throw error;
     }
+
+    let retryCount = 0;
+    const maxRetries = 2;
+
+    while (retryCount <= maxRetries) {
+      try {
+        if (retryCount > 0) {
+          this.logger.log(`🔄 Retry attempt ${retryCount}/${maxRetries} for ${operationType}`);
+        }
+
+        this.logger.log(`📤 Sending narrative generation request | Attempt: ${retryCount + 1} | MaxTokens: 2048 | Temperature: 0.2`);
+
+        const startTime = Date.now();
+        const result = await this.model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 2048,
+          },
+        });
+
+        const responseTime = Date.now() - startTime;
+        this.logger.log(`✅ Narrative generation request successful | ResponseTime: ${responseTime}ms`);
+
+        const text = result.response.text();
+
+        if (!text || text.trim().length === 0) {
+          throw new Error('Empty response from Gemini API');
+        }
+
+        this.logger.log(`✅ ${operationType} completed successfully | ResponseLength: ${text.length} chars | TotalTime: ${responseTime}ms`);
+
+        return text;
+
+      } catch (error) {
+        retryCount++;
+
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate limit')) {
+          this.logger.error(`❌ Rate limit error | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            retryCount,
+          });
+
+          if (retryCount <= maxRetries) {
+            const waitTime = retryCount * 2000;
+            this.logger.log(`⏳ Waiting ${waitTime}ms before retry due to rate limiting`);
+            await this.sleep(waitTime);
+            continue;
+          }
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+          this.logger.error(`❌ Timeout error | Operation: ${operationType} | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            retryCount,
+          });
+
+          if (retryCount <= maxRetries) {
+            await this.sleep(1000);
+            continue;
+          }
+        } else if (errorMessage.includes('quota') || errorMessage.includes('limit exceeded')) {
+          this.logger.error(`❌ Token/Quota limit error | Operation: ${operationType}`, {
+            error: errorMessage,
+            promptLength: prompt.length,
+            maxOutputTokens: 2048,
+          });
+        } else {
+          this.logger.error(`❌ ${operationType} failed | Attempt: ${retryCount}/${maxRetries}`, {
+            error: errorMessage,
+            stack: errorStack,
+            promptLength: prompt.length,
+          });
+        }
+
+        if (retryCount > maxRetries) {
+          this.logger.error(`❌ ${operationType} failed after ${maxRetries} retries`, {
+            finalError: errorMessage,
+          });
+          throw error;
+        }
+      }
+    }
+
+    return 'I apologize, but I could not generate a response. Please try again.';
   }
 
   /**
@@ -355,9 +699,15 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
    * to the most likely next node (a root node of another component).
    */
   private repairDagConnectivity(result: AnalysisResult): AnalysisResult {
+    const operationType = 'DAG_REPAIR';
+
     try {
       const { dagNodes, dagLinks } = result;
-      if (!dagNodes || !dagLinks) return result;
+
+      if (!dagNodes || !dagLinks) {
+        this.logger.log(`⏭️ Skipping ${operationType} - Missing dagNodes or dagLinks`);
+        return result;
+      }
 
       const sources = new Set(dagLinks.map(l => l.source));
       const targets = new Set(dagLinks.map(l => l.target));
@@ -372,9 +722,12 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
         return isScan && hasNoOutgoing;
       });
 
-      if (orphanScans.length === 0) return result;
+      if (orphanScans.length === 0) {
+        this.logger.log(`✅ ${operationType} - No orphan scan nodes found | TotalNodes: ${dagNodes.length} | TotalLinks: ${dagLinks.length}`);
+        return result;
+      }
 
-      this.logger.log(`Found ${orphanScans.length} orphan scan nodes. Attempting repair...`);
+      this.logger.log(`🔧 ${operationType} - Found ${orphanScans.length} orphan scan nodes | Attempting repair...`);
 
       // 2. Identify "Potential Targets" - Nodes that have NO incoming links (Roots of other trees)
       // Exclude the orphans themselves
@@ -382,6 +735,10 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
         !targets.has(n.id) &&
         !orphanScans.find(o => o.id === n.id)
       );
+
+      this.logger.log(`🎯 Potential repair targets found: ${potentialTargets.length}`);
+
+      let repairedCount = 0;
 
       orphanScans.forEach(scan => {
         // Heuristic: Connect to the first available potential target that isn't itself a scan
@@ -405,20 +762,34 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
         }
 
         if (target && target.id !== scan.id) {
-          this.logger.log(`Repairing DAG: Forcing link ${scan.id} -> ${target.id}`);
+          this.logger.log(`🔗 Creating repair link | Source: ${scan.id} (${scan.name}) -> Target: ${target.id} (${target.name})`);
           dagLinks.push({ source: scan.id, target: target.id });
 
           // Add to targets set to avoid multi-linking if we want 1-to-1 (optional, but safer)
           targets.add(target.id);
+          repairedCount++;
+        } else {
+          this.logger.warn(`⚠️ Could not find repair target for orphan scan | NodeId: ${scan.id} | NodeName: ${scan.name}`);
         }
       });
+
+      this.logger.log(`✅ ${operationType} completed | OrphansFound: ${orphanScans.length} | Repaired: ${repairedCount} | TotalLinks: ${dagLinks.length}`);
 
       return {
         ...result,
         dagLinks
       };
-    } catch (e) {
-      this.logger.error('Error in DAG repair:', e);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(`❌ Error in ${operationType} - Returning original result`, {
+        error: errorMessage,
+        stack: errorStack,
+        dagNodesCount: result.dagNodes?.length,
+        dagLinksCount: result.dagLinks?.length,
+      });
+
       return result; // Fail safe, return original
     }
   }
@@ -430,46 +801,103 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
    * Cost is ALWAYS removed (Tier 2 scope).
    */
   private sanitizeNumericFields(result: AnalysisResult, isTier1: boolean): AnalysisResult {
-    return {
-      ...result,
-      // Remove deprecated / hallucination-prone top-level fields
-      estimatedDurationMin: undefined,
-      whatIfScenarios: undefined,
-      historicalTrend: undefined,
+    const operationType = 'FIELD_SANITIZATION';
 
-      // Performance Prediction only allowed in Tier 1
-      performancePrediction: isTier1 ? result.performancePrediction : undefined,
+    try {
+      this.logger.log(`🧹 ${operationType} | Tier: ${isTier1 ? 'TIER_1' : 'TIER_0'} | Optimizations: ${result.optimizations?.length || 0}`);
 
-      // Sanitize optimizations
-      optimizations: result.optimizations.map(opt => ({
-        ...opt,
+      let removedTimeFields = 0;
+      let removedCostFields = 0;
+      let addedFallbackFields = 0;
+
+      const sanitizedOptimizations = result.optimizations.map(opt => {
+        const sanitized: any = { ...opt };
+
         // Tier 1 allows time savings. Tier 0 does not.
-        estimated_time_saved_seconds: isTier1 ? opt.estimated_time_saved_seconds : undefined,
+        if (!isTier1 && opt.estimated_time_saved_seconds !== undefined) {
+          sanitized.estimated_time_saved_seconds = undefined;
+          removedTimeFields++;
+        }
 
         // Cost is ALWAYS forbidden (Tier 2)
-        estimated_cost_saved_usd: undefined,
+        if (opt.estimated_cost_saved_usd !== undefined) {
+          sanitized.estimated_cost_saved_usd = undefined;
+          removedCostFields++;
+        }
 
         // Ensure qualitative fields have fallbacks
-        impactLevel: opt.impactLevel || this.inferImpactLevel(opt.severity),
-        impactReasoning: opt.impactReasoning || opt.description,
-        evidenceBasis: opt.evidenceBasis || [],
-      })),
+        if (!opt.impactLevel) {
+          sanitized.impactLevel = this.inferImpactLevel(opt.severity);
+          addedFallbackFields++;
+        }
+
+        if (!opt.impactReasoning) {
+          sanitized.impactReasoning = opt.description;
+          addedFallbackFields++;
+        }
+
+        if (!opt.evidenceBasis) {
+          sanitized.evidenceBasis = [];
+          addedFallbackFields++;
+        }
+
+        return sanitized;
+      });
 
       // Sanitize cluster recommendation (remove cost fields)
-      clusterRecommendation: result.clusterRecommendation ? {
-        ...result.clusterRecommendation,
-        current: {
-          nodes: result.clusterRecommendation.current.nodes,
-          type: result.clusterRecommendation.current.type,
-          costPerHour: undefined,
-        },
-        recommended: {
-          nodes: result.clusterRecommendation.recommended.nodes,
-          type: result.clusterRecommendation.recommended.type,
-          costPerHour: undefined,
-        },
-      } : undefined,
-    };
+      let sanitizedClusterRec = result.clusterRecommendation;
+      if (sanitizedClusterRec) {
+        if (sanitizedClusterRec.current.costPerHour !== undefined) {
+          removedCostFields++;
+        }
+        if (sanitizedClusterRec.recommended.costPerHour !== undefined) {
+          removedCostFields++;
+        }
+
+        sanitizedClusterRec = {
+          ...sanitizedClusterRec,
+          current: {
+            nodes: sanitizedClusterRec.current.nodes,
+            type: sanitizedClusterRec.current.type,
+            costPerHour: undefined,
+          },
+          recommended: {
+            nodes: sanitizedClusterRec.recommended.nodes,
+            type: sanitizedClusterRec.recommended.type,
+            costPerHour: undefined,
+          },
+        };
+      }
+
+      const sanitizedResult = {
+        ...result,
+        // Remove deprecated / hallucination-prone top-level fields
+        estimatedDurationMin: undefined,
+        whatIfScenarios: undefined,
+        historicalTrend: undefined,
+
+        // Performance Prediction only allowed in Tier 1
+        performancePrediction: isTier1 ? result.performancePrediction : undefined,
+
+        optimizations: sanitizedOptimizations,
+        clusterRecommendation: sanitizedClusterRec,
+      };
+
+      this.logger.log(`✅ ${operationType} completed | RemovedTimeFields: ${removedTimeFields} | RemovedCostFields: ${removedCostFields} | AddedFallbacks: ${addedFallbackFields}`);
+
+      return sanitizedResult;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(`❌ Error in ${operationType} - Returning original result`, {
+        error: errorMessage,
+        stack: errorStack,
+        tier: isTier1 ? 'TIER_1' : 'TIER_0',
+      });
+
+      return result;
+    }
   }
 
   /**
@@ -481,5 +909,12 @@ Be concise, technical, and actionable. Use code examples when helpful.`;
     if (s === 'HIGH') return 'High';
     if (s === 'MEDIUM') return 'Medium';
     return 'Low';
+  }
+
+  /**
+   * Helper function to sleep for a specified duration
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

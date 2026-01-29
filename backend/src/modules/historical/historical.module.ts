@@ -8,9 +8,22 @@ import { McpModule } from '../../integrations/mcp/mcp.module';
 import { OrgConnectionsModule } from '../org-connections/org-connections.module';
 import { AuditModule } from '../../common/audit/audit.module';
 import { GeminiModule } from '../../integrations/gemini/gemini.module';
+import { DataSourcesModule } from '../datasources/datasources.module';
+import { McpProxyModule } from '../../integrations/mcp-proxy/mcp-proxy.module';
+import { QuotaModule } from '../../common/quota/quota.module';
 
 @Module({
-  imports: [SupabaseModule, SecurityModule, McpModule, OrgConnectionsModule, AuditModule, GeminiModule],
+  imports: [
+    SupabaseModule,
+    SecurityModule,
+    McpModule,
+    OrgConnectionsModule,
+    AuditModule,
+    GeminiModule,
+    DataSourcesModule,
+    McpProxyModule,
+    QuotaModule,
+  ],
   controllers: [HistoricalController],
   providers: [HistoricalService, HistoricalRateLimitGuard],
 })

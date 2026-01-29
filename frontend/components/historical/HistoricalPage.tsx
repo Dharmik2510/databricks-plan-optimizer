@@ -1,9 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Clipboard, Clock3, Loader2, Search, Sparkles, Split, Tag, CheckCircle2, AlertTriangle } from 'lucide-react';
+import {
+  ChevronDown,
+  Clipboard,
+  Clock3,
+  Loader2,
+  Search,
+  Sparkles,
+  Split,
+  Tag,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  ArrowRight,
+  History,
+  TrendingUp,
+  X,
+  Zap,
+  BarChart3
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { historicalApi, HistoricalAnalysisResult, HistoricalRunItem } from '../../api/historical';
 import { Button, Card } from '../../design-system/components';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// --- Constants & Helpers ---
 
 const PROGRESS_STEPS = [
   'Resolving app…',
@@ -54,6 +75,70 @@ const formatDateTime = (value?: string | null) => {
   return date.toLocaleString();
 };
 
+// --- Components ---
+
+const InfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+              <Sparkles className="w-6 h-6 text-orange-500" />
+              How it works
+            </h2>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="space-y-8">
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <Search className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">1. Choose a Run</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  Enter a Spark App ID or search by name. We fetch the event logs from your history server or object storage.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                <Zap className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">2. AI Analysis</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  Our advanced heuristics engine scans for skew, spill, and failed tasks. The AI then synthesizes these findings into a narrative report.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                <Split className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">3. Compare (Optional)</h3>
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  Select two runs to see a side-by-side comparison. Perfect for verifying optimizations or debugging regressions.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 flex justify-end">
+          <Button onClick={onClose}>Got it</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HistoricalPage: React.FC = () => {
   const [mode, setMode] = useState<'analyze' | 'compare'>('analyze');
   const [isRunning, setIsRunning] = useState(false);
@@ -62,29 +147,17 @@ const HistoricalPage: React.FC = () => {
   const [result, setResult] = useState<HistoricalAnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoricalAnalysisResult[]>([]);
   const [historySearch, setHistorySearch] = useState('');
-  const [historyMode, setHistoryMode] = useState<'all' | 'single' | 'compare'>('all');
+  const [showInfo, setShowInfo] = useState(false);
 
-  const [analyzeInput, setAnalyzeInput] = useState({
-    appId: '',
-    appName: '',
-    startTime: '',
-    endTime: '',
-    question: '',
-  });
-
-  const [compareInput, setCompareInput] = useState({
-    appName: '',
-    startTime: '',
-    endTime: '',
-    appIdA: '',
-    appIdB: '',
-    question: '',
-  });
+  // Input states
+  const [analyzeInput, setAnalyzeInput] = useState({ appId: '', appName: '', startTime: '', endTime: '', question: '' });
+  const [compareInput, setCompareInput] = useState({ appName: '', startTime: '', endTime: '', appIdA: '', appIdB: '', question: '' });
 
   const [runs, setRuns] = useState<HistoricalRunItem[]>([]);
   const [compareRuns, setCompareRuns] = useState<HistoricalRunItem[]>([]);
   const [selectedCompareIds, setSelectedCompareIds] = useState<string[]>([]);
 
+  // Derived analysis data
   const summary = result?.evidence_json?.summary;
   const heuristics = result?.evidence_json?.heuristics;
   const application = result?.evidence_json?.application;
@@ -92,38 +165,38 @@ const HistoricalPage: React.FC = () => {
   const appB = result?.evidence_json?.appB;
   const compareHeuristicsA = appA?.heuristics;
   const compareHeuristicsB = appB?.heuristics;
+  const compareMetrics = result?.evidence_json?.comparison;
 
+  // --- Effects ---
+
+  // Progress simulator
   useEffect(() => {
     if (!isRunning) {
       setProgressIndex(0);
       return;
     }
-
     let index = 0;
     const interval = setInterval(() => {
       index = Math.min(PROGRESS_STEPS.length - 1, index + 1);
       setProgressIndex(index);
     }, 1400);
-
     return () => clearInterval(interval);
   }, [isRunning]);
 
+  // Load history
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const data = await historicalApi.history({
-          search: historySearch || undefined,
-          mode: historyMode === 'all' ? undefined : historyMode,
-        });
+        const data = await historicalApi.history({ search: historySearch || undefined });
         setHistory(data || []);
       } catch {
         setHistory([]);
       }
     };
-
     loadHistory();
-  }, [historySearch, historyMode]);
+  }, [historySearch]);
 
+  // Fetch runs for Analyze
   useEffect(() => {
     const fetchRuns = async () => {
       if (!analyzeInput.appName || !analyzeInput.startTime || !analyzeInput.endTime) {
@@ -131,20 +204,14 @@ const HistoricalPage: React.FC = () => {
         return;
       }
       try {
-        const data = await historicalApi.runs({
-          appName: analyzeInput.appName,
-          start: analyzeInput.startTime,
-          end: analyzeInput.endTime,
-        });
+        const data = await historicalApi.runs({ appName: analyzeInput.appName, start: analyzeInput.startTime, end: analyzeInput.endTime });
         setRuns(data || []);
-      } catch {
-        setRuns([]);
-      }
+      } catch { setRuns([]); }
     };
-
     fetchRuns();
   }, [analyzeInput.appName, analyzeInput.startTime, analyzeInput.endTime]);
 
+  // Fetch runs for Compare
   useEffect(() => {
     const fetchRuns = async () => {
       if (!compareInput.appName || !compareInput.startTime || !compareInput.endTime) {
@@ -152,29 +219,20 @@ const HistoricalPage: React.FC = () => {
         return;
       }
       try {
-        const data = await historicalApi.runs({
-          appName: compareInput.appName,
-          start: compareInput.startTime,
-          end: compareInput.endTime,
-        });
+        const data = await historicalApi.runs({ appName: compareInput.appName, start: compareInput.startTime, end: compareInput.endTime });
         setCompareRuns(data || []);
-      } catch {
-        setCompareRuns([]);
-      }
+      } catch { setCompareRuns([]); }
     };
-
     fetchRuns();
   }, [compareInput.appName, compareInput.startTime, compareInput.endTime]);
 
   useEffect(() => {
     if (selectedCompareIds.length === 2) {
-      setCompareInput((prev) => ({
-        ...prev,
-        appIdA: selectedCompareIds[0],
-        appIdB: selectedCompareIds[1],
-      }));
+      setCompareInput((prev) => ({ ...prev, appIdA: selectedCompareIds[0], appIdB: selectedCompareIds[1] }));
     }
   }, [selectedCompareIds]);
+
+  // --- Handlers ---
 
   const handleAnalyze = async () => {
     setError(null);
@@ -233,21 +291,15 @@ const HistoricalPage: React.FC = () => {
       const updated = await historicalApi.update(result.id, { title });
       setResult(updated);
       setHistory((prev) => [updated, ...prev.filter((item) => item.id !== updated.id)]);
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   };
 
   const openFromHistory = async (id: string) => {
     try {
       const data = await historicalApi.get(id);
       setResult(data);
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   };
-
-  const compareMetrics = result?.evidence_json?.comparison;
 
   const progressSteps = useMemo(() => {
     return PROGRESS_STEPS.map((step, index) => ({
@@ -256,492 +308,441 @@ const HistoricalPage: React.FC = () => {
     }));
   }, [progressIndex]);
 
+  // --- Render Helpers ---
+
+  const MetricCard = ({ label, value, subtext, trend }: { label: string; value: React.ReactNode; subtext?: string; trend?: 'up' | 'down' | 'neutral' }) => (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group">
+      <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 group-hover:text-orange-500 transition-colors">{label}</div>
+      <div className="text-2xl font-bold text-slate-900 dark:text-white truncate">{value}</div>
+      {subtext && <div className="text-sm text-slate-500 dark:text-slate-500 mt-1 truncate">{subtext}</div>}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-6 py-10 md:px-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-6 py-10 md:px-10 font-sans selection:bg-orange-500/30">
+      <InfoModal isOpen={showInfo} onClose={() => setShowInfo(false)} />
+
       <div className="mx-auto max-w-7xl space-y-8">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3 text-slate-900 dark:text-white">
-            <div className="rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-3 shadow-lg shadow-orange-500/20">
-              <Clock3 className="h-6 w-6 text-white" />
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full"></div>
+              <div className="relative w-14 h-14 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30 transform rotate-3">
+                <History className="w-7 h-7 text-white" />
+              </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Historical Job Analysis</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Analyze single Spark batch runs or compare exactly two runs with evidence-backed insights.</p>
+              <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Historical Analysis
+              </h1>
+              <p className="text-base text-slate-600 dark:text-slate-400 mt-1 font-medium">
+                Optimize past Spark runs with AI-driven insights.
+              </p>
             </div>
           </div>
-          <div className="flex w-full max-w-md items-center gap-2 rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setMode('analyze')}
-              className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-all ${mode === 'analyze' ? 'bg-slate-900 text-white shadow' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}`}
+              onClick={() => setShowInfo(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
-              Analyze run
+              <Info className="w-4 h-4" /> How it works
             </button>
-            <button
-              onClick={() => setMode('compare')}
-              className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-all ${mode === 'compare' ? 'bg-slate-900 text-white shadow' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'}`}
-            >
-              Compare runs
-            </button>
+            <div className="bg-white dark:bg-slate-900 p-1.5 rounded-full border border-slate-200 dark:border-slate-800 flex shadow-sm">
+              <button
+                onClick={() => setMode('analyze')}
+                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${mode === 'analyze'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md transform scale-105'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+              >
+                Analyze
+              </button>
+              <button
+                onClick={() => setMode('compare')}
+                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${mode === 'compare'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md transform scale-105'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+              >
+                Compare
+              </button>
+            </div>
           </div>
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20">
-            {error}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30 p-4 flex items-center gap-3 text-red-700 dark:text-red-400"
+          >
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium">{error}</span>
+          </motion.div>
         )}
 
-        {mode === 'analyze' && (
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <Card className="p-6 space-y-6">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Search className="h-4 w-4" /> Choose a run
+        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          {/* Main Input Panel */}
+          <div className="space-y-6">
+            <Card className="p-8 border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none bg-white dark:bg-slate-900/50 backdrop-blur-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                  <Search className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  {mode === 'analyze' ? 'Analyze a Run' : 'Compare Two Runs'}
+                </h2>
               </div>
-              <div className="grid gap-4">
-                <label className="text-xs font-semibold uppercase text-slate-500">Spark appId</label>
-                <input
-                  value={analyzeInput.appId}
-                  onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, appId: e.target.value }))}
-                  placeholder="spark-xxxxxxxx"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm focus:border-orange-500 focus:outline-none"
-                />
-              </div>
-              <div className="border-t border-dashed border-slate-200 pt-4">
-                <div className="mb-4 text-xs font-semibold uppercase text-slate-500">Search by app name + date range</div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input
-                    value={analyzeInput.appName}
-                    onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, appName: e.target.value }))}
-                    placeholder="App name"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                  />
-                  <div className="grid gap-3 md:grid-cols-2">
+
+              {mode === 'analyze' && (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">Spark App ID</label>
                     <input
-                      type="datetime-local"
-                      value={analyzeInput.startTime}
-                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, startTime: e.target.value }))}
-                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    />
-                    <input
-                      type="datetime-local"
-                      value={analyzeInput.endTime}
-                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, endTime: e.target.value }))}
-                      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      value={analyzeInput.appId}
+                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, appId: e.target.value }))}
+                      placeholder="app-20230101000000-0000"
+                      className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-5 py-4 text-slate-900 dark:text-white placeholder-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none font-mono text-sm"
                     />
                   </div>
-                </div>
-                {runs.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <div className="text-xs font-semibold uppercase text-slate-500">Runs</div>
-                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50">
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase tracking-wider">
+                      <span className="bg-white dark:bg-[#0f172a] px-3 text-slate-400">Or search history</span>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <input
+                      value={analyzeInput.appName}
+                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, appName: e.target.value }))}
+                      placeholder="Application Name"
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white focus:border-orange-500 outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        value={analyzeInput.startTime}
+                        onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, startTime: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-3 text-sm font-medium text-slate-900 dark:text-white focus:border-orange-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {runs.length > 0 && (
+                    <div className="max-h-56 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-2 space-y-1 custom-scrollbar">
                       {runs.map((run) => (
                         <button
                           key={run.appId}
                           onClick={() => setAnalyzeInput((prev) => ({ ...prev, appId: run.appId }))}
-                          className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-white"
+                          className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all group"
                         >
                           <div>
-                            <div className="font-semibold text-slate-900">{run.appName}</div>
-                            <div className="text-xs text-slate-500">{run.appId}</div>
+                            <div className="font-semibold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">{run.appName}</div>
+                            <div className="text-xs font-mono text-slate-500">{run.appId}</div>
                           </div>
-                          <div className="text-xs text-slate-500">{formatDuration(run.durationMs)}</div>
+                          <div className="text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-md">
+                            {formatDuration(run.durationMs)}
+                          </div>
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1 mb-2 block">Specific Question (Optional)</label>
+                    <textarea
+                      value={analyzeInput.question}
+                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, question: e.target.value }))}
+                      placeholder="e.g., Why was stage 3 so slow compared to last week?"
+                      className="w-full h-24 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-5 py-4 text-slate-900 dark:text-white placeholder-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none resize-none text-sm"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleAnalyze}
+                    disabled={isRunning}
+                    className="w-full py-4 text-lg font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 rounded-2xl"
+                  >
+                    {isRunning ? (
+                      <span className="flex items-center gap-2"><Loader2 className="animate-spin" /> Analyzing...</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><Sparkles className="w-5 h-5 fill-current" /> Analyze Run</span>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {mode === 'compare' && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl flex gap-3">
+                    <Info className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                      Comparison highlights configuration drift and performance regressions between two specific runs.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Run A (Baseline)</label>
+                      <input
+                        value={compareInput.appIdA}
+                        onChange={(e) => setCompareInput((prev) => ({ ...prev, appIdA: e.target.value }))}
+                        placeholder="app-id-1"
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-mono focus:border-orange-500 outline-none dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Run B (Candidate)</label>
+                      <input
+                        value={compareInput.appIdB}
+                        onChange={(e) => setCompareInput((prev) => ({ ...prev, appIdB: e.target.value }))}
+                        placeholder="app-id-2"
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-mono focus:border-orange-500 outline-none dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <span className="absolute left-1/2 -top-3 -translate-x-1/2 bg-white dark:bg-[#0f172a] px-2 text-xs text-slate-400">Or find from history</span>
+                    <div className="border-t border-slate-200 dark:border-slate-800"></div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={compareInput.appName}
+                      onChange={(e) => setCompareInput((prev) => ({ ...prev, appName: e.target.value }))}
+                      placeholder="Filter by App Name"
+                      className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm dark:text-white outline-none"
+                    />
+                  </div>
+
+                  {compareRuns.length > 0 && (
+                    <div className="max-h-48 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-2 space-y-1 custom-scrollbar">
+                      {compareRuns.map((run) => {
+                        const selected = selectedCompareIds.includes(run.appId);
+                        return (
+                          <button
+                            key={run.appId}
+                            onClick={() => {
+                              setSelectedCompareIds((prev) => {
+                                if (prev.includes(run.appId)) return prev.filter((id) => id !== run.appId);
+                                if (prev.length === 2) return [prev[1], run.appId];
+                                return [...prev, run.appId];
+                              });
+                            }}
+                            className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition-all group ${selected ? 'bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500' : 'hover:bg-white dark:hover:bg-slate-800'
+                              }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-900 dark:text-white truncate">{run.appName}</div>
+                              <div className="text-xs font-mono text-slate-500 truncate">{run.appId}</div>
+                            </div>
+                            {selected && <CheckCircle2 className="w-5 h-5 text-orange-500 flex-shrink-0" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleCompare}
+                    disabled={isRunning || !compareInput.appIdA || !compareInput.appIdB}
+                    className="w-full py-4 text-lg font-bold rounded-2xl"
+                  >
+                    {isRunning ? <Loader2 className="animate-spin" /> : 'Compare Runs'}
+                  </Button>
+                </div>
+              )}
+            </Card>
+
+            {/* History Section - Redesigned */}
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Clock3 className="w-5 h-5 text-slate-400" /> Recent Analyses
+                </h3>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Search history..."
+                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full py-1.5 pl-9 pr-4 text-sm focus:border-orange-500 outline-none w-48 transition-all focus:w-64 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {history.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => openFromHistory(item.id)}
+                    className="group flex flex-col items-start bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl hover:border-orange-500/50 hover:shadow-lg transition-all text-left"
+                  >
+                    <div className="flex w-full items-start justify-between mb-2">
+                      <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${item.mode === 'compare' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        }`}>
+                        {item.mode}
+                      </span>
+                      <span className="text-xs text-slate-400">{new Date(item.created_at || '').toLocaleDateString()}</span>
+                    </div>
+                    <h4 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-2 mb-1 group-hover:text-orange-500 transition-colors">
+                      {item.title || item.app_name || 'Untitled Analysis'}
+                    </h4>
+                    <p className="text-xs font-mono text-slate-400 truncate w-full">
+                      {item.app_id_a}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Results / Progress Panel */}
+          <div className="space-y-6">
+            {result && result.status === 'complete' ? (
+              <div className="space-y-6 animate-fade-in-up">
+
+                {/* Narrative Card */}
+                <Card className="p-0 overflow-hidden border-0 shadow-xl dark:shadow-none bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-900/50">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
+                        <Sparkles className="w-4 h-4" /> AI Insights
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={copyReport} leftIcon={<Clipboard className="w-4 h-4" />}>Copy</Button>
+                        <Button size="sm" variant="ghost" onClick={saveAnalysis} leftIcon={<Tag className="w-4 h-4" />}>Save</Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6 prose prose-slate dark:prose-invert prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.narrative_md || ''}</ReactMarkdown>
+                  </div>
+                </Card>
+
+                {/* Metrics Grid */}
+                {result.mode === 'single' && summary && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <MetricCard label="Duration" value={formatDuration(summary.durationMs)} subtext="Total Wall Time" />
+                    <MetricCard label="Shuffle" value={formatBytes(summary.shuffleReadBytes)} subtext="Read Bytes" />
+                    <MetricCard label="Spill" value={formatBytes(summary.spillBytes)} subtext="Memory + Disk" />
+                    <MetricCard label="Tasks" value={formatCount(summary.executorCount)} subtext="Executors Used" />
+                  </div>
+                )}
+
+                {/* Comparison Grid */}
+                {result.mode === 'compare' && compareMetrics && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                        <div className="text-xs uppercase text-slate-500 mb-1">Baseline (A)</div>
+                        <div className="font-bold text-slate-900 dark:text-white truncate">{compareMetrics.appA?.name}</div>
+                        <div className="text-sm font-mono text-slate-600 dark:text-slate-400 mt-2">{formatDuration(compareMetrics.appA?.summary?.durationMs)}</div>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                        <div className="text-xs uppercase text-slate-500 mb-1">Candidate (B)</div>
+                        <div className="font-bold text-slate-900 dark:text-white truncate">{compareMetrics.appB?.name}</div>
+                        <div className="text-sm font-mono text-slate-600 dark:text-slate-400 mt-2">{formatDuration(compareMetrics.appB?.summary?.durationMs)}</div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 dark:bg-slate-800/50">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400">Metric</th>
+                            <th className="px-4 py-3 text-right font-semibold text-slate-500 dark:text-slate-400">Delta</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {Object.entries(compareMetrics.deltas || {}).map(([key, value]) => (
+                            <tr key={key}>
+                              <td className="px-4 py-3 text-slate-700 dark:text-slate-300 capitalize">{key.replace(/([A-Z])/g, ' $1')}</td>
+                              <td className={`px-4 py-3 text-right font-bold font-mono ${(value as number) > 0 ? 'text-red-500' : 'text-emerald-500'
+                                }`}>
+                                {formatDelta(value as number)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bottlenecks / Heuristics */}
+                {heuristics && (
+                  <div className="space-y-3">
+                    <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wide">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" /> Detected Anomalies
+                    </h3>
+                    <div className="grid gap-3">
+                      {(heuristics.topSlowStages || []).slice(0, 3).map((stage: any) => (
+                        <div key={stage.stageId} className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
+                          <div className="text-sm text-amber-900 dark:text-amber-100 font-medium">Stage {stage.stageId} (Slow)</div>
+                          <div className="text-xs font-mono text-amber-700 dark:text-amber-300">{formatDuration(stage.durationMs)}</div>
+                        </div>
+                      ))}
+                      {(heuristics.skewSuspicions || []).length > 0 && (
+                        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 text-sm text-red-800 dark:text-red-200">
+                          ⚠️ {heuristics.skewSuspicions.length} data skew incidents detected
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-              <div>
-                <label className="text-xs font-semibold uppercase text-slate-500">Optional question</label>
-                <textarea
-                  value={analyzeInput.question}
-                  onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, question: e.target.value }))}
-                  placeholder="Ask about bottlenecks, regressions, or tuning ideas…"
-                  className="mt-2 h-24 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                />
-              </div>
-              <Button
-                onClick={handleAnalyze}
-                disabled={isRunning}
-                leftIcon={isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                className="w-full"
-              >
-                Analyze
-              </Button>
-            </Card>
-            <Card className="p-6 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Split className="h-4 w-4" /> Progress
-              </div>
-              <div className="space-y-3">
-                {progressSteps.map((step) => (
-                  <div key={step.label} className="flex items-center gap-3 text-sm">
-                    <div className={`h-2 w-2 rounded-full ${step.status === 'done' ? 'bg-emerald-500' : step.status === 'active' ? 'bg-orange-500 animate-pulse' : 'bg-slate-300'}`} />
-                    <span className={step.status === 'pending' ? 'text-slate-400' : 'text-slate-700'}>{step.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 text-xs text-slate-500">
-                Historical analysis is available for completed batch jobs only.
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {mode === 'compare' && (
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <Card className="p-6 space-y-6">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Search className="h-4 w-4" /> Select two runs
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <input
-                  value={compareInput.appName}
-                  onChange={(e) => setCompareInput((prev) => ({ ...prev, appName: e.target.value }))}
-                  placeholder="App name"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                />
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input
-                    type="datetime-local"
-                    value={compareInput.startTime}
-                    onChange={(e) => setCompareInput((prev) => ({ ...prev, startTime: e.target.value }))}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                  />
-                  <input
-                    type="datetime-local"
-                    value={compareInput.endTime}
-                    onChange={(e) => setCompareInput((prev) => ({ ...prev, endTime: e.target.value }))}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                  />
-                </div>
-              </div>
-              {compareRuns.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase text-slate-500">Pick two runs</div>
-                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50">
-                    {compareRuns.map((run) => {
-                      const selected = selectedCompareIds.includes(run.appId);
-                      return (
-                        <button
-                          key={run.appId}
-                          onClick={() => {
-                            setSelectedCompareIds((prev) => {
-                              if (prev.includes(run.appId)) return prev.filter((id) => id !== run.appId);
-                              if (prev.length === 2) return [prev[1], run.appId];
-                              return [...prev, run.appId];
-                            });
-                          }}
-                          className={`flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left text-sm ${selected ? 'bg-white' : 'hover:bg-white'}`}
-                        >
-                          <div>
-                            <div className="font-semibold text-slate-900">{run.appName}</div>
-                            <div className="text-xs text-slate-500">{run.appId}</div>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
-                            {selected && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                            {formatDuration(run.durationMs)}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              <div className="border-t border-dashed border-slate-200 pt-4">
-                <div className="mb-2 text-xs font-semibold uppercase text-slate-500">Or enter appIds directly</div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input
-                    value={compareInput.appIdA}
-                    onChange={(e) => setCompareInput((prev) => ({ ...prev, appIdA: e.target.value }))}
-                    placeholder="Run A appId"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                  />
-                  <input
-                    value={compareInput.appIdB}
-                    onChange={(e) => setCompareInput((prev) => ({ ...prev, appIdB: e.target.value }))}
-                    placeholder="Run B appId"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase text-slate-500">Optional question</label>
-                <textarea
-                  value={compareInput.question}
-                  onChange={(e) => setCompareInput((prev) => ({ ...prev, question: e.target.value }))}
-                  placeholder="Ask about regressions or configuration drift…"
-                  className="mt-2 h-24 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                />
-              </div>
-              <Button
-                onClick={handleCompare}
-                disabled={isRunning || !compareInput.appIdA || !compareInput.appIdB}
-                leftIcon={isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Split className="h-4 w-4" />}
-                className="w-full"
-              >
-                Compare
-              </Button>
-            </Card>
-            <Card className="p-6 space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Split className="h-4 w-4" /> Progress
-              </div>
-              <div className="space-y-3">
-                {progressSteps.map((step) => (
-                  <div key={step.label} className="flex items-center gap-3 text-sm">
-                    <div className={`h-2 w-2 rounded-full ${step.status === 'done' ? 'bg-emerald-500' : step.status === 'active' ? 'bg-orange-500 animate-pulse' : 'bg-slate-300'}`} />
-                    <span className={step.status === 'pending' ? 'text-slate-400' : 'text-slate-700'}>{step.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 text-xs text-slate-500">
-                Comparing exactly two completed batch runs.
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {result && result.status === 'complete' && (
-          <div className="space-y-6">
-            <Card className="p-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">{result.app_name || 'Historical Report'}</h2>
-                  <p className="text-sm text-slate-500">AppId(s): {result.app_id_a} {result.app_id_b ? `• ${result.app_id_b}` : ''}</p>
-                  {result.mode === 'single' && (
-                    <div className="mt-2 text-xs text-slate-500">
-                      Time range: {formatDateTime(application?.startTime)} — {formatDateTime(application?.endTime)} • Duration: {formatDuration(summary?.durationMs)}
+            ) : (
+              <Card className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
+                {isRunning ? (
+                  <div className="max-w-xs w-full space-y-8">
+                    <div className="relative w-24 h-24 mx-auto">
+                      <div className="absolute inset-0 border-4 border-slate-100 dark:border-slate-800 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-orange-500 rounded-full border-t-transparent animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Sparkles className="w-8 h-8 text-orange-500 animate-pulse" />
+                      </div>
                     </div>
-                  )}
-                  {result.mode === 'compare' && (
-                    <div className="mt-2 space-y-1 text-xs text-slate-500">
-                      <div>Run A: {formatDateTime(appA?.startTime)} — {formatDateTime(appA?.endTime)} • {formatDuration(appA?.summary?.durationMs)}</div>
-                      <div>Run B: {formatDateTime(appB?.startTime)} — {formatDateTime(appB?.endTime)} • {formatDuration(appB?.summary?.durationMs)}</div>
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Analyzing Workload...</h3>
+                      <div className="space-y-3">
+                        {progressSteps.map((step) => (
+                          <div key={step.label} className="flex items-center gap-3 text-sm">
+                            <div className={`w-2.5 h-2.5 rounded-full ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 transition-all ${step.status === 'done' ? 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900' :
+                                step.status === 'active' ? 'bg-orange-500 ring-orange-100 dark:ring-orange-900 animate-pulse' :
+                                  'bg-slate-200 dark:bg-slate-800 ring-transparent'
+                              }`} />
+                            <span className={`transition-colors ${step.status === 'active' ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-400'
+                              }`}>
+                              {step.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={saveAnalysis} leftIcon={<Tag className="h-4 w-4" />}>Save analysis</Button>
-                  <Button variant="outline" onClick={copyReport} leftIcon={<Clipboard className="h-4 w-4" />}>Copy report</Button>
-                  <Button variant="outline" onClick={() => history[0] && openFromHistory(history[0].id)} leftIcon={<ChevronDown className="h-4 w-4" />}>Open saved</Button>
-                </div>
-              </div>
-            </Card>
-
-            {result.mode === 'single' && summary && (
-              <div className="grid gap-4 md:grid-cols-4">
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Duration</div>
-                  <div className="mt-2 text-2xl font-bold text-slate-900">{formatDuration(summary.durationMs)}</div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Shuffle Read / Write</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900">{formatBytes(summary.shuffleReadBytes)} / {formatBytes(summary.shuffleWriteBytes)}</div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Spill + GC</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900">{formatBytes(summary.spillBytes)} • {formatDuration(summary.gcTimeMs)}</div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Executors</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900">{formatCount(summary.executorCount)} total • {formatCount(summary.activeExecutors)} active</div>
-                </Card>
-              </div>
-            )}
-
-            {result.mode === 'compare' && compareMetrics && (
-              <Card className="p-6">
-                <h3 className="text-lg font-bold text-slate-900">Comparison</h3>
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs uppercase text-slate-500">Run A</div>
-                    <div className="text-sm font-semibold text-slate-900">{compareMetrics.appA?.name}</div>
-                    <div className="mt-2 text-sm text-slate-600">Duration: {formatDuration(compareMetrics.appA?.summary?.durationMs)}</div>
-                    <div className="text-sm text-slate-600">Shuffle: {formatBytes(compareMetrics.appA?.summary?.shuffleReadBytes)} / {formatBytes(compareMetrics.appA?.summary?.shuffleWriteBytes)}</div>
-                    <div className="text-sm text-slate-600">Executors: {formatCount(compareMetrics.appA?.summary?.executorCount)} total • {formatCount(compareMetrics.appA?.summary?.activeExecutors)} active</div>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="text-xs uppercase text-slate-500">Run B</div>
-                    <div className="text-sm font-semibold text-slate-900">{compareMetrics.appB?.name}</div>
-                    <div className="mt-2 text-sm text-slate-600">Duration: {formatDuration(compareMetrics.appB?.summary?.durationMs)}</div>
-                    <div className="text-sm text-slate-600">Shuffle: {formatBytes(compareMetrics.appB?.summary?.shuffleReadBytes)} / {formatBytes(compareMetrics.appB?.summary?.shuffleWriteBytes)}</div>
-                    <div className="text-sm text-slate-600">Executors: {formatCount(compareMetrics.appB?.summary?.executorCount)} total • {formatCount(compareMetrics.appB?.summary?.activeExecutors)} active</div>
+                ) : (
+                  <div className="space-y-4 max-w-sm">
+                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <BarChart3 className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ready to Analyze</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+                      Select a run from the list or search for a specific application ID to begin the AI-powered diagnosis.
+                    </p>
                   </div>
-                </div>
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-100 text-slate-500">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Metric</th>
-                        <th className="px-4 py-2 text-left">Delta</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(compareMetrics.deltas || {}).map(([key, value]) => (
-                        <tr key={key} className="border-t border-slate-100">
-                          <td className="px-4 py-2 capitalize text-slate-700">{key.replace(/([A-Z])/g, ' $1')}</td>
-                          <td className={`px-4 py-2 font-semibold ${value > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatDelta(value as number)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                )}
               </Card>
             )}
-
-            {heuristics && result.mode === 'single' && (
-              <div className="grid gap-4 lg:grid-cols-3">
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Top slow stages</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    {(heuristics.topSlowStages || []).map((stage: any) => (
-                      <div key={stage.stageId} className="flex items-center justify-between">
-                        <span>Stage {stage.stageId}</span>
-                        <span className="font-semibold">{formatDuration(stage.durationMs)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Shuffle heavy</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    {(heuristics.shuffleHeavyStages || []).map((stage: any) => (
-                      <div key={stage.stageId} className="flex items-center justify-between">
-                        <span>Stage {stage.stageId}</span>
-                        <span className="font-semibold">{formatBytes(stage.shuffleReadBytes + stage.shuffleWriteBytes)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Spill + GC</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    {(heuristics.spillAnomalies || []).map((stage: any) => (
-                      <div key={stage.stageId} className="flex items-center justify-between">
-                        <span>Stage {stage.stageId}</span>
-                        <span className="font-semibold">{formatBytes(stage.memorySpilledBytes + stage.diskSpilledBytes)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {result.mode === 'compare' && (compareHeuristicsA || compareHeuristicsB) && (
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Run A bottlenecks</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    {(compareHeuristicsA?.topSlowStages || []).map((stage: any) => (
-                      <div key={stage.stageId} className="flex items-center justify-between">
-                        <span>Stage {stage.stageId}</span>
-                        <span className="font-semibold">{formatDuration(stage.durationMs)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 text-xs text-slate-500">
-                    Failed tasks: {compareHeuristicsA?.failedTasks?.failedTasks ?? '—'} • Skew suspicions: {(compareHeuristicsA?.skewSuspicions || []).length}
-                  </div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-xs uppercase text-slate-500">Run B bottlenecks</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    {(compareHeuristicsB?.topSlowStages || []).map((stage: any) => (
-                      <div key={stage.stageId} className="flex items-center justify-between">
-                        <span>Stage {stage.stageId}</span>
-                        <span className="font-semibold">{formatDuration(stage.durationMs)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 text-xs text-slate-500">
-                    Failed tasks: {compareHeuristicsB?.failedTasks?.failedTasks ?? '—'} • Skew suspicions: {(compareHeuristicsB?.skewSuspicions || []).length}
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <Card className="p-6">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <Sparkles className="h-4 w-4" /> Agent Findings
-                </div>
-                <div className="prose prose-slate mt-4 max-w-none text-sm">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.narrative_md || ''}</ReactMarkdown>
-                </div>
-              </Card>
-              {result.mode === 'single' && (
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <AlertTriangle className="h-4 w-4" /> Bottlenecks
-                  </div>
-                  <div className="mt-4 space-y-3 text-sm text-slate-600">
-                    <div>Failed tasks: {heuristics?.failedTasks?.failedTasks ?? '—'}</div>
-                    <div>Failed stages: {heuristics?.failedTasks?.failedStages ?? '—'}</div>
-                    <div>Skew suspicions: {(heuristics?.skewSuspicions || []).length}</div>
-                  </div>
-                </Card>
-              )}
-            </div>
-
-            <Card className="p-6">
-              <details className="group">
-                <summary className="flex cursor-pointer items-center justify-between text-sm font-semibold text-slate-700">
-                  Evidence (JSON)
-                  <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                </summary>
-                <pre className="mt-4 max-h-96 overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
-                  {JSON.stringify(result.evidence_json, null, 2)}
-                </pre>
-              </details>
-            </Card>
           </div>
-        )}
-
-        <Card className="p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">History</h3>
-              <p className="text-xs text-slate-500">Your saved historical analyses</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={historyMode}
-                onChange={(e) => setHistoryMode(e.target.value as 'all' | 'single' | 'compare')}
-                className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"
-              >
-                <option value="all">All</option>
-                <option value="single">Analyze</option>
-                <option value="compare">Compare</option>
-              </select>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  placeholder="Search by appId, appName…"
-                  className="rounded-full border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm font-medium text-slate-700"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {history.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => openFromHistory(item.id)}
-                className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-orange-300"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-900">{item.title || item.app_name || 'Historical analysis'}</div>
-                  <span className="text-xs uppercase text-slate-400">{item.mode}</span>
-                </div>
-                <div className="mt-1 text-xs text-slate-500">{item.app_id_a}{item.app_id_b ? ` • ${item.app_id_b}` : ''}</div>
-                <div className="mt-2 text-xs text-slate-400">{item.created_at ? new Date(item.created_at).toLocaleString() : ''}</div>
-              </button>
-            ))}
-          </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

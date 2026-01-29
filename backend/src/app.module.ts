@@ -19,6 +19,7 @@ import { EducationModule } from './modules/education/education.module';
 import { DbrModule } from './modules/dbr/dbr.module';
 import { HistoricalModule } from './modules/historical/historical.module';
 import { OrgConnectionsModule } from './modules/org-connections/org-connections.module';
+import { DataSourcesModule } from './modules/datasources/datasources.module';
 
 // Observability imports
 import { LoggingModule } from './common/logging/logging.module';
@@ -31,6 +32,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppLoggerService } from './common/logging/app-logger.service';
 import { McpModule } from './integrations/mcp/mcp.module';
+import { McpProxyModule } from './integrations/mcp-proxy/mcp-proxy.module';
+import { QuotaModule } from './common/quota/quota.module';
 
 @Module({
   imports: [
@@ -59,6 +62,8 @@ import { McpModule } from './integrations/mcp/mcp.module';
     SecurityModule,
     AuditModule,
     McpModule,
+    McpProxyModule,
+    QuotaModule,
     PrismaModule,
     HealthModule,
 
@@ -76,6 +81,7 @@ import { McpModule } from './integrations/mcp/mcp.module';
     DbrModule,
     HistoricalModule,
     OrgConnectionsModule,
+    DataSourcesModule,
 
     // Integration modules
     GeminiModule,

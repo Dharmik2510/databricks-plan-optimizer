@@ -140,7 +140,7 @@ export class McpHttpClient {
     }
 
     if (contentType.includes('text/event-stream')) {
-      const raw = await response.text();
+      const raw = await this.readSsePayload(response);
       const messages = this.parseSseMessages(raw);
       return this.extractResponse(messages, message.id);
     }
@@ -189,5 +189,48 @@ export class McpHttpClient {
     }
 
     return messages;
+  }
+
+  private async readSsePayload(response: Response): Promise<string> {
+    const body = response.body as any;
+    if (!body) {
+      return '';
+    }
+
+    // node-fetch v2 uses Node.js Readable streams; stop after first SSE frame.
+    if (typeof body.on === 'function') {
+      return new Promise((resolve, reject) => {
+        let buffer = '';
+        const onData = (chunk: Buffer) => {
+          buffer += chunk.toString('utf8');
+          if (buffer.includes('\n\n')) {
+            cleanup();
+            resolve(buffer);
+          }
+        };
+        const onEnd = () => {
+          cleanup();
+          resolve(buffer);
+        };
+        const onError = (error: Error) => {
+          cleanup();
+          reject(error);
+        };
+        const cleanup = () => {
+          body.off('data', onData);
+          body.off('end', onEnd);
+          body.off('error', onError);
+          if (typeof body.destroy === 'function') {
+            body.destroy();
+          }
+        };
+
+        body.on('data', onData);
+        body.on('end', onEnd);
+        body.on('error', onError);
+      });
+    }
+
+    return response.text();
   }
 }

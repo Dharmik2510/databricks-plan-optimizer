@@ -16,6 +16,9 @@ describe('HistoricalService resolution', () => {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
   );
 
   const serviceAny = service as any;

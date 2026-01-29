@@ -67,7 +67,7 @@ export class PricingService {
         private readonly prisma: PrismaService,
         private readonly configService: ConfigService,
     ) {
-        this.logger.log('PricingService initialized');
+        this.logger.log('✅ PricingService initialized');
     }
 
     /**
@@ -78,64 +78,113 @@ export class PricingService {
         cloudProvider: CloudProvider,
     ): Promise<{ instances: CloudInstance[]; metadata: PricingMetadata }> {
         const cacheKey = `${cloudProvider}-${region}-instances`;
+        this.logger.log(`Starting pricing retrieval for ${cacheKey}`);
 
-        // Check cache first
-        const cached = await this.getCachedPricing(cacheKey);
-        if (cached) {
-            this.logger.log(`Cache hit for pricing: ${cacheKey}`);
-            return cached;
-        }
+        try {
+            // Check cache first
+            this.logger.log(`Checking cache for key: ${cacheKey} (TTL: ${this.CACHE_TTL_HOURS}h)`);
+            const cached = await this.getCachedPricing(cacheKey);
+            if (cached) {
+                this.logger.log(`✅ Cache hit for ${cacheKey} - returning ${cached.instances.length} instances (expires: ${cached.metadata.expiresAt})`);
+                return cached;
+            }
 
-        this.logger.log(`Cache miss for pricing: ${cacheKey}, fetching from API`);
+            this.logger.log(`❌ Cache miss for ${cacheKey} - fetching from external API`);
 
-        // Fetch fresh data
-        let instances: CloudInstance[];
-        switch (cloudProvider) {
-            case CloudProvider.AWS:
-                instances = await this.fetchAWSPricing(region);
-                break;
-            case CloudProvider.AZURE:
-                instances = await this.fetchAzurePricing(region);
-                break;
-            case CloudProvider.GCP:
-                instances = await this.fetchGCPPricing(region);
-                break;
-            default:
+            // Fetch fresh data
+            let instances: CloudInstance[];
+            try {
+                switch (cloudProvider) {
+                    case CloudProvider.AWS:
+                        instances = await this.fetchAWSPricing(region);
+                        break;
+                    case CloudProvider.AZURE:
+                        instances = await this.fetchAzurePricing(region);
+                        break;
+                    case CloudProvider.GCP:
+                        instances = await this.fetchGCPPricing(region);
+                        break;
+                    default:
+                        this.logger.warn(`Unknown cloud provider: ${cloudProvider}, using fallback`);
+                        instances = this.getFallbackPricing(region, cloudProvider);
+                }
+            } catch (error) {
+                this.logger.error(`❌ Failed to fetch pricing from API: ${error.message}`, error.stack);
+                this.logger.log(`Using fallback pricing as stale cache alternative`);
                 instances = this.getFallbackPricing(region, cloudProvider);
+            }
+
+            this.logger.log(`✅ Retrieved ${instances.length} instances from ${cloudProvider} API`);
+
+            // Add DBU pricing (assuming all-purpose workload)
+            try {
+                this.logger.log(`Calculating DBU pricing for workload type: all-purpose`);
+                const dbuRate = this.DBU_PRICING[cloudProvider]['all-purpose'];
+                this.logger.log(`✅ DBU rate lookup successful: $${dbuRate}/DBU for ${cloudProvider}`);
+
+                instances = instances.map((instance) => {
+                    const dbuCost = dbuRate * instance.vCPUs;
+                    const totalCost = instance.pricePerHour + dbuCost;
+
+                    return {
+                        ...instance,
+                        dbuPricePerHour: dbuCost,
+                        totalPricePerHour: totalCost,
+                        lastUpdated: new Date().toISOString(),
+                    };
+                });
+
+                this.logger.log(`✅ DBU pricing calculation completed for ${instances.length} instances`);
+            } catch (error) {
+                this.logger.error(`❌ Error calculating DBU pricing: ${error.message}`, error.stack);
+                // Continue without DBU pricing
+                instances = instances.map((instance) => ({
+                    ...instance,
+                    lastUpdated: new Date().toISOString(),
+                }));
+            }
+
+            const metadata: PricingMetadata = {
+                region,
+                cloudProvider,
+                lastFetched: new Date().toISOString(),
+                source: 'api',
+                expiresAt: new Date(
+                    Date.now() + this.CACHE_TTL_HOURS * 60 * 60 * 1000,
+                ).toISOString(),
+            };
+
+            // Cache the result
+            await this.cachePricing(cacheKey, { instances, metadata });
+
+            this.logger.log(`✅ Successfully returned ${instances.length} instances with pricing for ${cloudProvider} ${region}`);
+            return { instances, metadata };
+        } catch (error) {
+            this.logger.error(`❌ Critical error in getInstancePricing for ${cacheKey}: ${error.message}`, error.stack);
+
+            // Last resort: return fallback pricing
+            this.logger.log(`Using emergency fallback pricing for ${cloudProvider} ${region}`);
+            const fallbackInstances = this.getFallbackPricing(region, cloudProvider);
+            const fallbackMetadata: PricingMetadata = {
+                region,
+                cloudProvider,
+                lastFetched: new Date().toISOString(),
+                source: 'cache',
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour expiry for fallback
+            };
+
+            return { instances: fallbackInstances, metadata: fallbackMetadata };
         }
-
-        // Add DBU pricing (assuming all-purpose workload)
-        const dbuRate = this.DBU_PRICING[cloudProvider]['all-purpose'];
-        instances = instances.map((instance) => ({
-            ...instance,
-            dbuPricePerHour: dbuRate * instance.vCPUs, // DBU cost scales with vCPUs
-            totalPricePerHour: instance.pricePerHour + dbuRate * instance.vCPUs,
-            lastUpdated: new Date().toISOString(),
-        }));
-
-        const metadata: PricingMetadata = {
-            region,
-            cloudProvider,
-            lastFetched: new Date().toISOString(),
-            source: 'api',
-            expiresAt: new Date(
-                Date.now() + this.CACHE_TTL_HOURS * 60 * 60 * 1000,
-            ).toISOString(),
-        };
-
-        // Cache the result
-        await this.cachePricing(cacheKey, { instances, metadata });
-
-        return { instances, metadata };
     }
 
     /**
      * Fetch AWS EC2 pricing using runs-on.com API
      */
     private async fetchAWSPricing(region: string): Promise<CloudInstance[]> {
-        try {
-            this.logger.log(`Fetching AWS pricing for ${region} via runs-on.com API...`);
+        const startTime = Date.now();
+        this.logger.log(`Fetching AWS pricing for region: ${region} via runs-on.com API`);
 
+        try {
             // runs-on.com API endpoint
             // Documentation: https://go.runs-on.com/api
             const url = `https://go.runs-on.com/api/finder`;
@@ -143,49 +192,81 @@ export class PricingService {
             // We want to fetch instances for the specific region
             // The API supports filtering by region
             const validRegion = region === 'us-east-1' ? 'us-east-1' : region;
+            this.logger.log(`Calling runs-on.com API: ${url} (region: ${validRegion}, os: linux)`);
 
             // Fetch generic Linux instances
             const response = await axios.get(url, {
                 params: {
                     region: validRegion,
                     os: 'linux', // Default to linux
-                }
+                },
+                timeout: 10000, // 10 second timeout
             });
 
+            const latency = Date.now() - startTime;
+            this.logger.log(`✅ runs-on.com API responded in ${latency}ms`);
+
             // The API returns { results: [], top3: ..., ... }
-            const results = response.data.results || [];
+            try {
+                const results = response.data.results || [];
+                this.logger.log(`Parsing ${results.length} AWS instance records from API response`);
 
-            const instances: CloudInstance[] = [];
+                const instances: CloudInstance[] = [];
 
-            for (const item of results) {
-                // Map API response to our CloudInstance interface
-                // API Item Example: { "instanceType": "m5.large", "instanceFamily": "m5", "vcpus": 2, "memoryGiB": 8, "avgSpotPrice": 0.029, "avgOnDemandPrice": 0.096, ... }
+                for (const item of results) {
+                    try {
+                        // Map API response to our CloudInstance interface
+                        // API Item Example: { "instanceType": "m5.large", "instanceFamily": "m5", "vcpus": 2, "memoryGiB": 8, "avgSpotPrice": 0.029, "avgOnDemandPrice": 0.096, ... }
 
-                if (!item.instanceType) continue;
+                        if (!item.instanceType) {
+                            this.logger.warn(`Skipping item with missing instanceType`);
+                            continue;
+                        }
 
-                instances.push({
-                    id: item.instanceType,
-                    name: item.instanceType,
-                    displayName: `${item.instanceFamily} ${item.instanceType} (${item.vcpus} vCPU, ${item.memoryGiB} GB)`,
-                    category: this.mapInstanceCategory(item.instanceFamily || ''),
-                    vCPUs: item.vcpus,
-                    memoryGB: item.memoryGiB,
-                    pricePerHour: item.avgOnDemandPrice || 0, // Use average on-demand price
-                    region: region,
-                    cloudProvider: 'aws',
-                    architecture: item.architecture || 'x86_64',
-                    family: item.instanceFamily || 'unknown',
-                });
+                        instances.push({
+                            id: item.instanceType,
+                            name: item.instanceType,
+                            displayName: `${item.instanceFamily} ${item.instanceType} (${item.vcpus} vCPU, ${item.memoryGiB} GB)`,
+                            category: this.mapInstanceCategory(item.instanceFamily || ''),
+                            vCPUs: item.vcpus,
+                            memoryGB: item.memoryGiB,
+                            pricePerHour: item.avgOnDemandPrice || 0, // Use average on-demand price
+                            region: region,
+                            cloudProvider: 'aws',
+                            architecture: item.architecture || 'x86_64',
+                            family: item.instanceFamily || 'unknown',
+                        });
+                    } catch (parseError) {
+                        this.logger.error(`❌ Error parsing individual AWS instance item: ${parseError.message}`);
+                        continue; // Skip this item but continue processing others
+                    }
+                }
+
+                if (instances.length === 0) {
+                    this.logger.warn(`❌ No AWS instances parsed successfully for ${region}, using fallback`);
+                    return this.getFallbackPricing(region, CloudProvider.AWS);
+                }
+
+                this.logger.log(`✅ Successfully parsed ${instances.length} AWS instances for ${region}`);
+                return instances;
+            } catch (parseError) {
+                this.logger.error(`❌ Error parsing runs-on.com API response: ${parseError.message}`, parseError.stack);
+                throw parseError;
             }
-
-            if (instances.length === 0) {
-                this.logger.warn(`No AWS instances found for ${region} via API, using fallback`);
-                return this.getFallbackPricing(region, CloudProvider.AWS);
-            }
-
-            return instances;
         } catch (error) {
-            this.logger.error(`Error fetching AWS pricing: ${error.message}`);
+            const latency = Date.now() - startTime;
+
+            if (error.code === 'ECONNABORTED') {
+                this.logger.error(`❌ runs-on.com API timeout after ${latency}ms for region ${region}`);
+            } else if (error.response) {
+                this.logger.error(`❌ runs-on.com API error (${error.response.status}): ${error.response.statusText} after ${latency}ms`);
+            } else if (error.request) {
+                this.logger.error(`❌ No response from runs-on.com API after ${latency}ms: ${error.message}`);
+            } else {
+                this.logger.error(`❌ Error calling runs-on.com API after ${latency}ms: ${error.message}`, error.stack);
+            }
+
+            this.logger.log(`Using fallback pricing due to AWS API failure`);
             return this.getFallbackPricing(region, CloudProvider.AWS);
         }
     }
@@ -208,69 +289,104 @@ export class PricingService {
      * Fetch Azure VM pricing using Azure Retail Prices API
      */
     private async fetchAzurePricing(region: string): Promise<CloudInstance[]> {
+        const startTime = Date.now();
+        this.logger.log(`Fetching Azure pricing for region: ${region}`);
+
         try {
-            this.logger.log(`Fetching Azure pricing for ${region}...`);
             // Azure Retail Prices API is public
             // $filter=serviceName eq 'Virtual Machines' and armRegionName eq '${region}'
 
             const url = `https://prices.azure.com/api/retail/prices?currencyCode='USD'&$filter=serviceName eq 'Virtual Machines' and armRegionName eq '${region}'`;
-            const response = await axios.get(url);
+            this.logger.log(`Calling Azure Retail Prices API: ${url}`);
 
-            const instances: CloudInstance[] = [];
-            const items = response.data.Items || [];
+            const response = await axios.get(url, {
+                timeout: 15000, // 15 second timeout (Azure API can be slower)
+            });
 
-            for (const item of items) {
-                // We only want consumption prices, not reservation for this base estimator
-                if (item.type !== 'Consumption') continue;
-                if (!item.productName || !item.productName.includes(' Windows') === false) continue; // Skip Windows for now (assume Linux)
+            const latency = Date.now() - startTime;
+            this.logger.log(`✅ Azure API responded in ${latency}ms`);
 
-                // Parse SKU Name (e.g., "D2s v3")
-                // item.skuName is standard
-                const isGeneral = item.skuName.includes('D') || item.skuName.includes('A') || item.skuName.includes('B');
-                const isCompute = item.skuName.includes('F');
-                const isMemory = item.skuName.includes('E') || item.skuName.includes('M');
-                const isStorage = item.skuName.includes('L');
-                const isGPU = item.skuName.includes('N');
+            try {
+                const instances: CloudInstance[] = [];
+                const items = response.data.Items || [];
+                this.logger.log(`Parsing ${items.length} Azure VM records from API response`);
 
-                let category: any = 'General';
-                if (isCompute) category = 'Compute';
-                else if (isMemory) category = 'Memory';
-                else if (isStorage) category = 'Storage';
-                else if (isGPU) category = 'GPU';
+                for (const item of items) {
+                    try {
+                        // We only want consumption prices, not reservation for this base estimator
+                        if (item.type !== 'Consumption') continue;
+                        if (!item.productName || !item.productName.includes(' Windows') === false) continue; // Skip Windows for now (assume Linux)
 
-                // Rough estimation of vCPU/RAM from skuName or productName if available
-                // Azure API doesn't always return vCPU/RAM in the Item directly easily without looking up SKU metadata
-                // We will try to parse from productName or use defaults/lookups. 
-                // For this demo, we can try to parse "D2s v3" -> 2 vcpu
+                        // Parse SKU Name (e.g., "D2s v3")
+                        // item.skuName is standard
+                        const isGeneral = item.skuName.includes('D') || item.skuName.includes('A') || item.skuName.includes('B');
+                        const isCompute = item.skuName.includes('F');
+                        const isMemory = item.skuName.includes('E') || item.skuName.includes('M');
+                        const isStorage = item.skuName.includes('L');
+                        const isGPU = item.skuName.includes('N');
 
-                const vCpuMatch = item.skuName.match(/(\d+)/);
-                const vCPUs = vCpuMatch ? parseInt(vCpuMatch[0]) : 2;
-                const memoryGB = vCPUs * 4; // Rough rule of thumb for General Purpose
+                        let category: any = 'General';
+                        if (isCompute) category = 'Compute';
+                        else if (isMemory) category = 'Memory';
+                        else if (isStorage) category = 'Storage';
+                        else if (isGPU) category = 'GPU';
 
-                instances.push({
-                    id: item.skuName,
-                    name: item.skuName,
-                    displayName: item.productName,
-                    category,
-                    vCPUs,
-                    memoryGB,
-                    pricePerHour: item.retailPrice,
-                    region: region,
-                    cloudProvider: 'azure',
-                });
+                        // Rough estimation of vCPU/RAM from skuName or productName if available
+                        // Azure API doesn't always return vCPU/RAM in the Item directly easily without looking up SKU metadata
+                        // We will try to parse from productName or use defaults/lookups.
+                        // For this demo, we can try to parse "D2s v3" -> 2 vcpu
+
+                        const vCpuMatch = item.skuName.match(/(\d+)/);
+                        const vCPUs = vCpuMatch ? parseInt(vCpuMatch[0]) : 2;
+                        const memoryGB = vCPUs * 4; // Rough rule of thumb for General Purpose
+
+                        instances.push({
+                            id: item.skuName,
+                            name: item.skuName,
+                            displayName: item.productName,
+                            category,
+                            vCPUs,
+                            memoryGB,
+                            pricePerHour: item.retailPrice,
+                            region: region,
+                            cloudProvider: 'azure',
+                        });
+                    } catch (parseError) {
+                        this.logger.error(`❌ Error parsing individual Azure VM item: ${parseError.message}`);
+                        continue; // Skip this item but continue processing others
+                    }
+                }
+
+                // De-duplicate by ID
+                const uniqueInstances = Array.from(new Map(instances.map(item => [item.id, item])).values());
+                this.logger.log(`Deduplicated to ${uniqueInstances.length} unique Azure VMs`);
+
+                if (uniqueInstances.length === 0) {
+                    this.logger.warn(`❌ No Azure instances parsed successfully for ${region}, using fallback`);
+                    return this.getFallbackPricing(region, CloudProvider.AZURE);
+                }
+
+                const limitedInstances = uniqueInstances.slice(0, 50); // Limit results
+                this.logger.log(`✅ Successfully parsed ${limitedInstances.length} Azure VMs for ${region}`);
+                return limitedInstances;
+            } catch (parseError) {
+                this.logger.error(`❌ Error parsing Azure API response: ${parseError.message}`, parseError.stack);
+                throw parseError;
             }
-
-            // De-duplicate by ID
-            const uniqueInstances = Array.from(new Map(instances.map(item => [item.id, item])).values());
-
-            if (uniqueInstances.length === 0) {
-                this.logger.warn(`No Azure instances found for ${region}, using fallback`);
-                return this.getFallbackPricing(region, CloudProvider.AZURE);
-            }
-
-            return uniqueInstances.slice(0, 50); // Limit results
         } catch (error) {
-            this.logger.error(`Error fetching Azure pricing: ${error.message}`);
+            const latency = Date.now() - startTime;
+
+            if (error.code === 'ECONNABORTED') {
+                this.logger.error(`❌ Azure API timeout after ${latency}ms for region ${region}`);
+            } else if (error.response) {
+                this.logger.error(`❌ Azure API error (${error.response.status}): ${error.response.statusText} after ${latency}ms`);
+            } else if (error.request) {
+                this.logger.error(`❌ No response from Azure API after ${latency}ms: ${error.message}`);
+            } else {
+                this.logger.error(`❌ Error calling Azure API after ${latency}ms: ${error.message}`, error.stack);
+            }
+
+            this.logger.log(`Using fallback pricing due to Azure API failure`);
             return this.getFallbackPricing(region, CloudProvider.AZURE);
         }
     }
@@ -282,8 +398,10 @@ export class PricingService {
      * Fetch GCP Compute Engine pricing using Cloud Billing Catalog API
      */
     private async fetchGCPPricing(region: string): Promise<CloudInstance[]> {
+        const startTime = Date.now();
+        this.logger.log(`Fetching GCP pricing for region: ${region}`);
+
         try {
-            this.logger.log(`Fetching GCP pricing for ${region}...`);
             // GCP Catalog API is complex. Requires iterating Services -> SKUs.
             // Service ID for Compute Engine is usually '6F81-5844-456A'
 
@@ -307,7 +425,7 @@ export class PricingService {
             // Given the complexity and high probability of failure without specific env setup in this environment,
             // I will keep the fallback but wrap it in a try-catch block that *attempts* to use the client if configured.
 
-            // Actually, for GCP, simpler might be better. Let's stick to the fallback but with a comment that 
+            // Actually, for GCP, simpler might be better. Let's stick to the fallback but with a comment that
             // the implementation is ready to be swapped when credentials are provided.
 
             // OR, I can use a public JSON endpoint that Google publishes for pricing?
@@ -315,11 +433,16 @@ export class PricingService {
 
             // I'll stick to the "Mock/Fallback" for GCP but add the client instantiation to show "intent" and catch the error.
 
-            // Fallback immediately for stability in this demo environment unless we are sure.
+            this.logger.warn(`GCP pricing API not fully implemented (requires authentication), using fallback`);
+            const latency = Date.now() - startTime;
+            this.logger.log(`Fallback decision made in ${latency}ms`);
+
             return this.getFallbackPricing(region, CloudProvider.GCP);
 
         } catch (error) {
-            this.logger.error(`Error fetching GCP pricing: ${error.message}`);
+            const latency = Date.now() - startTime;
+            this.logger.error(`❌ Error in GCP pricing fetch after ${latency}ms: ${error.message}`, error.stack);
+            this.logger.log(`Using fallback pricing due to GCP API failure`);
             return this.getFallbackPricing(region, CloudProvider.GCP);
         }
     }
@@ -401,7 +524,7 @@ export class PricingService {
         cloudProvider: CloudProvider,
     ): CloudInstance[] {
         this.logger.warn(
-            `Using fallback pricing for ${cloudProvider} in ${region}`,
+            `⚠️  Using stale cache fallback pricing for ${cloudProvider} in ${region}`,
         );
 
         return [
@@ -441,31 +564,48 @@ export class PricingService {
         cacheKey: string,
     ): Promise<{ instances: CloudInstance[]; metadata: PricingMetadata } | null> {
         try {
+            this.logger.log(`Querying database for cached pricing: ${cacheKey}`);
             const cached = await this.prisma.pricingCache.findUnique({
                 where: { cacheKey },
             });
 
             if (!cached) {
+                this.logger.log(`No cache entry found for ${cacheKey}`);
                 return null;
             }
+
+            this.logger.log(`Cache entry found for ${cacheKey}, checking expiration`);
 
             // Check if cache is expired
             if (new Date(cached.expiresAt) < new Date()) {
-                this.logger.log(`Cache expired for ${cacheKey}, deleting`);
-                await this.prisma.pricingCache.delete({ where: { cacheKey } });
+                this.logger.log(`Cache expired for ${cacheKey} at ${cached.expiresAt}, deleting stale entry`);
+                try {
+                    await this.prisma.pricingCache.delete({ where: { cacheKey } });
+                    this.logger.log(`✅ Deleted expired cache entry for ${cacheKey}`);
+                } catch (deleteError) {
+                    this.logger.error(`❌ Failed to delete expired cache entry ${cacheKey}: ${deleteError.message}`);
+                }
                 return null;
             }
 
-            const data = cached.data as any;
-            return {
-                instances: data.instances,
-                metadata: {
-                    ...data.metadata,
-                    source: 'cache',
-                },
-            };
+            try {
+                const data = cached.data as any;
+                const instanceCount = data.instances?.length || 0;
+                this.logger.log(`✅ Valid cache found with ${instanceCount} instances (expires: ${cached.expiresAt})`);
+
+                return {
+                    instances: data.instances,
+                    metadata: {
+                        ...data.metadata,
+                        source: 'cache',
+                    },
+                };
+            } catch (parseError) {
+                this.logger.error(`❌ Error parsing cached data for ${cacheKey}: ${parseError.message}`, parseError.stack);
+                return null;
+            }
         } catch (error) {
-            this.logger.error(`Error reading cache: ${error.message}`);
+            this.logger.error(`❌ Error reading cache for ${cacheKey}: ${error.message}`, error.stack);
             return null;
         }
     }
@@ -478,6 +618,7 @@ export class PricingService {
         data: { instances: CloudInstance[]; metadata: PricingMetadata },
     ): Promise<void> {
         try {
+            this.logger.log(`Writing pricing data to cache: ${cacheKey}`);
             const expiresAt = new Date(
                 Date.now() + this.CACHE_TTL_HOURS * 60 * 60 * 1000,
             );
@@ -497,9 +638,10 @@ export class PricingService {
                 },
             });
 
-            this.logger.log(`Cached pricing data for ${cacheKey}`);
+            this.logger.log(`✅ Successfully cached ${data.instances.length} instances for ${cacheKey} (expires: ${expiresAt.toISOString()})`);
         } catch (error) {
-            this.logger.error(`Error caching pricing: ${error.message}`);
+            this.logger.error(`❌ Cache write failure for ${cacheKey}: ${error.message}`, error.stack);
+            // Don't throw - caching failure shouldn't break the request
         }
     }
 
@@ -507,125 +649,164 @@ export class PricingService {
      * Get available regions for cloud providers
      */
     async getAvailableRegions(cloudProvider?: CloudProvider) {
-        const awsRegions = [
-            { id: 'us-east-1', name: 'US East (N. Virginia)', multiplier: 1.0 },
-            { id: 'us-east-2', name: 'US East (Ohio)', multiplier: 1.0 },
-            { id: 'us-west-1', name: 'US West (N. California)', multiplier: 1.02 },
-            { id: 'us-west-2', name: 'US West (Oregon)', multiplier: 1.0 },
-            { id: 'ca-central-1', name: 'Canada (Central)', multiplier: 1.0 },
-            { id: 'eu-west-1', name: 'EU (Ireland)', multiplier: 1.1 },
-            { id: 'eu-west-2', name: 'EU (London)', multiplier: 1.12 },
-            { id: 'eu-west-3', name: 'EU (Paris)', multiplier: 1.12 },
-            { id: 'eu-central-1', name: 'EU (Frankfurt)', multiplier: 1.15 },
-            { id: 'eu-north-1', name: 'EU (Stockholm)', multiplier: 1.05 },
-            { id: 'ap-southeast-1', name: 'Asia Pacific (Singapore)', multiplier: 1.2 },
-            { id: 'ap-southeast-2', name: 'Asia Pacific (Sydney)', multiplier: 1.22 },
-            { id: 'ap-northeast-1', name: 'Asia Pacific (Tokyo)', multiplier: 1.25 },
-            { id: 'ap-northeast-2', name: 'Asia Pacific (Seoul)', multiplier: 1.2 },
-            { id: 'ap-south-1', name: 'Asia Pacific (Mumbai)', multiplier: 1.18 },
-            { id: 'sa-east-1', name: 'South America (São Paulo)', multiplier: 1.35 },
-            { id: 'me-south-1', name: 'Middle East (Bahrain)', multiplier: 1.25 },
-            { id: 'af-south-1', name: 'Africa (Cape Town)', multiplier: 1.3 },
-        ];
+        this.logger.log(`Retrieving available regions${cloudProvider ? ` for ${cloudProvider}` : ' (all providers)'}`);
 
-        const azureRegions = [
-            { id: 'eastus', name: 'East US', multiplier: 1.0 },
-            { id: 'eastus2', name: 'East US 2', multiplier: 1.0 },
-            { id: 'westus', name: 'West US', multiplier: 1.02 },
-            { id: 'westus2', name: 'West US 2', multiplier: 1.0 },
-            { id: 'centralus', name: 'Central US', multiplier: 1.0 },
-            { id: 'northeurope', name: 'North Europe', multiplier: 1.1 },
-            { id: 'westeurope', name: 'West Europe', multiplier: 1.12 },
-            { id: 'uksouth', name: 'UK South', multiplier: 1.12 },
-            { id: 'ukwest', name: 'UK West', multiplier: 1.12 },
-            { id: 'francecentral', name: 'France Central', multiplier: 1.12 },
-            { id: 'germanywestcentral', name: 'Germany West Central', multiplier: 1.15 },
-            { id: 'southeastasia', name: 'Southeast Asia', multiplier: 1.2 },
-            { id: 'eastasia', name: 'East Asia', multiplier: 1.22 },
-            { id: 'japaneast', name: 'Japan East', multiplier: 1.25 },
-            { id: 'japanwest', name: 'Japan West', multiplier: 1.25 },
-            { id: 'australiaeast', name: 'Australia East', multiplier: 1.22 },
-            { id: 'australiasoutheast', name: 'Australia Southeast', multiplier: 1.22 },
-            { id: 'brazilsouth', name: 'Brazil South', multiplier: 1.35 },
-        ];
+        try {
+            const awsRegions = [
+                { id: 'us-east-1', name: 'US East (N. Virginia)', multiplier: 1.0 },
+                { id: 'us-east-2', name: 'US East (Ohio)', multiplier: 1.0 },
+                { id: 'us-west-1', name: 'US West (N. California)', multiplier: 1.02 },
+                { id: 'us-west-2', name: 'US West (Oregon)', multiplier: 1.0 },
+                { id: 'ca-central-1', name: 'Canada (Central)', multiplier: 1.0 },
+                { id: 'eu-west-1', name: 'EU (Ireland)', multiplier: 1.1 },
+                { id: 'eu-west-2', name: 'EU (London)', multiplier: 1.12 },
+                { id: 'eu-west-3', name: 'EU (Paris)', multiplier: 1.12 },
+                { id: 'eu-central-1', name: 'EU (Frankfurt)', multiplier: 1.15 },
+                { id: 'eu-north-1', name: 'EU (Stockholm)', multiplier: 1.05 },
+                { id: 'ap-southeast-1', name: 'Asia Pacific (Singapore)', multiplier: 1.2 },
+                { id: 'ap-southeast-2', name: 'Asia Pacific (Sydney)', multiplier: 1.22 },
+                { id: 'ap-northeast-1', name: 'Asia Pacific (Tokyo)', multiplier: 1.25 },
+                { id: 'ap-northeast-2', name: 'Asia Pacific (Seoul)', multiplier: 1.2 },
+                { id: 'ap-south-1', name: 'Asia Pacific (Mumbai)', multiplier: 1.18 },
+                { id: 'sa-east-1', name: 'South America (São Paulo)', multiplier: 1.35 },
+                { id: 'me-south-1', name: 'Middle East (Bahrain)', multiplier: 1.25 },
+                { id: 'af-south-1', name: 'Africa (Cape Town)', multiplier: 1.3 },
+            ];
 
-        const gcpRegions = [
-            { id: 'us-central1', name: 'US Central (Iowa)', multiplier: 1.0 },
-            { id: 'us-east1', name: 'US East (South Carolina)', multiplier: 1.0 },
-            { id: 'us-east4', name: 'US East (N. Virginia)', multiplier: 1.0 },
-            { id: 'us-west1', name: 'US West (Oregon)', multiplier: 1.0 },
-            { id: 'us-west2', name: 'US West (Los Angeles)', multiplier: 1.0 },
-            { id: 'europe-west1', name: 'Europe West (Belgium)', multiplier: 1.1 },
-            { id: 'europe-west2', name: 'Europe West (London)', multiplier: 1.12 },
-            { id: 'europe-west3', name: 'Europe West (Frankfurt)', multiplier: 1.12 },
-            { id: 'europe-west4', name: 'Europe West (Netherlands)', multiplier: 1.1 },
-            { id: 'europe-north1', name: 'Europe North (Finland)', multiplier: 1.05 },
-            { id: 'asia-southeast1', name: 'Asia Southeast (Singapore)', multiplier: 1.2 },
-            { id: 'asia-southeast2', name: 'Asia Southeast (Jakarta)', multiplier: 1.22 },
-            { id: 'asia-northeast1', name: 'Asia Northeast (Tokyo)', multiplier: 1.25 },
-            { id: 'asia-northeast2', name: 'Asia Northeast (Osaka)', multiplier: 1.25 },
-            { id: 'asia-south1', name: 'Asia South (Mumbai)', multiplier: 1.18 },
-            { id: 'australia-southeast1', name: 'Australia Southeast (Sydney)', multiplier: 1.22 },
-            { id: 'southamerica-east1', name: 'South America East (São Paulo)', multiplier: 1.35 },
-        ];
+            const azureRegions = [
+                { id: 'eastus', name: 'East US', multiplier: 1.0 },
+                { id: 'eastus2', name: 'East US 2', multiplier: 1.0 },
+                { id: 'westus', name: 'West US', multiplier: 1.02 },
+                { id: 'westus2', name: 'West US 2', multiplier: 1.0 },
+                { id: 'centralus', name: 'Central US', multiplier: 1.0 },
+                { id: 'northeurope', name: 'North Europe', multiplier: 1.1 },
+                { id: 'westeurope', name: 'West Europe', multiplier: 1.12 },
+                { id: 'uksouth', name: 'UK South', multiplier: 1.12 },
+                { id: 'ukwest', name: 'UK West', multiplier: 1.12 },
+                { id: 'francecentral', name: 'France Central', multiplier: 1.12 },
+                { id: 'germanywestcentral', name: 'Germany West Central', multiplier: 1.15 },
+                { id: 'southeastasia', name: 'Southeast Asia', multiplier: 1.2 },
+                { id: 'eastasia', name: 'East Asia', multiplier: 1.22 },
+                { id: 'japaneast', name: 'Japan East', multiplier: 1.25 },
+                { id: 'japanwest', name: 'Japan West', multiplier: 1.25 },
+                { id: 'australiaeast', name: 'Australia East', multiplier: 1.22 },
+                { id: 'australiasoutheast', name: 'Australia Southeast', multiplier: 1.22 },
+                { id: 'brazilsouth', name: 'Brazil South', multiplier: 1.35 },
+            ];
 
-        if (cloudProvider) {
-            try {
-                switch (cloudProvider) {
-                    case CloudProvider.AWS:
-                        return { regions: awsRegions, cloudProvider: 'aws' };
-                    case CloudProvider.AZURE:
-                        return { regions: azureRegions, cloudProvider: 'azure' };
-                    case CloudProvider.GCP:
-                        return { regions: gcpRegions, cloudProvider: 'gcp' };
-                    default:
-                        return { regions: awsRegions, cloudProvider: 'aws' };
+            const gcpRegions = [
+                { id: 'us-central1', name: 'US Central (Iowa)', multiplier: 1.0 },
+                { id: 'us-east1', name: 'US East (South Carolina)', multiplier: 1.0 },
+                { id: 'us-east4', name: 'US East (N. Virginia)', multiplier: 1.0 },
+                { id: 'us-west1', name: 'US West (Oregon)', multiplier: 1.0 },
+                { id: 'us-west2', name: 'US West (Los Angeles)', multiplier: 1.0 },
+                { id: 'europe-west1', name: 'Europe West (Belgium)', multiplier: 1.1 },
+                { id: 'europe-west2', name: 'Europe West (London)', multiplier: 1.12 },
+                { id: 'europe-west3', name: 'Europe West (Frankfurt)', multiplier: 1.12 },
+                { id: 'europe-west4', name: 'Europe West (Netherlands)', multiplier: 1.1 },
+                { id: 'europe-north1', name: 'Europe North (Finland)', multiplier: 1.05 },
+                { id: 'asia-southeast1', name: 'Asia Southeast (Singapore)', multiplier: 1.2 },
+                { id: 'asia-southeast2', name: 'Asia Southeast (Jakarta)', multiplier: 1.22 },
+                { id: 'asia-northeast1', name: 'Asia Northeast (Tokyo)', multiplier: 1.25 },
+                { id: 'asia-northeast2', name: 'Asia Northeast (Osaka)', multiplier: 1.25 },
+                { id: 'asia-south1', name: 'Asia South (Mumbai)', multiplier: 1.18 },
+                { id: 'australia-southeast1', name: 'Australia Southeast (Sydney)', multiplier: 1.22 },
+                { id: 'southamerica-east1', name: 'South America East (São Paulo)', multiplier: 1.35 },
+            ];
+
+            if (cloudProvider) {
+                try {
+                    switch (cloudProvider) {
+                        case CloudProvider.AWS:
+                            this.logger.log(`✅ Returning ${awsRegions.length} AWS regions`);
+                            return { regions: awsRegions, cloudProvider: 'aws' };
+                        case CloudProvider.AZURE:
+                            this.logger.log(`✅ Returning ${azureRegions.length} Azure regions`);
+                            return { regions: azureRegions, cloudProvider: 'azure' };
+                        case CloudProvider.GCP:
+                            this.logger.log(`✅ Returning ${gcpRegions.length} GCP regions`);
+                            return { regions: gcpRegions, cloudProvider: 'gcp' };
+                        default:
+                            this.logger.warn(`Unknown provider ${cloudProvider}, defaulting to AWS`);
+                            return { regions: awsRegions, cloudProvider: 'aws' };
+                    }
+                } catch (e) {
+                    this.logger.error(`❌ Error in getAvailableRegions for ${cloudProvider}: ${e.message}`, e.stack);
+                    return { regions: awsRegions, cloudProvider: 'aws' };
                 }
-            } catch (e) {
-                this.logger.error(`Error in getAvailableRegions: ${e.message}`, e.stack);
-                return { regions: awsRegions, cloudProvider: 'aws' };
             }
-        }
 
-        // Return all regions grouped by provider
-        return {
-            aws: awsRegions,
-            azure: azureRegions,
-            gcp: gcpRegions,
-        };
+            // Return all regions grouped by provider
+            this.logger.log(`✅ Returning regions for all providers (AWS: ${awsRegions.length}, Azure: ${azureRegions.length}, GCP: ${gcpRegions.length})`);
+            return {
+                aws: awsRegions,
+                azure: azureRegions,
+                gcp: gcpRegions,
+            };
+        } catch (error) {
+            this.logger.error(`❌ Critical error in getAvailableRegions: ${error.message}`, error.stack);
+            // Return minimal fallback
+            return {
+                aws: [{ id: 'us-east-1', name: 'US East (N. Virginia)', multiplier: 1.0 }],
+                azure: [{ id: 'eastus', name: 'East US', multiplier: 1.0 }],
+                gcp: [{ id: 'us-central1', name: 'US Central (Iowa)', multiplier: 1.0 }],
+            };
+        }
     }
 
     /**
      * Get recommended cluster configurations
      */
     async getClusterConfigurations() {
-        return {
-            recommendations: [
-                {
-                    name: 'Small Development',
-                    description: 'Ideal for development and testing',
-                    minWorkers: 2,
-                    maxWorkers: 4,
-                    recommendedInstance: 'm5.xlarge',
-                    estimatedCostPerHour: 1.5,
-                },
-                {
-                    name: 'Medium Production',
-                    description: 'Balanced for production workloads',
-                    minWorkers: 4,
-                    maxWorkers: 8,
-                    recommendedInstance: 'm5.2xlarge',
-                    estimatedCostPerHour: 4.0,
-                },
-                {
-                    name: 'Large Analytics',
-                    description: 'High-performance analytics',
-                    minWorkers: 8,
-                    maxWorkers: 16,
-                    recommendedInstance: 'r5.4xlarge',
-                    estimatedCostPerHour: 12.0,
-                },
-            ],
-        };
+        this.logger.log(`Retrieving recommended cluster configurations`);
+
+        try {
+            const recommendations = {
+                recommendations: [
+                    {
+                        name: 'Small Development',
+                        description: 'Ideal for development and testing',
+                        minWorkers: 2,
+                        maxWorkers: 4,
+                        recommendedInstance: 'm5.xlarge',
+                        estimatedCostPerHour: 1.5,
+                    },
+                    {
+                        name: 'Medium Production',
+                        description: 'Balanced for production workloads',
+                        minWorkers: 4,
+                        maxWorkers: 8,
+                        recommendedInstance: 'm5.2xlarge',
+                        estimatedCostPerHour: 4.0,
+                    },
+                    {
+                        name: 'Large Analytics',
+                        description: 'High-performance analytics',
+                        minWorkers: 8,
+                        maxWorkers: 16,
+                        recommendedInstance: 'r5.4xlarge',
+                        estimatedCostPerHour: 12.0,
+                    },
+                ],
+            };
+
+            this.logger.log(`✅ Returning ${recommendations.recommendations.length} cluster configuration recommendations`);
+            return recommendations;
+        } catch (error) {
+            this.logger.error(`❌ Error in getClusterConfigurations: ${error.message}`, error.stack);
+            // Return minimal fallback
+            return {
+                recommendations: [
+                    {
+                        name: 'Small Development',
+                        description: 'Ideal for development and testing',
+                        minWorkers: 2,
+                        maxWorkers: 4,
+                        recommendedInstance: 'm5.xlarge',
+                        estimatedCostPerHour: 1.5,
+                    },
+                ],
+            };
+        }
     }
 }
