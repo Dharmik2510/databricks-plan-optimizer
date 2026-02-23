@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import {
-  ChevronDown,
   Clipboard,
   Clock3,
   Loader2,
@@ -16,12 +15,11 @@ import {
   Cable,
   Server,
   Plus,
-  ArrowRight,
   History,
-  TrendingUp,
   X,
   Zap,
-  BarChart3
+  BarChart3,
+  Dot
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,6 +40,13 @@ const PROGRESS_STEPS = [
   'Computing diffs…',
   'Writing findings…',
 ];
+
+const CONNECTION_STEPS = [
+  { key: 'route', label: 'Choose route' },
+  { key: 'source', label: 'Configure source' },
+  { key: 'validate', label: 'Validate' },
+  { key: 'analyze', label: 'Analyze' },
+] as const;
 
 const formatBytes = (bytes: number) => {
   if (!bytes && bytes !== 0) return '—';
@@ -151,6 +156,7 @@ const InfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen,
 
 const HistoricalPage: React.FC = () => {
   const [mode, setMode] = useState<'analyze' | 'compare'>('analyze');
+  const [routePreference, setRoutePreference] = useState<'auto' | 'gateway_shs' | 'external_mcp'>('auto');
   const [isRunning, setIsRunning] = useState(false);
   const [progressIndex, setProgressIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -187,10 +193,67 @@ const HistoricalPage: React.FC = () => {
     : datasources.find((item) => item.id === selectedDatasourceId) || null;
   const selectedDatasourcePayload = selectedDatasourceId === 'auto' ? undefined : selectedDatasourceId;
   const accessReady = accessStatus?.ready === true;
+  const selectedDatasourceType = selectedDatasource?.connection_type ?? null;
 
   const datasourceLabel = (value: DataSource) => (
     value.connection_type === 'gateway_shs' ? 'Gateway SHS (No MCP)' : 'External MCP'
   );
+
+  const statusChip = useMemo(() => {
+    if (accessStatusLoading || datasourcesLoading) {
+      return {
+        text: 'Validating connection',
+        className: 'border-slate-300/80 bg-slate-100/80 text-slate-700 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200',
+      };
+    }
+    if (accessReady) {
+      return {
+        text: accessStatus?.datasourceName ? `Connected: ${accessStatus.datasourceName}` : 'Connection ready',
+        className: 'border-emerald-300/70 bg-emerald-100/80 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200',
+      };
+    }
+    return {
+      text: datasources.length === 0 ? 'Data source: Not configured' : 'Connection not ready',
+      className: 'border-amber-300/70 bg-amber-100/80 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/35 dark:text-amber-200',
+    };
+  }, [accessReady, accessStatus?.datasourceName, accessStatusLoading, datasources.length, datasourcesLoading]);
+
+  const routingHelperText = useMemo(() => {
+    if (accessStatusLoading || datasourcesLoading) return 'Validating connection...';
+    if (selectedDatasource) return `Connected target: ${selectedDatasource.name} (${datasourceLabel(selectedDatasource)})`;
+    if (accessReady && accessStatus?.datasourceName) return `Connected target: ${accessStatus.datasourceName}`;
+    return 'Using automatic routing: datasource first, org MCP fallback';
+  }, [accessReady, accessStatus?.datasourceName, accessStatusLoading, datasourcesLoading, selectedDatasource]);
+
+  const stepCompletion = useMemo(() => ({
+    route: routePreference !== 'auto' || selectedDatasourceId === 'auto',
+    source: datasources.length > 0,
+    validate: accessReady,
+    analyze: Boolean(result),
+  }), [accessReady, datasources.length, result, routePreference, selectedDatasourceId]);
+
+  const alertItems = useMemo(() => {
+    const items: Array<{ id: string; tone: 'warning' | 'error'; message: string; cta: string; onClick: () => void }> = [];
+    if (datasources.length === 0) {
+      items.push({
+        id: 'no-datasource',
+        tone: 'warning',
+        message: 'No datasource configured yet. Add one to support non-MCP (Gateway SHS) or MCP (External MCP) historical analysis.',
+        cta: 'Add data source',
+        onClick: () => setShowDatasourceModal(true),
+      });
+    }
+    if (!accessStatusLoading && accessStatus && !accessStatus.ready) {
+      items.push({
+        id: 'access-error',
+        tone: 'error',
+        message: accessStatus.message,
+        cta: 'Retry validation',
+        onClick: () => refreshAccessStatus(selectedDatasourcePayload),
+      });
+    }
+    return items;
+  }, [accessStatus, accessStatusLoading, datasources.length, selectedDatasourcePayload]);
 
   const refreshAccessStatus = async (datasourceId?: string) => {
     try {
@@ -241,6 +304,16 @@ const HistoricalPage: React.FC = () => {
   useEffect(() => {
     refreshAccessStatus(selectedDatasourcePayload);
   }, [selectedDatasourcePayload]);
+
+  useEffect(() => {
+    if (selectedDatasourceId === 'auto') {
+      setRoutePreference('auto');
+      return;
+    }
+    if (selectedDatasourceType) {
+      setRoutePreference(selectedDatasourceType);
+    }
+  }, [selectedDatasourceId, selectedDatasourceType]);
 
   // Progress simulator
   useEffect(() => {
@@ -336,6 +409,16 @@ const HistoricalPage: React.FC = () => {
       setDatasourcesLoading(false);
     }
     await refreshAccessStatus(selectedDatasourcePayload);
+  };
+
+  const applyRoutePreference = (next: 'auto' | 'gateway_shs' | 'external_mcp') => {
+    setRoutePreference(next);
+    if (next === 'auto') {
+      setSelectedDatasourceId('auto');
+      return;
+    }
+    const match = datasources.find((item) => item.connection_type === next);
+    setSelectedDatasourceId(match ? match.id : 'auto');
   };
 
   const handleAnalyze = async () => {
@@ -442,7 +525,12 @@ const HistoricalPage: React.FC = () => {
       <div className="relative mx-auto max-w-7xl space-y-8">
         {/* Header */}
         <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/65 md:p-8">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(251,191,36,0.08),transparent_40%,rgba(56,189,248,0.1))] dark:bg-[linear-gradient(120deg,rgba(251,146,60,0.15),transparent_40%,rgba(56,189,248,0.14))]" />
+          <motion.div
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(251,191,36,0.08),transparent_40%,rgba(56,189,248,0.1))] dark:bg-[linear-gradient(120deg,rgba(251,146,60,0.15),transparent_40%,rgba(56,189,248,0.14))]"
+            animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+            transition={{ duration: 16, ease: 'linear', repeat: Infinity }}
+            style={{ backgroundSize: '200% 200%' }}
+          />
           <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -462,18 +550,28 @@ const HistoricalPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-start md:justify-end">
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${statusChip.className}`}>
+              {(accessStatusLoading || datasourcesLoading) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {statusChip.text}
+            </span>
             <button
               onClick={() => setShowInfo(true)}
               className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white transition-colors"
             >
               <Info className="w-4 h-4" /> How it works
             </button>
-            <div className="bg-white/80 dark:bg-slate-900 p-1.5 rounded-full border border-slate-200 dark:border-slate-700 flex shadow-sm">
+            <div className="relative bg-white/80 dark:bg-slate-900 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex shadow-sm">
+              <motion.div
+                className="absolute top-1 bottom-1 rounded-full bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-white shadow-md"
+                animate={{ left: mode === 'analyze' ? '0.25rem' : 'calc(50% + 0.125rem)' }}
+                transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+                style={{ width: 'calc(50% - 0.25rem)' }}
+              />
               <button
                 onClick={() => setMode('analyze')}
-                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${mode === 'analyze'
-                    ? 'bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-white text-white dark:text-slate-900 shadow-md transform scale-105'
+                className={`relative z-10 px-6 py-2.5 rounded-full text-sm font-bold transition-colors ${mode === 'analyze'
+                    ? 'text-white dark:text-slate-900'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
@@ -481,8 +579,8 @@ const HistoricalPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setMode('compare')}
-                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${mode === 'compare'
-                    ? 'bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-white text-white dark:text-slate-900 shadow-md transform scale-105'
+                className={`relative z-10 px-6 py-2.5 rounded-full text-sm font-bold transition-colors ${mode === 'compare'
+                    ? 'text-white dark:text-slate-900'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
@@ -522,10 +620,13 @@ const HistoricalPage: React.FC = () => {
                 <Button variant="secondary" onClick={refreshDatasources} disabled={datasourcesLoading}>
                   <span className="flex items-center gap-2">
                     <RefreshCw className={`w-4 h-4 ${datasourcesLoading ? 'animate-spin' : ''}`} />
-                    Refresh
+                    {datasourcesLoading ? 'Validating...' : 'Refresh'}
                   </span>
                 </Button>
-                <Button onClick={() => setShowDatasourceModal(true)}>
+                <Button
+                  onClick={() => setShowDatasourceModal(true)}
+                  className="bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white border border-orange-500/70 shadow-sm dark:bg-orange-500 dark:hover:bg-orange-400 dark:active:bg-orange-600"
+                >
                   <span className="flex items-center gap-2">
                     <Plus className="w-4 h-4" />
                     Add Connection
@@ -534,66 +635,134 @@ const HistoricalPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-900/40 p-2">
+              {CONNECTION_STEPS.map((step, index) => {
+                const complete = stepCompletion[step.key];
+                const active = !complete && (index === 0 || stepCompletion[CONNECTION_STEPS[index - 1].key]);
+                return (
+                  <motion.div
+                    key={step.key}
+                    layout
+                    className={`rounded-xl px-3 py-2 text-xs font-semibold tracking-wide border ${complete
+                        ? 'border-emerald-300/70 bg-emerald-100/80 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200'
+                        : active
+                          ? 'border-orange-300/70 bg-orange-100/80 text-orange-800 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-200'
+                          : 'border-slate-200/80 bg-slate-100/70 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400'
+                      }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <Dot className={`w-4 h-4 ${active && !complete ? 'animate-pulse' : ''}`} />
+                      {step.label}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-blue-200/70 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/20 p-4">
-                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold mb-2">
-                  <Server className="w-4 h-4" />
-                  No MCP Setup
+              <motion.button
+                type="button"
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => applyRoutePreference('gateway_shs')}
+                className={`rounded-2xl border p-4 text-left transition-all ${routePreference === 'gateway_shs'
+                    ? 'border-blue-500/70 bg-blue-100/80 shadow-lg shadow-blue-500/10 dark:border-blue-400/70 dark:bg-blue-950/35'
+                    : 'border-blue-200/70 bg-blue-50/70 dark:border-blue-900/50 dark:bg-blue-950/20'
+                  }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold">
+                    <Server className="w-4 h-4" />
+                    No MCP Setup
+                  </div>
+                  <span className="rounded-full border border-blue-300/70 bg-white/80 dark:bg-slate-900/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Recommended</span>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-300">Use <strong>Gateway SHS</strong>. Enter SHS URL + auth once, and the platform handles the backend MCP proxy.</p>
-              </div>
-              <div className="rounded-2xl border border-violet-200/70 dark:border-violet-900/50 bg-violet-50/70 dark:bg-violet-950/20 p-4">
+              </motion.button>
+              <motion.button
+                type="button"
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => applyRoutePreference('external_mcp')}
+                className={`rounded-2xl border p-4 text-left transition-all ${routePreference === 'external_mcp'
+                    ? 'border-violet-500/70 bg-violet-100/80 shadow-lg shadow-violet-500/10 dark:border-violet-400/70 dark:bg-violet-950/35'
+                    : 'border-violet-200/70 bg-violet-50/70 dark:border-violet-900/50 dark:bg-violet-950/20'
+                  }`}
+              >
                 <div className="flex items-center gap-2 text-violet-700 dark:text-violet-300 font-semibold mb-2">
                   <Cable className="w-4 h-4" />
                   Existing MCP
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-300">Use <strong>External MCP</strong>. Point to your MCP server URL and optional token for secure reuse.</p>
-              </div>
+              </motion.button>
             </div>
 
-            <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1 mb-2 block">
+            <motion.div layout className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1 block">
                   Active Data Source
                 </label>
-                <select
+                <motion.select
+                  key={`${selectedDatasourceId}-${routePreference}`}
                   value={selectedDatasourceId}
                   onChange={(e) => setSelectedDatasourceId(e.target.value)}
+                  initial={{ opacity: 0.7, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500"
                 >
                   <option value="auto">Automatic (recommended fallback routing)</option>
-                  {datasources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {source.name} · {datasourceLabel(source)}
-                    </option>
-                  ))}
-                </select>
+                  {datasources
+                    .filter((source) => routePreference === 'auto' ? true : source.connection_type === routePreference)
+                    .map((source) => (
+                      <option key={source.id} value={source.id}>
+                        {source.name} · {datasourceLabel(source)}
+                      </option>
+                    ))}
+                </motion.select>
               </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2">
-                {selectedDatasource
-                  ? `Using: ${selectedDatasource.name} (${datasourceLabel(selectedDatasource)})`
-                  : 'Using automatic routing: datasource first, org MCP fallback'}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs min-h-[40px] flex items-center">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={routingHelperText}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400"
+                  >
+                    {accessStatusLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span className={`h-2 w-2 rounded-full ${accessReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />}
+                    {routingHelperText}
+                  </motion.span>
+                </AnimatePresence>
               </div>
-            </div>
+            </motion.div>
 
-            {datasources.length === 0 && (
-              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-                No datasource configured yet. Add one to support non-MCP (Gateway SHS) or MCP (External MCP) historical analysis.
-              </div>
-            )}
-
-            {accessStatusLoading && (
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-600 dark:text-slate-300 flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Validating historical connection path...
-              </div>
-            )}
-
-            {!accessStatusLoading && accessStatus && !accessStatus.ready && (
-              <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-                {accessStatus.message}
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {alertItems.map((item) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={item.tone === 'error'
+                    ? { opacity: 1, y: 0, x: [0, -2, 2, -1, 0] }
+                    : { opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22 }}
+                  className={`rounded-xl border px-4 py-3 text-sm flex items-center justify-between gap-3 ${item.tone === 'warning'
+                      ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200'
+                      : 'border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300'
+                    }`}
+                >
+                  <span>{item.message}</span>
+                  <button
+                    type="button"
+                    onClick={item.onClick}
+                    className="shrink-0 rounded-lg border border-current/30 px-2.5 py-1 text-xs font-semibold hover:bg-white/70 dark:hover:bg-slate-900/40 transition-colors"
+                  >
+                    {item.cta}
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
             {!accessStatusLoading && accessStatus && accessStatus.ready && (
               <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
