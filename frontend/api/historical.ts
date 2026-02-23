@@ -25,6 +25,16 @@ export interface HistoricalRunItem {
   completed?: boolean;
 }
 
+export interface HistoricalAccessStatus {
+  ready: boolean;
+  mode: 'datasource' | 'org_connection' | null;
+  selectedBy: 'requested_datasource' | 'active_datasource' | 'legacy_org_connection' | null;
+  datasourceId: string | null;
+  datasourceConnectionType: 'gateway_shs' | 'external_mcp' | null;
+  datasourceName: string | null;
+  message: string;
+}
+
 const buildQuery = (params: Record<string, any>) => {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -36,10 +46,10 @@ const buildQuery = (params: Record<string, any>) => {
 };
 
 export const historicalApi = {
-  analyze: (payload: { appId?: string; appName?: string; startTime?: string; endTime?: string; question?: string }) =>
+  analyze: (payload: { appId?: string; appName?: string; startTime?: string; endTime?: string; question?: string; datasourceId?: string }) =>
     apiClient.post<HistoricalAnalysisResult>('/historical/analyze', payload),
 
-  compare: (payload: { appIdA: string; appIdB: string; question?: string }) =>
+  compare: (payload: { appIdA: string; appIdB: string; question?: string; datasourceId?: string }) =>
     apiClient.post<HistoricalAnalysisResult>('/historical/compare', payload),
 
   history: (params: { search?: string; mode?: string; appId?: string; appName?: string }) =>
@@ -47,8 +57,11 @@ export const historicalApi = {
 
   get: (id: string) => apiClient.get<HistoricalAnalysisResult>(`/historical/${id}`),
 
-  runs: (params: { appName: string; start?: string; end?: string; limit?: number }) =>
+  runs: (params: { appName: string; start?: string; end?: string; limit?: number; datasourceId?: string }) =>
     apiClient.get<HistoricalRunItem[]>(`/historical/runs${buildQuery(params)}`),
+
+  accessStatus: (params?: { datasourceId?: string }) =>
+    apiClient.get<HistoricalAccessStatus>(`/historical/access-status${buildQuery(params || {})}`),
 
   update: (id: string, payload: { title?: string; tags?: string[] }) =>
     apiClient.patch<HistoricalAnalysisResult>(`/historical/${id}`, payload),

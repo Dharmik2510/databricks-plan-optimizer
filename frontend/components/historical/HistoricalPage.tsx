@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   Clipboard,
   Clock3,
   Loader2,
+  RefreshCw,
   Search,
   Sparkles,
   Split,
@@ -11,6 +12,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
+  Database,
+  Cable,
+  Server,
+  Plus,
   ArrowRight,
   History,
   TrendingUp,
@@ -20,9 +25,14 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { historicalApi, HistoricalAnalysisResult, HistoricalRunItem } from '../../api/historical';
+import { historicalApi, HistoricalAccessStatus, HistoricalAnalysisResult, HistoricalRunItem } from '../../api/historical';
+import { datasourcesApi, DataSource } from '../../api/datasources';
 import { Button, Card } from '../../design-system/components';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const AddDataSourceModal = React.lazy(() =>
+  import('../datasources/AddDataSourceModal').then((mod) => ({ default: mod.AddDataSourceModal })),
+);
 
 // --- Constants & Helpers ---
 
@@ -148,6 +158,12 @@ const HistoricalPage: React.FC = () => {
   const [history, setHistory] = useState<HistoricalAnalysisResult[]>([]);
   const [historySearch, setHistorySearch] = useState('');
   const [showInfo, setShowInfo] = useState(false);
+  const [datasources, setDatasources] = useState<DataSource[]>([]);
+  const [datasourcesLoading, setDatasourcesLoading] = useState(false);
+  const [selectedDatasourceId, setSelectedDatasourceId] = useState<string>('auto');
+  const [showDatasourceModal, setShowDatasourceModal] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<HistoricalAccessStatus | null>(null);
+  const [accessStatusLoading, setAccessStatusLoading] = useState(false);
 
   // Input states
   const [analyzeInput, setAnalyzeInput] = useState({ appId: '', appName: '', startTime: '', endTime: '', question: '' });
@@ -166,8 +182,65 @@ const HistoricalPage: React.FC = () => {
   const compareHeuristicsA = appA?.heuristics;
   const compareHeuristicsB = appB?.heuristics;
   const compareMetrics = result?.evidence_json?.comparison;
+  const selectedDatasource = selectedDatasourceId === 'auto'
+    ? null
+    : datasources.find((item) => item.id === selectedDatasourceId) || null;
+  const selectedDatasourcePayload = selectedDatasourceId === 'auto' ? undefined : selectedDatasourceId;
+  const accessReady = accessStatus?.ready === true;
+
+  const datasourceLabel = (value: DataSource) => (
+    value.connection_type === 'gateway_shs' ? 'Gateway SHS (No MCP)' : 'External MCP'
+  );
+
+  const refreshAccessStatus = async (datasourceId?: string) => {
+    try {
+      setAccessStatusLoading(true);
+      const status = await historicalApi.accessStatus({ datasourceId });
+      setAccessStatus(status);
+    } catch {
+      setAccessStatus({
+        ready: false,
+        mode: null,
+        selectedBy: null,
+        datasourceId: null,
+        datasourceConnectionType: null,
+        datasourceName: null,
+        message: 'Unable to validate connection path right now.',
+      });
+    } finally {
+      setAccessStatusLoading(false);
+    }
+  };
 
   // --- Effects ---
+
+  // Load datasources
+  useEffect(() => {
+    const loadDatasources = async () => {
+      try {
+        setDatasourcesLoading(true);
+        const data = await datasourcesApi.getAll();
+        setDatasources(data || []);
+      } catch {
+        setDatasources([]);
+      } finally {
+        setDatasourcesLoading(false);
+      }
+    };
+    loadDatasources();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDatasourceId === 'auto') return;
+    const exists = datasources.some((item) => item.id === selectedDatasourceId);
+    if (!exists) {
+      setSelectedDatasourceId('auto');
+    }
+  }, [datasources, selectedDatasourceId]);
+
+  useEffect(() => {
+    refreshAccessStatus(selectedDatasourcePayload);
+  }, [selectedDatasourcePayload]);
 
   // Progress simulator
   useEffect(() => {
@@ -203,13 +276,22 @@ const HistoricalPage: React.FC = () => {
         setRuns([]);
         return;
       }
+      if (accessStatusLoading || !accessReady) {
+        setRuns([]);
+        return;
+      }
       try {
-        const data = await historicalApi.runs({ appName: analyzeInput.appName, start: analyzeInput.startTime, end: analyzeInput.endTime });
+        const data = await historicalApi.runs({
+          appName: analyzeInput.appName,
+          start: analyzeInput.startTime,
+          end: analyzeInput.endTime,
+          datasourceId: selectedDatasourcePayload,
+        });
         setRuns(data || []);
       } catch { setRuns([]); }
     };
     fetchRuns();
-  }, [analyzeInput.appName, analyzeInput.startTime, analyzeInput.endTime]);
+  }, [analyzeInput.appName, analyzeInput.startTime, analyzeInput.endTime, selectedDatasourcePayload, accessStatusLoading, accessReady]);
 
   // Fetch runs for Compare
   useEffect(() => {
@@ -218,13 +300,22 @@ const HistoricalPage: React.FC = () => {
         setCompareRuns([]);
         return;
       }
+      if (accessStatusLoading || !accessReady) {
+        setCompareRuns([]);
+        return;
+      }
       try {
-        const data = await historicalApi.runs({ appName: compareInput.appName, start: compareInput.startTime, end: compareInput.endTime });
+        const data = await historicalApi.runs({
+          appName: compareInput.appName,
+          start: compareInput.startTime,
+          end: compareInput.endTime,
+          datasourceId: selectedDatasourcePayload,
+        });
         setCompareRuns(data || []);
       } catch { setCompareRuns([]); }
     };
     fetchRuns();
-  }, [compareInput.appName, compareInput.startTime, compareInput.endTime]);
+  }, [compareInput.appName, compareInput.startTime, compareInput.endTime, selectedDatasourcePayload, accessStatusLoading, accessReady]);
 
   useEffect(() => {
     if (selectedCompareIds.length === 2) {
@@ -234,7 +325,24 @@ const HistoricalPage: React.FC = () => {
 
   // --- Handlers ---
 
+  const refreshDatasources = async () => {
+    try {
+      setDatasourcesLoading(true);
+      const data = await datasourcesApi.getAll();
+      setDatasources(data || []);
+    } catch {
+      setDatasources([]);
+    } finally {
+      setDatasourcesLoading(false);
+    }
+    await refreshAccessStatus(selectedDatasourcePayload);
+  };
+
   const handleAnalyze = async () => {
+    if (accessStatusLoading || !accessReady) {
+      setError(accessStatus?.message || 'No valid historical connection is available.');
+      return;
+    }
     setError(null);
     setIsRunning(true);
     setResult(null);
@@ -245,6 +353,7 @@ const HistoricalPage: React.FC = () => {
         startTime: analyzeInput.startTime || undefined,
         endTime: analyzeInput.endTime || undefined,
         question: analyzeInput.question || undefined,
+        datasourceId: selectedDatasourcePayload,
       });
       setResult(data);
       setHistory((prev) => [data, ...prev.filter((item) => item.id !== data.id)]);
@@ -257,6 +366,10 @@ const HistoricalPage: React.FC = () => {
   };
 
   const handleCompare = async () => {
+    if (accessStatusLoading || !accessReady) {
+      setError(accessStatus?.message || 'No valid historical connection is available.');
+      return;
+    }
     setError(null);
     setIsRunning(true);
     setResult(null);
@@ -265,6 +378,7 @@ const HistoricalPage: React.FC = () => {
         appIdA: compareInput.appIdA,
         appIdB: compareInput.appIdB,
         question: compareInput.question || undefined,
+        datasourceId: selectedDatasourcePayload,
       });
       setResult(data);
       setHistory((prev) => [data, ...prev.filter((item) => item.id !== data.id)]);
@@ -311,20 +425,25 @@ const HistoricalPage: React.FC = () => {
   // --- Render Helpers ---
 
   const MetricCard = ({ label, value, subtext, trend }: { label: string; value: React.ReactNode; subtext?: string; trend?: 'up' | 'down' | 'neutral' }) => (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group">
-      <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 group-hover:text-orange-500 transition-colors">{label}</div>
-      <div className="text-2xl font-bold text-slate-900 dark:text-white truncate">{value}</div>
-      {subtext && <div className="text-sm text-slate-500 dark:text-slate-500 mt-1 truncate">{subtext}</div>}
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-700/70 bg-gradient-to-br from-white via-slate-50 to-slate-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/80 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-orange-300/25 blur-2xl dark:bg-orange-500/20" />
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 mb-2 group-hover:text-orange-500 transition-colors">{label}</div>
+      <div className="text-2xl font-black text-slate-900 dark:text-white truncate">{value}</div>
+      {subtext && <div className="text-sm text-slate-500 dark:text-slate-400 mt-1 truncate">{subtext}</div>}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-6 py-10 md:px-10 font-sans selection:bg-orange-500/30">
+    <div className="relative min-h-screen overflow-x-clip bg-[radial-gradient(circle_at_15%_10%,rgba(251,191,36,0.15),transparent_34%),radial-gradient(circle_at_85%_15%,rgba(59,130,246,0.15),transparent_30%),linear-gradient(to_bottom,#f8fafc,#eef2ff)] dark:bg-[radial-gradient(circle_at_15%_10%,rgba(251,146,60,0.2),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(56,189,248,0.18),transparent_30%),linear-gradient(to_bottom,#020617,#020617)] px-6 py-10 md:px-10 font-sans selection:bg-orange-500/30">
+      <div className="pointer-events-none absolute -left-28 top-40 h-80 w-80 rounded-full bg-orange-300/20 blur-3xl dark:bg-orange-500/20" />
+      <div className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full bg-sky-300/20 blur-3xl dark:bg-cyan-500/20" />
       <InfoModal isOpen={showInfo} onClose={() => setShowInfo(false)} />
 
-      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="relative mx-auto max-w-7xl space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/65 md:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(251,191,36,0.08),transparent_40%,rgba(56,189,248,0.1))] dark:bg-[linear-gradient(120deg,rgba(251,146,60,0.15),transparent_40%,rgba(56,189,248,0.14))]" />
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="absolute inset-0 bg-orange-500/20 blur-xl rounded-full"></div>
@@ -333,10 +452,11 @@ const HistoricalPage: React.FC = () => {
               </div>
             </div>
             <div>
-              <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-orange-600 dark:text-orange-300">Spark Intelligence Studio</div>
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
                 Historical Analysis
               </h1>
-              <p className="text-base text-slate-600 dark:text-slate-400 mt-1 font-medium">
+              <p className="text-base text-slate-600 dark:text-slate-300 mt-1 font-medium">
                 Optimize past Spark runs with AI-driven insights.
               </p>
             </div>
@@ -345,15 +465,15 @@ const HistoricalPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowInfo(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:text-white transition-colors"
             >
               <Info className="w-4 h-4" /> How it works
             </button>
-            <div className="bg-white dark:bg-slate-900 p-1.5 rounded-full border border-slate-200 dark:border-slate-800 flex shadow-sm">
+            <div className="bg-white/80 dark:bg-slate-900 p-1.5 rounded-full border border-slate-200 dark:border-slate-700 flex shadow-sm">
               <button
                 onClick={() => setMode('analyze')}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${mode === 'analyze'
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md transform scale-105'
+                    ? 'bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-white text-white dark:text-slate-900 shadow-md transform scale-105'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
@@ -362,7 +482,7 @@ const HistoricalPage: React.FC = () => {
               <button
                 onClick={() => setMode('compare')}
                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${mode === 'compare'
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md transform scale-105'
+                    ? 'bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-white text-white dark:text-slate-900 shadow-md transform scale-105'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
@@ -370,6 +490,7 @@ const HistoricalPage: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
         </div>
 
         {error && (
@@ -383,10 +504,110 @@ const HistoricalPage: React.FC = () => {
           </motion.div>
         )}
 
+        <Card className="relative overflow-hidden p-6 border-slate-200/80 dark:border-slate-800 bg-white/75 dark:bg-slate-900/65 shadow-xl backdrop-blur">
+          <div className="pointer-events-none absolute -left-16 top-4 h-40 w-40 rounded-full bg-blue-300/20 blur-3xl dark:bg-blue-500/15" />
+          <div className="pointer-events-none absolute -right-16 bottom-0 h-36 w-36 rounded-full bg-violet-300/20 blur-3xl dark:bg-violet-500/15" />
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                  <Database className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Connection Routing</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Choose how this analysis accesses Spark history data.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" onClick={refreshDatasources} disabled={datasourcesLoading}>
+                  <span className="flex items-center gap-2">
+                    <RefreshCw className={`w-4 h-4 ${datasourcesLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </span>
+                </Button>
+                <Button onClick={() => setShowDatasourceModal(true)}>
+                  <span className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add Connection
+                  </span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-blue-200/70 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-950/20 p-4">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold mb-2">
+                  <Server className="w-4 h-4" />
+                  No MCP Setup
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Use <strong>Gateway SHS</strong>. Enter SHS URL + auth once, and the platform handles the backend MCP proxy.</p>
+              </div>
+              <div className="rounded-2xl border border-violet-200/70 dark:border-violet-900/50 bg-violet-50/70 dark:bg-violet-950/20 p-4">
+                <div className="flex items-center gap-2 text-violet-700 dark:text-violet-300 font-semibold mb-2">
+                  <Cable className="w-4 h-4" />
+                  Existing MCP
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Use <strong>External MCP</strong>. Point to your MCP server URL and optional token for secure reuse.</p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1 mb-2 block">
+                  Active Data Source
+                </label>
+                <select
+                  value={selectedDatasourceId}
+                  onChange={(e) => setSelectedDatasourceId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:border-orange-500"
+                >
+                  <option value="auto">Automatic (recommended fallback routing)</option>
+                  {datasources.map((source) => (
+                    <option key={source.id} value={source.id}>
+                      {source.name} · {datasourceLabel(source)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2">
+                {selectedDatasource
+                  ? `Using: ${selectedDatasource.name} (${datasourceLabel(selectedDatasource)})`
+                  : 'Using automatic routing: datasource first, org MCP fallback'}
+              </div>
+            </div>
+
+            {datasources.length === 0 && (
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                No datasource configured yet. Add one to support non-MCP (Gateway SHS) or MCP (External MCP) historical analysis.
+              </div>
+            )}
+
+            {accessStatusLoading && (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Validating historical connection path...
+              </div>
+            )}
+
+            {!accessStatusLoading && accessStatus && !accessStatus.ready && (
+              <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+                {accessStatus.message}
+              </div>
+            )}
+
+            {!accessStatusLoading && accessStatus && accessStatus.ready && (
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                {accessStatus.message}
+              </div>
+            )}
+          </div>
+        </Card>
+
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           {/* Main Input Panel */}
           <div className="space-y-6">
-            <Card className="p-8 border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none bg-white dark:bg-slate-900/50 backdrop-blur-sm">
+            <Card className="relative overflow-hidden p-8 border-slate-200/80 dark:border-slate-700 shadow-xl shadow-slate-200/50 dark:shadow-none bg-white/75 dark:bg-slate-900/65 backdrop-blur-sm">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-orange-500/8 via-transparent to-cyan-500/8 dark:from-orange-500/15 dark:to-cyan-500/15" />
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
                   <Search className="h-5 w-5 text-slate-700 dark:text-slate-300" />
@@ -403,7 +624,7 @@ const HistoricalPage: React.FC = () => {
                     <input
                       value={analyzeInput.appId}
                       onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, appId: e.target.value }))}
-                      placeholder="app-20230101000000-0000"
+                      placeholder="spark-20230101000000-0000"
                       className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-5 py-4 text-slate-900 dark:text-white placeholder-slate-400 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none font-mono text-sm"
                     />
                   </div>
@@ -417,21 +638,25 @@ const HistoricalPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <input
                       value={analyzeInput.appName}
                       onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, appName: e.target.value }))}
                       placeholder="Application Name"
                       className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white focus:border-orange-500 outline-none"
                     />
-                    <div className="flex gap-2">
-                      <input
-                        type="datetime-local"
-                        value={analyzeInput.startTime}
-                        onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, startTime: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-3 text-sm font-medium text-slate-900 dark:text-white focus:border-orange-500 outline-none"
-                      />
-                    </div>
+                    <input
+                      type="datetime-local"
+                      value={analyzeInput.startTime}
+                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, startTime: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-3 text-sm font-medium text-slate-900 dark:text-white focus:border-orange-500 outline-none"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={analyzeInput.endTime}
+                      onChange={(e) => setAnalyzeInput((prev) => ({ ...prev, endTime: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-3 text-sm font-medium text-slate-900 dark:text-white focus:border-orange-500 outline-none"
+                    />
                   </div>
 
                   {runs.length > 0 && (
@@ -466,8 +691,8 @@ const HistoricalPage: React.FC = () => {
 
                   <Button
                     onClick={handleAnalyze}
-                    disabled={isRunning}
-                    className="w-full py-4 text-lg font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 rounded-2xl"
+                    disabled={isRunning || accessStatusLoading || !accessReady}
+                    className="w-full py-4 text-lg font-bold rounded-2xl bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white dark:bg-orange-500 dark:hover:bg-orange-400 dark:active:bg-orange-600 disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
                   >
                     {isRunning ? (
                       <span className="flex items-center gap-2"><Loader2 className="animate-spin" /> Analyzing...</span>
@@ -493,7 +718,7 @@ const HistoricalPage: React.FC = () => {
                       <input
                         value={compareInput.appIdA}
                         onChange={(e) => setCompareInput((prev) => ({ ...prev, appIdA: e.target.value }))}
-                        placeholder="app-id-1"
+                        placeholder="spark-20230101000000-0001"
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-mono focus:border-orange-500 outline-none dark:text-white"
                       />
                     </div>
@@ -502,7 +727,7 @@ const HistoricalPage: React.FC = () => {
                       <input
                         value={compareInput.appIdB}
                         onChange={(e) => setCompareInput((prev) => ({ ...prev, appIdB: e.target.value }))}
-                        placeholder="app-id-2"
+                        placeholder="spark-20230101000000-0002"
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm font-mono focus:border-orange-500 outline-none dark:text-white"
                       />
                     </div>
@@ -513,12 +738,24 @@ const HistoricalPage: React.FC = () => {
                     <div className="border-t border-slate-200 dark:border-slate-800"></div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="grid gap-2 md:grid-cols-3">
                     <input
                       value={compareInput.appName}
                       onChange={(e) => setCompareInput((prev) => ({ ...prev, appName: e.target.value }))}
                       placeholder="Filter by App Name"
                       className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm dark:text-white outline-none"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={compareInput.startTime}
+                      onChange={(e) => setCompareInput((prev) => ({ ...prev, startTime: e.target.value }))}
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-3 text-sm dark:text-white outline-none"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={compareInput.endTime}
+                      onChange={(e) => setCompareInput((prev) => ({ ...prev, endTime: e.target.value }))}
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-3 text-sm dark:text-white outline-none"
                     />
                   </div>
 
@@ -552,8 +789,8 @@ const HistoricalPage: React.FC = () => {
 
                   <Button
                     onClick={handleCompare}
-                    disabled={isRunning || !compareInput.appIdA || !compareInput.appIdB}
-                    className="w-full py-4 text-lg font-bold rounded-2xl"
+                    disabled={isRunning || accessStatusLoading || !accessReady || !compareInput.appIdA || !compareInput.appIdB}
+                    className="w-full py-4 text-lg font-bold rounded-2xl bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white dark:bg-orange-500 dark:hover:bg-orange-400 dark:active:bg-orange-600 disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
                   >
                     {isRunning ? <Loader2 className="animate-spin" /> : 'Compare Runs'}
                   </Button>
@@ -583,8 +820,9 @@ const HistoricalPage: React.FC = () => {
                   <button
                     key={item.id}
                     onClick={() => openFromHistory(item.id)}
-                    className="group flex flex-col items-start bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl hover:border-orange-500/50 hover:shadow-lg transition-all text-left"
+                    className="group relative overflow-hidden flex flex-col items-start bg-white/85 dark:bg-slate-900/75 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl hover:border-orange-500/50 hover:shadow-lg transition-all text-left"
                   >
+                    <div className="pointer-events-none absolute -right-8 -top-8 h-16 w-16 rounded-full bg-orange-300/20 blur-2xl dark:bg-orange-500/15" />
                     <div className="flex w-full items-start justify-between mb-2">
                       <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${item.mode === 'compare' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                         }`}>
@@ -610,8 +848,8 @@ const HistoricalPage: React.FC = () => {
               <div className="space-y-6 animate-fade-in-up">
 
                 {/* Narrative Card */}
-                <Card className="p-0 overflow-hidden border-0 shadow-xl dark:shadow-none bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-900/50">
-                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+                <Card className="p-0 overflow-hidden border border-slate-200/80 dark:border-slate-700 shadow-xl dark:shadow-none bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-900/60">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md sticky top-0 z-10">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
                         <Sparkles className="w-4 h-4" /> AI Insights
@@ -700,7 +938,7 @@ const HistoricalPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <Card className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
+              <Card className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center border-dashed border-2 border-slate-300/80 dark:border-slate-700 bg-white/50 dark:bg-slate-900/30 backdrop-blur shadow-none">
                 {isRunning ? (
                   <div className="max-w-xs w-full space-y-8">
                     <div className="relative w-24 h-24 mx-auto">
@@ -743,6 +981,17 @@ const HistoricalPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <AddDataSourceModal
+            open={showDatasourceModal}
+            onClose={() => setShowDatasourceModal(false)}
+            onSuccess={async () => {
+              setShowDatasourceModal(false);
+              await refreshDatasources();
+            }}
+          />
+        </Suspense>
       </div>
     </div>
   );

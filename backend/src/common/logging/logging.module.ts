@@ -2,7 +2,6 @@ import { Global, Module } from '@nestjs/common';
 import { AppLoggerService } from './app-logger.service';
 import { WorkflowLoggerService } from './workflow-logger.service';
 import { WorkflowMetricsService } from './workflow-metrics.service';
-import { PrismaModule } from '../../prisma/prisma.module';
 
 /**
  * Global logging module
@@ -10,8 +9,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
  */
 @Global()
 @Module({
-  imports: [PrismaModule],
   providers: [AppLoggerService, WorkflowLoggerService, WorkflowMetricsService],
   exports: [AppLoggerService, WorkflowLoggerService, WorkflowMetricsService],
 })
-export class LoggingModule {}
+export class LoggingModule { }

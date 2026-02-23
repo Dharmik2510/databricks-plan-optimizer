@@ -126,6 +126,20 @@ BrickOptima is a full-stack AI-powered Databricks Spark optimization platform th
 
 ---
 
+#### [09. Historical Analysis](./09-historical-analysis.md)
+- **Summary:** Analyze completed Spark runs and compare two runs using Spark History Server metrics and AI narratives
+- **Key Technologies:** MCP Spark History tools, Supabase, Gemini narrative generation
+- **Frontend:** HistoricalPage, historicalApi
+- **Backend:** HistoricalService, heuristics, rate limiting
+- **Highlights:**
+  - Analyze by `appId` or by `appName + time range`
+  - Compare two runs with delta metrics
+  - Deterministic heuristics for skew, spill, shuffle, GC
+  - Evidence-backed AI narrative with fallback
+  - Saved history with search and tagging
+
+---
+
 ## Technical Architecture Summary
 
 ### Frontend Stack

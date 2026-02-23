@@ -27,8 +27,16 @@ import { SupportedLanguage } from '../../agent-types';
 import { PrismaClient, IndexStatus, RepoSnapshot } from '@prisma/client';
 
 const execAsync = promisify(exec);
-// Use module-level Prisma client to reuse connections
-const prisma = new PrismaClient();
+// Lazy singleton — avoids creating a pool at import time and reuses one connection pool
+let _prisma: PrismaClient | null = null;
+function getPrisma(): PrismaClient {
+  if (!_prisma) _prisma = new PrismaClient();
+  return _prisma;
+}
+// Convenience alias used throughout this file
+const prisma = new Proxy({} as PrismaClient, {
+  get: (_target, prop) => getPrisma()[prop as keyof PrismaClient],
+});
 
 // ============================================================================
 // Configuration

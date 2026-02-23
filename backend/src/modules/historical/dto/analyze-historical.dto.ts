@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
 
 const APP_ID_REGEX = /^spark-[a-zA-Z0-9]+$/;
 
@@ -25,4 +25,8 @@ export class AnalyzeHistoricalDto {
   @IsString()
   @MaxLength(2000)
   question?: string;
+
+  @IsOptional()
+  @IsUUID()
+  datasourceId?: string;
 }

@@ -2,6 +2,7 @@ import { BadRequestException, INestApplication, ValidationPipe } from '@nestjs/c
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import { ExecutionContext } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { HistoricalController } from './historical.controller';
 import { HistoricalService } from './historical.service';
 import { HistoricalRateLimitGuard } from './historical-rate-limit.guard';
@@ -33,6 +34,7 @@ describe('HistoricalController', () => {
       controllers: [HistoricalController],
       providers: [
         { provide: HistoricalService, useValue: service },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
         HistoricalRateLimitGuard,
         JwtAuthGuard,
       ],
@@ -53,7 +55,9 @@ describe('HistoricalController', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('POST /historical/analyze returns analysis result', async () => {
@@ -65,7 +69,7 @@ describe('HistoricalController', () => {
       .expect(201)
       .expect({ id: 'analysis-1' });
 
-    expect(service.analyze).toHaveBeenCalledWith('user-1', 'org-1', { appId: 'spark-12345' }, 'ADMIN');
+    expect(service.analyze).toHaveBeenCalledWith('user-1', 'org-1', { appId: 'spark-12345' }, 'ADMIN', undefined);
   });
 
   it('POST /historical/analyze handles service failure', async () => {
@@ -88,6 +92,6 @@ describe('HistoricalController', () => {
       .expect(201)
       .expect({ id: 'comparison-1' });
 
-    expect(service.compare).toHaveBeenCalledWith('user-1', 'org-1', { appIdA: 'spark-aaaa', appIdB: 'spark-bbbb' });
+    expect(service.compare).toHaveBeenCalledWith('user-1', 'org-1', { appIdA: 'spark-aaaa', appIdB: 'spark-bbbb' }, undefined);
   });
 });

@@ -11,7 +11,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards';
 import { CurrentUser, CurrentUserData } from '../../common/decorators';
 import { HistoricalService } from './historical.service';
-import { AnalyzeHistoricalDto, CompareHistoricalDto, HistoricalRunSummary, HistoryQueryDto, RunsQueryDto, UpdateHistoricalDto } from './dto';
+import { AccessStatusQueryDto, AnalyzeHistoricalDto, CompareHistoricalDto, HistoricalRunSummary, HistoryQueryDto, RunsQueryDto, UpdateHistoricalDto } from './dto';
 import { HistoricalRateLimitGuard } from './historical-rate-limit.guard';
 import { setRequestContextFeature } from '../../common/middleware/request-context.middleware';
 
@@ -27,7 +27,7 @@ export class HistoricalController {
     @Body() dto: AnalyzeHistoricalDto,
   ) {
     setRequestContextFeature('historical');
-    return this.historicalService.analyze(user.id, user.orgId, dto, user.role);
+    return this.historicalService.analyze(user.id, user.orgId, dto, user.role, dto.datasourceId);
   }
 
   @Post('compare')
@@ -37,7 +37,7 @@ export class HistoricalController {
     @Body() dto: CompareHistoricalDto,
   ) {
     setRequestContextFeature('historical');
-    return this.historicalService.compare(user.id, user.orgId, dto);
+    return this.historicalService.compare(user.id, user.orgId, dto, dto.datasourceId);
   }
 
   @Get('history')
@@ -55,7 +55,16 @@ export class HistoricalController {
     @Query() query: RunsQueryDto,
   ): Promise<HistoricalRunSummary[]> {
     setRequestContextFeature('historical');
-    return this.historicalService.listRuns(user.id, user.orgId, query, user.role);
+    return this.historicalService.listRuns(user.id, user.orgId, query, user.role, query.datasourceId);
+  }
+
+  @Get('access-status')
+  async accessStatus(
+    @CurrentUser() user: CurrentUserData,
+    @Query() query: AccessStatusQueryDto,
+  ) {
+    setRequestContextFeature('historical');
+    return this.historicalService.getAccessStatus(user.id, user.orgId, query.datasourceId);
   }
 
   @Get(':id')

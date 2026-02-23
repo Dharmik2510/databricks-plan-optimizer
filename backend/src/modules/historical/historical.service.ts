@@ -16,6 +16,7 @@ import { OrgConnectionsService } from '../org-connections/org-connections.servic
 import { DataSourcesService } from '../datasources/datasources.service';
 import { McpProxyService } from '../../integrations/mcp-proxy/mcp-proxy.service';
 import { QuotaService } from '../../common/quota/quota.service';
+import { HistoricalDataAccessContext, HistoricalDataAccessResolverService } from './historical-data-access-resolver.service';
 import {
   getFailedTaskSummary,
   getGcAnomaly,
@@ -39,6 +40,16 @@ interface AnalysisSummaryMetrics {
   activeExecutors: number;
 }
 
+export interface HistoricalAccessStatus {
+  ready: boolean;
+  mode: 'datasource' | 'org_connection' | null;
+  selectedBy: 'requested_datasource' | 'active_datasource' | 'legacy_org_connection' | null;
+  datasourceId: string | null;
+  datasourceConnectionType: 'gateway_shs' | 'external_mcp' | null;
+  datasourceName: string | null;
+  message: string;
+}
+
 @Injectable()
 export class HistoricalService {
   constructor(
@@ -53,6 +64,7 @@ export class HistoricalService {
     private readonly dataSourcesService: DataSourcesService,
     private readonly mcpProxyService: McpProxyService,
     private readonly quotaService: QuotaService,
+    private readonly dataAccessResolver: HistoricalDataAccessResolverService,
   ) {}
 
   async analyze(userId: string, orgId: string | undefined, dto: AnalyzeHistoricalDto, userRole?: string, datasourceId?: string) {
@@ -75,8 +87,18 @@ export class HistoricalService {
       await this.quotaService.assertQuotaAvailable(userId);
       this.logger.info('✅ Quota check passed', { userId, mode });
 
+      const accessContext = await this.dataAccessResolver.resolve(userId, orgId, datasourceId);
+      this.logger.info('Resolved historical data access context', {
+        userId,
+        orgId,
+        mode: accessContext.mode,
+        datasourceId: accessContext.datasourceId,
+        datasourceConnectionType: accessContext.datasourceConnectionType,
+        selectedBy: accessContext.selectedBy,
+      });
+
       const resolveStartTime = Date.now();
-      const resolvedApp = await this.resolveAppId(userId, orgId, dto, userRole, datasourceId);
+      const resolvedApp = await this.resolveAppId(userId, orgId, dto, userRole, accessContext);
       const appId = resolvedApp.appId;
       this.logger.info(`✅ Resolved appId in ${Date.now() - resolveStartTime}ms`, {
         appId,
@@ -99,15 +121,14 @@ export class HistoricalService {
       });
 
       try {
-        // Route based on datasource type
         const fetchStartTime = Date.now();
-        const data = datasourceId
-          ? await this.fetchApplicationDataViaDatasource(userId, datasourceId, appId)
-          : await this.fetchApplicationDataViaOrgConnection(userId, orgId, appId);
+        const data = await this.fetchApplicationDataByAccessContext(userId, orgId, appId, accessContext);
         const fetchLatency = Date.now() - fetchStartTime;
         this.logger.info(`✅ Fetched application data in ${fetchLatency}ms`, {
           appId,
-          datasourceId: datasourceId || 'org_connection',
+          datasourceId: accessContext.datasourceId || 'org_connection',
+          datasourceConnectionType: accessContext.datasourceConnectionType || null,
+          accessMode: accessContext.mode,
           hasApplication: !!data.application,
           jobsCount: data.jobs?.length || 0,
           stagesCount: data.stages?.length || 0,
@@ -196,7 +217,9 @@ export class HistoricalService {
             appId,
             status: updated.status,
             latencyMs,
-            datasourceId: datasourceId || null,
+            datasourceId: accessContext.datasourceId || null,
+            accessMode: accessContext.mode,
+            datasourceConnectionType: accessContext.datasourceConnectionType || null,
           },
         });
 
@@ -282,6 +305,16 @@ export class HistoricalService {
       await this.quotaService.assertQuotaAvailable(userId);
       this.logger.info('✅ Quota check passed', { userId, mode });
 
+      const accessContext = await this.dataAccessResolver.resolve(userId, orgId, datasourceId);
+      this.logger.info('Resolved historical comparison data access context', {
+        userId,
+        orgId,
+        mode: accessContext.mode,
+        datasourceId: accessContext.datasourceId,
+        datasourceConnectionType: accessContext.datasourceConnectionType,
+        selectedBy: accessContext.selectedBy,
+      });
+
       const recordStartTime = Date.now();
       const record = await this.createAnalysisRecord(userId, orgId, {
         mode,
@@ -298,23 +331,19 @@ export class HistoricalService {
       });
 
       try {
-        // Route based on datasource type
         const fetchStartTime = Date.now();
         this.logger.info('Fetching data for both applications', {
           appIdA: dto.appIdA,
           appIdB: dto.appIdB,
-          datasourceId: datasourceId || 'org_connection',
+          datasourceId: accessContext.datasourceId || 'org_connection',
+          datasourceConnectionType: accessContext.datasourceConnectionType || null,
+          accessMode: accessContext.mode,
         });
 
-        const [dataA, dataB] = datasourceId
-          ? await Promise.all([
-              this.fetchApplicationDataViaDatasource(userId, datasourceId, dto.appIdA),
-              this.fetchApplicationDataViaDatasource(userId, datasourceId, dto.appIdB),
-            ])
-          : await Promise.all([
-              this.fetchApplicationDataViaOrgConnection(userId, orgId, dto.appIdA),
-              this.fetchApplicationDataViaOrgConnection(userId, orgId, dto.appIdB),
-            ]);
+        const [dataA, dataB] = await Promise.all([
+          this.fetchApplicationDataByAccessContext(userId, orgId, dto.appIdA, accessContext),
+          this.fetchApplicationDataByAccessContext(userId, orgId, dto.appIdB, accessContext),
+        ]);
 
         const fetchLatency = Date.now() - fetchStartTime;
         this.logger.info(`✅ Fetched both applications data in ${fetchLatency}ms`, {
@@ -449,7 +478,9 @@ export class HistoricalService {
             appIdB: dto.appIdB,
             status: updated.status,
             latencyMs,
-            datasourceId: datasourceId || null,
+            datasourceId: accessContext.datasourceId || null,
+            accessMode: accessContext.mode,
+            datasourceConnectionType: accessContext.datasourceConnectionType || null,
           },
         });
 
@@ -696,16 +727,25 @@ export class HistoricalService {
 
       this.validateDateRange(query.start, query.end, userRole);
 
-      const runs = datasourceId
-        ? await this.fetchRunsViaDatasource(userId, datasourceId, query.appName, query.start, query.end, query.limit)
-        : await this.fetchRunsViaOrgConnection(userId, orgId, query.appName, query.start, query.end, query.limit);
+      const accessContext = await this.dataAccessResolver.resolve(userId, orgId, datasourceId);
+      const runs = await this.fetchRunsByAccessContext(
+        userId,
+        orgId,
+        query.appName,
+        query.start,
+        query.end,
+        query.limit,
+        accessContext,
+      );
 
       const latencyMs = Date.now() - startTime;
       this.logger.info(`✅ Listed runs in ${latencyMs}ms`, {
         userId,
         appName: query.appName,
         runsCount: runs.length,
-        datasourceId: datasourceId || 'org_connection',
+        datasourceId: accessContext.datasourceId || 'org_connection',
+        datasourceConnectionType: accessContext.datasourceConnectionType || null,
+        accessMode: accessContext.mode,
         latencyMs,
       });
 
@@ -723,7 +763,99 @@ export class HistoricalService {
     }
   }
 
-  private async resolveAppId(userId: string, orgId: string | undefined, dto: AnalyzeHistoricalDto, userRole?: string, datasourceId?: string) {
+  async getAccessStatus(
+    userId: string,
+    orgId: string | undefined,
+    datasourceId?: string,
+  ): Promise<HistoricalAccessStatus> {
+    const startTime = Date.now();
+
+    try {
+      const accessContext = await this.dataAccessResolver.resolve(userId, orgId, datasourceId);
+      let datasourceName: string | null = null;
+
+      if (accessContext.datasourceId) {
+        try {
+          const datasource = await this.dataSourcesService.findOne(userId, accessContext.datasourceId);
+          datasourceName = datasource.name || null;
+        } catch {
+          datasourceName = null;
+        }
+      }
+
+      const latencyMs = Date.now() - startTime;
+      this.logger.info(`✅ Historical access preflight passed in ${latencyMs}ms`, {
+        userId,
+        orgId,
+        mode: accessContext.mode,
+        selectedBy: accessContext.selectedBy,
+        datasourceId: accessContext.datasourceId || null,
+        datasourceConnectionType: accessContext.datasourceConnectionType || null,
+        latencyMs,
+      });
+
+      return {
+        ready: true,
+        mode: accessContext.mode,
+        selectedBy: accessContext.selectedBy,
+        datasourceId: accessContext.datasourceId || null,
+        datasourceConnectionType: accessContext.datasourceConnectionType || null,
+        datasourceName,
+        message: accessContext.mode === 'datasource'
+          ? `Ready via datasource${datasourceName ? `: ${datasourceName}` : ''}`
+          : 'Ready via org MCP connection',
+      };
+    } catch (error) {
+      const latencyMs = Date.now() - startTime;
+      const err = error as Error;
+      if (error instanceof NotFoundException) {
+        this.logger.warn(`Historical access preflight failed in ${latencyMs}ms`, {
+          userId,
+          orgId,
+          datasourceId: datasourceId || null,
+          error: {
+            name: err.name || 'NotFoundException',
+            message: err.message,
+          },
+          latencyMs,
+        });
+        return {
+          ready: false,
+          mode: null,
+          selectedBy: null,
+          datasourceId: null,
+          datasourceConnectionType: null,
+          datasourceName: null,
+          message: err.message || 'No valid historical connection configured',
+        };
+      }
+
+      this.logger.error(`❌ Historical access preflight failed with error in ${latencyMs}ms`, err, {
+        userId,
+        orgId,
+        datasourceId: datasourceId || null,
+        latencyMs,
+      });
+
+      return {
+        ready: false,
+        mode: null,
+        selectedBy: null,
+        datasourceId: null,
+        datasourceConnectionType: null,
+        datasourceName: null,
+        message: 'Unable to validate historical connection right now. Please retry.',
+      };
+    }
+  }
+
+  private async resolveAppId(
+    userId: string,
+    orgId: string | undefined,
+    dto: AnalyzeHistoricalDto,
+    userRole: string | undefined,
+    accessContext: HistoricalDataAccessContext,
+  ) {
     try {
       if (dto.appId) {
         this.logger.info('Resolved appId directly from request', { appId: dto.appId, selectedBy: 'appId' });
@@ -746,12 +878,20 @@ export class HistoricalService {
         appName: dto.appName,
         startTime: dto.startTime,
         endTime: dto.endTime,
-        datasourceId: datasourceId || 'org_connection',
+        datasourceId: accessContext.datasourceId || 'org_connection',
+        datasourceConnectionType: accessContext.datasourceConnectionType || null,
+        accessMode: accessContext.mode,
       });
 
-      const runs = datasourceId
-        ? await this.fetchRunsViaDatasource(userId, datasourceId, dto.appName, dto.startTime, dto.endTime, 50)
-        : await this.fetchRunsViaOrgConnection(userId, orgId, dto.appName, dto.startTime, dto.endTime, 50);
+      const runs = await this.fetchRunsByAccessContext(
+        userId,
+        orgId,
+        dto.appName,
+        dto.startTime,
+        dto.endTime,
+        50,
+        accessContext,
+      );
 
       if (runs.length === 0) {
         this.logger.warn('❌ No runs found for specified criteria', {
@@ -779,6 +919,42 @@ export class HistoricalService {
       });
       throw error;
     }
+  }
+
+  private async fetchApplicationDataByAccessContext(
+    userId: string,
+    orgId: string | undefined,
+    appId: string,
+    accessContext: HistoricalDataAccessContext,
+  ) {
+    if (accessContext.mode === 'datasource') {
+      if (!accessContext.datasourceId) {
+        throw new BadRequestException('Datasource context is missing datasourceId');
+      }
+      return this.fetchApplicationDataViaDatasource(userId, accessContext.datasourceId, appId);
+    }
+
+    return this.fetchApplicationDataViaOrgConnection(userId, orgId, appId);
+  }
+
+  private async fetchRunsByAccessContext(
+    userId: string,
+    orgId: string | undefined,
+    appName: string,
+    start?: string,
+    end?: string,
+    limit = 50,
+    accessContext?: HistoricalDataAccessContext,
+  ): Promise<HistoricalRunSummary[]> {
+    if (!accessContext || accessContext.mode === 'org_connection') {
+      return this.fetchRunsViaOrgConnection(userId, orgId, appName, start, end, limit);
+    }
+
+    if (!accessContext.datasourceId) {
+      throw new BadRequestException('Datasource context is missing datasourceId');
+    }
+
+    return this.fetchRunsViaDatasource(userId, accessContext.datasourceId, appName, start, end, limit);
   }
 
   private validateDateRange(start?: string, end?: string, userRole?: string) {

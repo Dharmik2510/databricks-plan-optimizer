@@ -11,6 +11,7 @@ import { GeminiModule } from '../../integrations/gemini/gemini.module';
 import { DataSourcesModule } from '../datasources/datasources.module';
 import { McpProxyModule } from '../../integrations/mcp-proxy/mcp-proxy.module';
 import { QuotaModule } from '../../common/quota/quota.module';
+import { HistoricalDataAccessResolverService } from './historical-data-access-resolver.service';
 
 @Module({
   imports: [
@@ -25,6 +26,6 @@ import { QuotaModule } from '../../common/quota/quota.module';
     QuotaModule,
   ],
   controllers: [HistoricalController],
-  providers: [HistoricalService, HistoricalRateLimitGuard],
+  providers: [HistoricalService, HistoricalRateLimitGuard, HistoricalDataAccessResolverService],
 })
 export class HistoricalModule {}

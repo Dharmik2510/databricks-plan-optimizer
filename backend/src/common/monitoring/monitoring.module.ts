@@ -1,7 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { CustomMetricsService } from './custom-metrics.service';
 import { TraceService } from './trace.service';
-import { PrismaModule } from '../../prisma/prisma.module';
 import { LoggingModule } from '../logging/logging.module';
 
 /**
@@ -14,8 +13,8 @@ import { LoggingModule } from '../logging/logging.module';
  */
 @Global()
 @Module({
-  imports: [PrismaModule, LoggingModule],
+  imports: [LoggingModule],
   providers: [CustomMetricsService, TraceService],
   exports: [CustomMetricsService, TraceService],
 })
-export class MonitoringModule {}
+export class MonitoringModule { }

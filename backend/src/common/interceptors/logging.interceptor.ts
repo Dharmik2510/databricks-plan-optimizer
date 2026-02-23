@@ -135,12 +135,15 @@ export class LoggingInterceptor implements NestInterceptor {
       });
     } catch (err) {
       // Handle foreign key constraint violation (e.g., invalid sessionId)
-      // Check for P2003 code and specifically the sessionId constraint
-      if (
-        (err as any).code === 'P2003' || // Foreign key constraint failed
-        (err as any).message?.includes('Foreign key constraint violated')
-      ) {
-        // Retry without sessionId - this is a known issue where sessionId might not exist yet
+      // Supabase pooler may surface FK violations as PrismaClientUnknownRequestError
+      // (no `code` property), so we check both the code and the message text.
+      const isFkViolation =
+        (err as any).code === 'P2003' ||
+        (err as any).message?.includes('Foreign key constraint') ||
+        (err as any).message?.includes('foreign key constraint');
+
+      if (isFkViolation) {
+        // Retry without sessionId - sessionId may not exist yet in user_sessions
         try {
           await this.prisma.requestAudit.upsert({
             where: { requestId: ctx.requestId },
@@ -166,7 +169,7 @@ export class LoggingInterceptor implements NestInterceptor {
           });
           return; // Success on retry
         } catch (retryErr) {
-          // If retry fails, fall through to log the original error
+          // If retry also fails, fall through to log the error below
         }
       }
 

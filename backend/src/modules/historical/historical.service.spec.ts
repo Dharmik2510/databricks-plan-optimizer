@@ -10,7 +10,8 @@ describe('HistoricalService resolution', () => {
   const service = new HistoricalService(
     configService as any,
     {} as any,
-    { warn: jest.fn(), log: jest.fn() } as any,
+    { warn: jest.fn(), log: jest.fn(), info: jest.fn(), error: jest.fn() } as any,
+    {} as any,
     {} as any,
     {} as any,
     {} as any,
@@ -29,14 +30,19 @@ describe('HistoricalService resolution', () => {
 
   it('uses appId directly when provided', async () => {
     const dto: AnalyzeHistoricalDto = { appId: 'spark-abc123', appName: 'Job' };
-    const result = await serviceAny.resolveAppId('user-1', 'org-1', dto, 'MEMBER');
+    const result = await serviceAny.resolveAppId(
+      'user-1',
+      'org-1',
+      dto,
+      'MEMBER',
+      { mode: 'org_connection', selectedBy: 'legacy_org_connection' },
+    );
 
     expect(result).toEqual({ appId: 'spark-abc123', appName: 'Job', selectedBy: 'appId' });
   });
 
   it('resolves latest run when using appName + date range', async () => {
-    serviceAny.getMcpConnection = jest.fn().mockResolvedValue({ mcpConfig: {} });
-    serviceAny.fetchRuns = jest.fn().mockResolvedValue([
+    serviceAny.fetchRunsByAccessContext = jest.fn().mockResolvedValue([
       { appId: 'spark-latest', appName: 'Job A' },
       { appId: 'spark-old', appName: 'Job A' },
     ]);
@@ -47,14 +53,13 @@ describe('HistoricalService resolution', () => {
       endTime: '2024-01-02T00:00:00Z',
     };
 
-    const result = await serviceAny.resolveAppId('user-1', 'org-1', dto, 'MEMBER');
+    const result = await serviceAny.resolveAppId('user-1', 'org-1', dto, 'MEMBER', { mode: 'org_connection', selectedBy: 'legacy_org_connection' });
     expect(result.appId).toBe('spark-latest');
     expect(result.selectedBy).toBe('latest');
   });
 
   it('throws when no runs are found for appName', async () => {
-    serviceAny.getMcpConnection = jest.fn().mockResolvedValue({ mcpConfig: {} });
-    serviceAny.fetchRuns = jest.fn().mockResolvedValue([]);
+    serviceAny.fetchRunsByAccessContext = jest.fn().mockResolvedValue([]);
 
     const dto: AnalyzeHistoricalDto = {
       appName: 'Missing Job',
@@ -62,7 +67,15 @@ describe('HistoricalService resolution', () => {
       endTime: '2024-01-02T00:00:00Z',
     };
 
-    await expect(serviceAny.resolveAppId('user-1', 'org-1', dto, 'MEMBER')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      serviceAny.resolveAppId(
+        'user-1',
+        'org-1',
+        dto,
+        'MEMBER',
+        { mode: 'org_connection', selectedBy: 'legacy_org_connection' },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('validates date ranges and rejects invalid input', () => {

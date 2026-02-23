@@ -1,4 +1,5 @@
 export * from './analyze-historical.dto';
+export * from './access-status-query.dto';
 export * from './compare-historical.dto';
 export * from './history-query.dto';
 export * from './historical-run.dto';

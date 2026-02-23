@@ -503,6 +503,42 @@ export class DataSourcesService {
   }
 
   // Internal method to get data source with decrypted tokens (for analysis)
+  async getActiveWithDecryptedTokens(
+    userId: string,
+  ): Promise<(DataSource & { decrypted_tokens?: any }) | null> {
+    this.logger.log(`Fetching active datasource with decrypted tokens for user ${userId}`);
+
+    try {
+      const { data, error } = await this.supabase
+        .from('data_sources')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        this.logger.error('❌ Failed to fetch active datasource', error);
+        throw new BadRequestException(`Failed to fetch active data source: ${error.message}`);
+      }
+
+      if (!data?.id) {
+        this.logger.log(`No active datasource found for user ${userId}`);
+        return null;
+      }
+
+      return this.getWithDecryptedTokens(userId, data.id);
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error('❌ Unexpected error fetching active datasource', error.stack);
+      throw new BadRequestException('Failed to fetch active data source');
+    }
+  }
+
+  // Internal method to get data source with decrypted tokens (for analysis)
   async getWithDecryptedTokens(
     userId: string,
     id: string,
