@@ -25,6 +25,23 @@ export class QuotaService {
     this.logger.log('✅ Quota Service initialized');
   }
 
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+
+  private buildDefaultQuota(userId: string): UserQuota {
+    return {
+      user_id: userId,
+      tier: 'free',
+      mcp_calls_this_month: 0,
+      mcp_calls_limit: 50,
+      concurrent_analyses_limit: 1,
+      datasources_max: 1,
+      retention_days: 7,
+      mcp_calls_reset_at: this.getNextResetDate(),
+    };
+  }
+
   async assertQuotaAvailable(userId: string): Promise<void> {
     try {
       this.logger.log(`🔍 Asserting quota availability for user: ${userId}`);
@@ -75,6 +92,13 @@ export class QuotaService {
 
   async incrementUsage(userId: string, mcpCalls: number = 1): Promise<void> {
     try {
+      if (!this.isUuid(userId)) {
+        this.logger.debug(
+          `Skipping persisted quota increment for non-UUID user id: ${userId}`,
+        );
+        return;
+      }
+
       this.logger.log(`📊 Incrementing usage for user ${userId} by ${mcpCalls} call(s) - attempting RPC method`);
 
       const { error } = await this.supabase.rpc('increment_mcp_usage', {
@@ -144,6 +168,13 @@ export class QuotaService {
 
   async getUserQuota(userId: string): Promise<UserQuota> {
     try {
+      if (!this.isUuid(userId)) {
+        this.logger.warn(
+          `Non-UUID user id detected (${userId}); using in-memory default quota profile`,
+        );
+        return this.buildDefaultQuota(userId);
+      }
+
       this.logger.log(`🔍 Fetching quota for user: ${userId}`);
 
       const { data, error } = await this.supabase
@@ -181,6 +212,13 @@ export class QuotaService {
 
   async checkDatasourcesLimit(userId: string): Promise<void> {
     try {
+      if (!this.isUuid(userId)) {
+        this.logger.warn(
+          `Skipping datasource limit persistence check for non-UUID user id: ${userId}`,
+        );
+        return;
+      }
+
       this.logger.log(`🔍 Checking datasources limit for user: ${userId}`);
 
       const quota = await this.getUserQuota(userId);
@@ -231,18 +269,16 @@ export class QuotaService {
 
   private async createDefaultQuota(userId: string): Promise<UserQuota> {
     try {
+      if (!this.isUuid(userId)) {
+        this.logger.warn(
+          `Skipping quota row creation for non-UUID user id: ${userId}`,
+        );
+        return this.buildDefaultQuota(userId);
+      }
+
       this.logger.log(`📝 Creating default quota for user: ${userId} (Free tier: 50 calls/month, 1 datasource, 7 day retention)`);
 
-      const defaultQuota = {
-        user_id: userId,
-        tier: 'free' as const,
-        mcp_calls_this_month: 0,
-        mcp_calls_limit: 50,
-        concurrent_analyses_limit: 1,
-        datasources_max: 1,
-        retention_days: 7,
-        mcp_calls_reset_at: this.getNextResetDate(),
-      };
+      const defaultQuota = this.buildDefaultQuota(userId);
 
       const { data, error } = await this.supabase
         .from('user_quotas')
@@ -274,6 +310,13 @@ export class QuotaService {
 
   private async resetUserQuota(userId: string): Promise<void> {
     try {
+      if (!this.isUuid(userId)) {
+        this.logger.debug(
+          `Skipping persisted quota reset for non-UUID user id: ${userId}`,
+        );
+        return;
+      }
+
       const nextReset = this.getNextResetDate();
 
       this.logger.log(

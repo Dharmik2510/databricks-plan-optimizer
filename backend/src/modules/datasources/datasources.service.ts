@@ -64,8 +64,7 @@ export class DataSourcesService {
       // Encrypt sensitive fields
       const encryptedData: any = {
         user_id: userId,
-        name: dto.name,
-        description: dto.description || null,
+        display_name: dto.name,
         connection_type: dto.connection_type,
         is_active: true,
       };
@@ -148,13 +147,17 @@ export class DataSourcesService {
       }
 
       this.logger.log(`✅ Datasource created successfully: ${data.id} (${dto.name})`);
-      return data;
+      return this.sanitizeDataSource(data);
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ForbiddenException) {
         throw error;
       }
       this.logger.error('❌ Unexpected error creating datasource', error.stack);
-      throw new BadRequestException('Failed to create data source');
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to create data source';
+      throw new BadRequestException(message);
     }
   }
 
@@ -228,12 +231,8 @@ export class DataSourcesService {
       const changes: string[] = [];
 
       if (dto.name !== undefined) {
-        updateData.name = dto.name;
+        updateData.display_name = dto.name;
         changes.push(`name: ${dto.name}`);
-      }
-      if (dto.description !== undefined) {
-        updateData.description = dto.description;
-        changes.push('description');
       }
       if (dto.is_active !== undefined) {
         updateData.is_active = dto.is_active;
@@ -622,9 +621,15 @@ export class DataSourcesService {
   private sanitizeDataSource(dataSource: any): DataSource {
     const sanitized = { ...dataSource };
 
+    // DB column is display_name; API contract expects name.
+    if (!sanitized.name && sanitized.display_name) {
+      sanitized.name = sanitized.display_name;
+    }
+
     // Remove encrypted fields from API responses
     delete sanitized.shs_token_encrypted;
     delete sanitized.external_mcp_token_encrypted;
+    delete sanitized.display_name;
 
     if (sanitized.tunnel_config?.ssh_private_key_encrypted) {
       sanitized.tunnel_config = {

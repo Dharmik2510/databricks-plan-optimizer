@@ -45,6 +45,21 @@ export const AddDataSourceModal: React.FC<AddDataSourceModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const extractErrorMessage = (err: unknown, fallback: string): string => {
+    if (err instanceof Error && err.message) {
+      return err.message;
+    }
+    const maybe = err as any;
+    const responseMessage = maybe?.response?.data?.message;
+    if (Array.isArray(responseMessage) && responseMessage.length > 0) {
+      return String(responseMessage[0]);
+    }
+    if (typeof responseMessage === 'string' && responseMessage.trim()) {
+      return responseMessage;
+    }
+    return fallback;
+  };
+
   useEffect(() => {
     if (!open) return;
     if (!editingDataSource) {
@@ -140,7 +155,7 @@ export const AddDataSourceModal: React.FC<AddDataSourceModalProps> = ({
       const result = await datasourcesApi.testConnection(buildPayload());
       setTestResult(result);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Connection test failed');
+      setError(extractErrorMessage(err, 'Connection test failed'));
       setTestResult({ success: false, message: 'Connection test failed' });
     } finally {
       setTesting(false);
@@ -158,7 +173,7 @@ export const AddDataSourceModal: React.FC<AddDataSourceModalProps> = ({
       }
       onSuccess();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to save data source');
+      setError(extractErrorMessage(err, 'Failed to save data source'));
     } finally {
       setLoading(false);
     }

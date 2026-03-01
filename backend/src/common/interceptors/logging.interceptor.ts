@@ -109,7 +109,10 @@ export class LoggingInterceptor implements NestInterceptor {
     }
 
     try {
-      // Only include sessionId if it exists to avoid foreign key constraint errors
+      // Only include sessionId if it resolves to an existing user_sessions row.
+      // Some requests can carry a client session id before the session tracker persists it.
+      const safeSessionId = await this.resolveSessionIdForAudit(ctx.sessionId);
+
       await this.prisma.requestAudit.upsert({
         where: { requestId: ctx.requestId },
         update: {}, // Ignore duplicates (idempotent)
@@ -124,8 +127,7 @@ export class LoggingInterceptor implements NestInterceptor {
           durationMs,
           userId: ctx.userId,
           feature: ctx.feature || this.inferFeature(path),
-          // Only add sessionId if it's provided (to avoid FK constraint violations)
-          ...(ctx.sessionId && { sessionId: ctx.sessionId }),
+          ...(safeSessionId && { sessionId: safeSessionId }),
           ...(error && {
             errorName: error.name,
             errorMessage: error.message,
@@ -134,51 +136,28 @@ export class LoggingInterceptor implements NestInterceptor {
         },
       });
     } catch (err) {
-      // Handle foreign key constraint violation (e.g., invalid sessionId)
-      // Supabase pooler may surface FK violations as PrismaClientUnknownRequestError
-      // (no `code` property), so we check both the code and the message text.
-      const isFkViolation =
-        (err as any).code === 'P2003' ||
-        (err as any).message?.includes('Foreign key constraint') ||
-        (err as any).message?.includes('foreign key constraint');
-
-      if (isFkViolation) {
-        // Retry without sessionId - sessionId may not exist yet in user_sessions
-        try {
-          await this.prisma.requestAudit.upsert({
-            where: { requestId: ctx.requestId },
-            update: {},
-            create: {
-              requestId: ctx.requestId,
-              correlationId: ctx.correlationId,
-              traceId: ctx.traceId,
-              spanId: ctx.spanId,
-              method,
-              path,
-              statusCode,
-              durationMs,
-              userId: ctx.userId,
-              sessionId: null, // Set to null on retry
-              feature: ctx.feature || this.inferFeature(path),
-              ...(error && {
-                errorName: error.name,
-                errorMessage: error.message,
-                errorCode: (error as any).code,
-              }),
-            },
-          });
-          return; // Success on retry
-        } catch (retryErr) {
-          // If retry also fails, fall through to log the error below
-        }
-      }
-
       // CRITICAL: Never fail the request if audit logging fails
       // Log the failure but continue
       this.logger.error('Failed to create request audit', err as Error, {
         requestId: ctx.requestId,
         correlationId: ctx.correlationId,
       });
+    }
+  }
+
+  private async resolveSessionIdForAudit(sessionId?: string): Promise<string | null> {
+    if (!sessionId) {
+      return null;
+    }
+
+    try {
+      const session = await this.prisma.userSession.findUnique({
+        where: { sessionId },
+        select: { sessionId: true },
+      });
+      return session?.sessionId || null;
+    } catch {
+      return null;
     }
   }
 
