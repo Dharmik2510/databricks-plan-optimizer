@@ -40,19 +40,19 @@ export class McpClientService implements OnModuleInit {
     });
 
     if (!url) {
-      const error = new Error('MCP_SERVER_URL is required for MCP client startup validation');
-      this.logger.error('❌ MCP client initialization failed: missing MCP_SERVER_URL', error);
-      throw error;
+      this.logger.warn('⚠️ MCP_SERVER_URL is missing. MCP client will not be initialized on startup.');
+      return;
     }
 
     try {
       await this.urlSafety.assertSafeUrl(url);
       this.logger.log('✅ MCP server URL safety validated', { url: this.maskSensitiveUrl(url) });
     } catch (error) {
-      this.logger.error('❌ MCP server URL safety validation failed', error as Error, {
+      this.logger.warn('⚠️ MCP server URL safety validation failed on startup. Will not initialize.', {
+        errorMessage: error instanceof Error ? error.message : String(error),
         url: this.maskSensitiveUrl(url),
       });
-      throw error;
+      return;
     }
 
     const client = new McpHttpClient({
@@ -102,12 +102,12 @@ export class McpClientService implements OnModuleInit {
       });
     } catch (error) {
       const latency = Date.now() - startTime;
-      this.logger.error('❌ Failed to initialize MCP client', error as Error, {
+      this.logger.error('❌ Failed to initialize MCP client on startup. Will retry lazily on first request.', error as Error, {
         connectionId: 'default',
         url: this.maskSensitiveUrl(url),
         latencyMs: latency,
       });
-      throw error;
+      // Do not throw here so the application can continue bootstrapping.
     }
   }
 
