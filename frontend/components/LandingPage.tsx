@@ -19,7 +19,8 @@ import {
     Users
 } from 'lucide-react';
 import { AnalysisShowcase } from './AnalysisShowcase';
-import { ThreeBackground } from './ThreeBackground';
+import { CanvasBackground } from './CanvasBackground';
+import { CustomCursor } from './CustomCursor';
 import { PrivacyPolicy } from './legal/PrivacyPolicy';
 import { TermsOfService } from './legal/TermsOfService';
 import { CookiePolicy } from './legal/CookiePolicy';
@@ -77,12 +78,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     return (
         <div className={`min-h-screen font-sans selection:bg-orange-500/30 ${darkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
 
-            {/* Background Effect */}
-            {darkMode && (
-                <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
-                    <ThreeBackground showGrids={false} />
-                </div>
-            )}
+            {/* Canvas particle background + grid overlay (dark mode only) */}
+            {darkMode && <CanvasBackground />}
+
+            {/* Custom dual-ring cursor (dark mode only) */}
+            {darkMode && <CustomCursor />}
 
             {/* Navbar */}
             <nav
