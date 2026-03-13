@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.48.0...v1.49.0) (2026-03-13)
+
+
+### Features
+
+* Replace Three.js background with canvas particle animation and custom cursor ([2d05288](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2d05288aa24fb98c1acaa8882b2c6b2c6f42da43))
+
 # [1.48.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.47.0...v1.48.0) (2026-01-04)
 
 
