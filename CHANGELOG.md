@@ -1,3 +1,10 @@
+# [1.50.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.49.0...v1.50.0) (2026-03-22)
+
+
+### Features
+
+* add auto-assign copilot workflow for security issues ([2b241df](https://github.com/Dharmik2510/databricks-plan-optimizer/commit/2b241dfc6f2994589bcca745c9369fd85d114c66))
+
 # [1.49.0](https://github.com/Dharmik2510/databricks-plan-optimizer/compare/v1.48.0...v1.49.0) (2026-03-13)
 
 
