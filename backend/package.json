@@ -132,6 +132,7 @@
     "glob": "^11.0.0",
     "tmp": "^0.2.4",
     "inquirer": "^10.0.0",
-    "@google/generative-ai": "^0.21.0"
+    "@google/generative-ai": "^0.21.0",
+    "@nestjs/devtools-integration": ">=0.2.1"
   }
 }
