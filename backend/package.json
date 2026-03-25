@@ -84,6 +84,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "@nestjs/devtools-integration": "^0.2.1",
     "@nestjs/cli": "^10.1.18",
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^10.4.6",
